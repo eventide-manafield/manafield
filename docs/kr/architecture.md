@@ -57,6 +57,20 @@ Module의 내부 구현은 의도적으로 최대한 자유롭게 둡니다.
 
 Module은 Python, Go, Node.js, Java, Rust 또는 Protocol을 구현할 수 있는 다른 환경으로 작성할 수 있습니다.
 
+### Boundary-first Development
+
+Manafield는 **나중에 분리하기 비싼 경계와 책임은 장기 구조를 기준으로 먼저 설계하고, 각 구성요소의 내부 구현은 현재 필요한 만큼만 채우는 방식**을 따릅니다.
+
+즉 미래 기능을 모두 미리 구현하지는 않지만, 다음과 같은 경계는 초기에 명시적으로 둡니다.
+
+- Core와 Module
+- Operation과 Binding / Codec
+- Registry Write Model과 Read Snapshot
+- Core와 Runtime Provider
+- 일반 Module과 privileged system component
+
+주요 Architecture 결정과 이유는 [ADR](adr/README.md)에 기록합니다.
+
 ### Operation의 역할
 
 Manafield에서 **Operation**은 Module이 외부에 제공하는 호출 가능한 기능을 표현하는 공통 계약입니다.
@@ -193,37 +207,68 @@ Manafield 인스턴스에 직접적인 기능을 제공합니다.
 
 ## 7. Runtime 모델
 
-Manafield는 Container Runtime 자체를 구현하지 않습니다.
+Manafield Core는 특정 실행 기술에 종속되지 않습니다.
 
-Core는 Runtime Adapter 경계를 통해 기존 실행 환경을 사용합니다.
+Module을 실제로 생성하고 시작하고 중지하고 제거하는 역할은 **Runtime Provider**가 담당합니다. Runtime Provider는 일반 Module이 아니라 실행 환경을 제어하는 privileged system component입니다.
 
-초기 목표와 장기 Runtime 확장 방향은 다음과 같습니다.
+Core는 Runtime Provider가 없어도 Registry, Operation Discovery, Validation 같은 기본 기능을 수행할 수 있어야 합니다.
 
 ```mermaid
 flowchart LR
+    Core["Manafield Core<br/>no docker.sock"]
+    Protocol["Runtime Protocol"]
+    DockerProvider["Docker Runtime Provider<br/>separate process"]
+    Docker["Docker daemon"]
+    Modules["Module containers"]
+
+    Core --> Protocol
+    Protocol --> DockerProvider
+    DockerProvider --> Docker
+    Docker --> Modules
+```
+
+초기 Docker Provider는 Core와 **같은 Repository / Release**에서 관리하되 별도 Binary / Process로 실행하는 방향을 사용합니다.
+
+```text
+same source / release
+├─ manafield
+└─ manafield-runtime-docker
+```
+
+Docker 배포에서는 Core에 `docker.sock`을 제공하지 않고 Docker Runtime Provider에만 제공합니다. 이를 통해 Docker-specific privilege와 policy를 Core의 일반 API / Registry 로직에서 분리합니다.
+
+Core와 Provider 사이에는 제한된 **Runtime Protocol**을 둡니다. 이 Protocol은 임의 Docker 명령 실행 API가 아니라 Manafield lifecycle 수준의 요청을 표현해야 합니다.
+
+예:
+
+```text
+Create
+Start
+Stop
+Remove
+Status
+```
+
+초기 local transport로는 Unix Domain Socket을 우선 검토합니다. 향후 필요하다면 Process, Remote, Kubernetes 등 다른 Runtime Provider를 추가할 수 있습니다.
+
+```mermaid
+flowchart TB
     Core["Manafield Core"]
-    Adapter["Runtime Adapter"]
-    Docker["Docker<br/>(Initial Target)"]
-    K8s["Kubernetes<br/>(Long-term)"]
+    RuntimeProtocol["Runtime Protocol"]
 
-    Core --> Adapter
-    Adapter --> Docker
-    Adapter -.-> K8s
+    DockerProvider["Docker Provider"]
+    ProcessProvider["Process Provider<br/>(future)"]
+    RemoteProvider["Remote Provider<br/>(future)"]
+    K8sProvider["Kubernetes Provider<br/>(long-term)"]
+
+    Core --> RuntimeProtocol
+    RuntimeProtocol --> DockerProvider
+    RuntimeProtocol -.-> ProcessProvider
+    RuntimeProtocol -.-> RemoteProvider
+    RuntimeProtocol -.-> K8sProvider
 ```
 
-개념적인 인터페이스 예시는 다음과 같습니다.
-
-```rust
-trait ModuleRuntime {
-    async fn install(&self, module: &ModuleSpec) -> Result<()>;
-    async fn start(&self, id: &ModuleId) -> Result<()>;
-    async fn stop(&self, id: &ModuleId) -> Result<()>;
-    async fn status(&self, id: &ModuleId) -> Result<ModuleStatus>;
-    async fn remove(&self, id: &ModuleId) -> Result<()>;
-}
-```
-
-정확한 Rust API는 아직 확정되지 않았습니다.
+Runtime Provider의 상세 Protocol과 capability 모델은 아직 설계 중입니다. 결정 배경은 [ADR-0004](adr/0004-runtime-provider-boundary.md)와 [ADR-0005](adr/0005-docker-provider-isolation.md)를 참고합니다.
 
 ## 8. Web Contribution
 
