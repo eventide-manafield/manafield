@@ -1,18 +1,18 @@
 mod api;
 mod core;
 
+use std::error::Error;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use axum::Router;
-use core::{
-    HttpMethod, ModuleDescriptor, ModuleRegistry, OperationBinding, OperationContract, PayloadCodec,
-};
-use serde_json::json;
+use core::{ModuleRegistry, discover_modules};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8080";
+const DEFAULT_MODULES_DIR: &str = "modules";
 
 #[tokio::main]
 async fn main() {
@@ -25,7 +25,8 @@ async fn main() {
         .parse()
         .expect("MANAFIELD_BIND must be a valid socket address");
 
-    let registry = initial_registry();
+    let registry =
+        load_registry().unwrap_or_else(|error| panic!("failed to load Manafield modules: {error}"));
     let app = Router::new().merge(api::router(registry));
 
     let listener = TcpListener::bind(addr)
@@ -40,58 +41,27 @@ async fn main() {
         .expect("Manafield Core server failed");
 }
 
-fn initial_registry() -> ModuleRegistry {
+fn load_registry() -> Result<ModuleRegistry, Box<dyn Error>> {
+    let modules_dir = PathBuf::from(
+        std::env::var("MANAFIELD_MODULES_DIR").unwrap_or_else(|_| DEFAULT_MODULES_DIR.to_owned()),
+    );
+
+    let modules = discover_modules(&modules_dir)?;
+    let module_count = modules.len();
+
     let mut registry = ModuleRegistry::new();
 
-    registry
-        .register(ModuleDescriptor {
-            id: "sample".to_owned(),
-            name: "Sample Module".to_owned(),
-            version: "0.0.1".to_owned(),
-            operations: vec![
-                OperationContract {
-                    id: "hello".to_owned(),
-                    input: None,
-                    output: Some(json!({
-                        "type": "object",
-                        "required": ["message"],
-                        "properties": {
-                            "message": { "type": "string" }
-                        }
-                    })),
-                    binding: OperationBinding::Http {
-                        method: HttpMethod::Get,
-                        path: "/hello".to_owned(),
-                        codecs: vec![PayloadCodec::Json, PayloadCodec::MessagePack],
-                    },
-                },
-                OperationContract {
-                    id: "echo".to_owned(),
-                    input: Some(json!({
-                        "type": "object",
-                        "required": ["message"],
-                        "properties": {
-                            "message": { "type": "string" }
-                        }
-                    })),
-                    output: Some(json!({
-                        "type": "object",
-                        "required": ["message"],
-                        "properties": {
-                            "message": { "type": "string" }
-                        }
-                    })),
-                    binding: OperationBinding::Http {
-                        method: HttpMethod::Post,
-                        path: "/echo".to_owned(),
-                        codecs: vec![PayloadCodec::Json, PayloadCodec::MessagePack],
-                    },
-                },
-            ],
-        })
-        .expect("initial module registry must be valid");
+    for module in modules {
+        registry.register(module)?;
+    }
 
-    registry
+    info!(
+        path = %modules_dir.display(),
+        modules = module_count,
+        "Manafield modules loaded"
+    );
+
+    Ok(registry)
 }
 
 fn init_tracing() {
