@@ -291,6 +291,29 @@ Invalid manifests are not silently ignored; they cause Core startup to fail.
 
 This is a development-time Descriptor/Manifest shape and may evolve as installation metadata such as Runtime, permissions, and dependencies is added.
 
+### Runtime Registry API
+
+Module descriptors can also be registered and removed while Core is running.
+
+```http
+POST   /modules
+GET    /modules
+GET    /modules/{id}
+DELETE /modules/{id}
+```
+
+`POST /modules` accepts `application/json` and `application/msgpack` request bodies. Response serialization is selected through the `Accept` header.
+
+After a successful registration or removal, `ModuleRegistry` is mutated, a new `RegistrySnapshot` is built, and the snapshot is immediately published through `ArcSwap`. Read requests use the current snapshot rather than the mutable Registry.
+
+Current primary status codes are:
+
+- successful registration: `201 Created`
+- duplicate Module ID: `409 Conflict`
+- invalid Module Descriptor: `400 Bad Request`
+- missing Module on lookup/removal: `404 Not Found`
+- unsupported request Codec: `415 Unsupported Media Type`
+
 ## 7. Compatibility Goal
 
 A future Core implementation should be replaceable without forcing Modules to be rewritten, as long as both sides implement the same protocol version.
