@@ -194,6 +194,47 @@ Example:
 
 Core also validates that Object Schema entries listed in `required` exist in `properties` and are not duplicated.
 
+### Health Operation Reference
+
+A Module may optionally specify one Operation ID through `healthOperation`.
+
+```json
+{
+  "id": "example",
+  "name": "Example Module",
+  "version": "0.1.0",
+  "healthOperation": "health",
+  "operations": [
+    {
+      "id": "health",
+      "input": null,
+      "output": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" }
+        },
+        "required": ["status"]
+      },
+      "binding": {
+        "type": "http",
+        "method": "GET",
+        "path": "/manafield/health",
+        "codecs": ["json"]
+      }
+    }
+  ]
+}
+```
+
+`healthOperation` is a reference to an existing Operation rather than a duplicate health-check definition.
+
+Core validates that:
+
+- the referenced Operation ID exists in `operations`
+- the Health Operation can be invoked without additional input, so its `input` must be `null`
+
+This allows a health checker to directly use the declared Operation instead of inferring one from the full Operation list.
+
 The initial `PayloadCodec` variants are `Json` and `MessagePack`. Serde allows the same Rust data model to be serialized into either representation, and a Module can advertise its supported codecs as binding metadata.
 
 When a Module is registered, Core stores the Module descriptor and its Operation contracts together in the Registry.
@@ -245,9 +286,24 @@ container:
   image: ghcr.io/example/example-module:0.1.0
   port: 8080
 
-health:
-  method: GET
-  path: /manafield/health
+healthOperation: health
+
+operations:
+  - id: health
+    input: null
+    output:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    binding:
+      type: http
+      method: GET
+      path: /manafield/health
+      codecs:
+        - json
 
 web:
   mode: proxy
@@ -283,6 +339,8 @@ Current validation rules include:
 - Operation IDs must be unique within a Module
 - HTTP paths must begin with `/`
 - HTTP Operations must declare at least one Codec
+- when `healthOperation` is set, the referenced Operation ID must exist
+- the Health Operation must not require input
 - duplicate Module IDs cannot be registered
 
 Invalid manifests are not silently ignored; they cause Core startup to fail.
