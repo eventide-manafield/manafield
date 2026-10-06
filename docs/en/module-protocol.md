@@ -145,8 +145,8 @@ The initial Rust model follows this concept:
 ```rust
 struct OperationContract {
     id: String,
-    input: Option<Value>,
-    output: Option<Value>,
+    input: Option<DataSchema>,
+    output: Option<DataSchema>,
     binding: OperationBinding,
 }
 
@@ -160,6 +160,39 @@ enum OperationBinding {
 ```
 
 At the moment, `OperationBinding` contains only HTTP. New variants are added when another invocation mechanism is actually supported.
+
+### DataSchema
+
+Operation Input/Output values are no longer stored as arbitrary JSON values. They are deserialized into Manafield Core's typed `DataSchema`.
+
+The initial schema types are:
+
+- `string`
+- `integer`
+- `number`
+- `boolean`
+- `array` — contains another `DataSchema` in `items`
+- `object` — contains named `DataSchema` values in `properties` and declares required fields with `required`
+
+Arrays and objects can recursively contain other schemas, allowing nested data structures.
+
+Example:
+
+```json
+{
+  "type": "object",
+  "required": ["name", "tags"],
+  "properties": {
+    "name": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
+```
+
+Core also validates that Object Schema entries listed in `required` exist in `properties` and are not duplicated.
 
 The initial `PayloadCodec` variants are `Json` and `MessagePack`. Serde allows the same Rust data model to be serialized into either representation, and a Module can advertise its supported codecs as binding metadata.
 
