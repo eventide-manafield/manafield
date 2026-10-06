@@ -12,4 +12,6 @@ ADRs focus on **long-lived boundaries and responsibilities** rather than transie
 | [0004](0004-runtime-provider-boundary.md) | Separate Runtime Providers from ordinary Modules | Accepted |
 | [0005](0005-docker-provider-isolation.md) | Isolate Docker Provider in a separate process | Accepted |
 
+| [0006](0006-instance-build-plan.md) | Instance Build Plan / single Pipeline per instance | Accepted |
+
 Add new ADRs sequentially as long-term decisions are made.
