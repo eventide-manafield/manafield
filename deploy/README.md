@@ -22,6 +22,27 @@ Build Plan
 → exact revisions / image tags / affected components
 ```
 
+## Public example vs private instance
+
+The files in this directory describe the public deployment contract and examples.
+
+`instance.example.yaml` is intentionally safe to publish.
+
+A real production `instance.yaml` is **private by default** and should be managed outside the public Core repository. The repository ignores `deploy/instance.yaml` to reduce the chance of accidentally committing a real instance definition.
+
+A real instance may freely mix:
+
+- public Modules
+- private Modules
+- public Integrations
+- private Integrations
+
+Source visibility does not change the Manafield Protocol contract. CI/CD simply needs the appropriate credentials for private sources.
+
+Secrets still do not belong in a private `instance.yaml`; inject them through CI/runtime secret mechanisms instead.
+
+See [ADR-0007](../docs/en/adr/0007-public-platform-private-instance.md) for the architectural decision.
+
 ## Draft v0
 
 See [instance.example.yaml](instance.example.yaml).
