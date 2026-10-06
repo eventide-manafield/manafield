@@ -15,6 +15,8 @@ A Module should not need to import Manafield Core code or use a mandatory SDK.
 
 Language-specific SDKs may exist for convenience, but they must remain optional.
 
+> The DataSchema, Binding, Codec, and Health Operation model is documented separately in [Operation](operation.md).
+
 ## 2. Operations, Bindings, and Codecs
 
 Manafield represents callable functionality exposed by a Module as an **Operation**.
