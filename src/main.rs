@@ -6,7 +6,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use axum::Router;
-use core::{ModuleRegistry, discover_modules};
+use core::{RegistryService, discover_modules};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -25,8 +25,9 @@ async fn main() {
         .parse()
         .expect("MANAFIELD_BIND must be a valid socket address");
 
-    let registry =
-        load_registry().unwrap_or_else(|error| panic!("failed to load Manafield modules: {error}"));
+    let registry = load_registry()
+        .await
+        .unwrap_or_else(|error| panic!("failed to load Manafield modules: {error}"));
     let app = Router::new().merge(api::router(registry));
 
     let listener = TcpListener::bind(addr)
@@ -41,18 +42,17 @@ async fn main() {
         .expect("Manafield Core server failed");
 }
 
-fn load_registry() -> Result<ModuleRegistry, Box<dyn Error>> {
+async fn load_registry() -> Result<RegistryService, Box<dyn Error>> {
     let modules_dir = PathBuf::from(
         std::env::var("MANAFIELD_MODULES_DIR").unwrap_or_else(|_| DEFAULT_MODULES_DIR.to_owned()),
     );
 
     let modules = discover_modules(&modules_dir)?;
     let module_count = modules.len();
-
-    let mut registry = ModuleRegistry::new();
+    let registry = RegistryService::new();
 
     for module in modules {
-        registry.register(module)?;
+        registry.register(module).await?;
     }
 
     info!(
