@@ -12,10 +12,7 @@ pub struct OperationContract {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum OperationBinding {
-    Http {
-        method: HttpMethod,
-        path: String,
-    },
+    Http { method: HttpMethod, path: String },
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
