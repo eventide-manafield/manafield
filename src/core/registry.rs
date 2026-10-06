@@ -24,6 +24,12 @@ impl ModuleRegistry {
         Ok(())
     }
 
+    pub fn remove(&mut self, id: &str) -> Result<ModuleDescriptor, RegistryError> {
+        self.modules
+            .remove(id)
+            .ok_or_else(|| RegistryError::ModuleNotFound(id.to_owned()))
+    }
+
     pub fn list(&self) -> Vec<ModuleDescriptor> {
         self.modules.values().cloned().collect()
     }
@@ -32,6 +38,7 @@ impl ModuleRegistry {
 #[derive(Debug)]
 pub enum RegistryError {
     DuplicateModule(String),
+    ModuleNotFound(String),
     InvalidModule(ValidationError),
 }
 
@@ -39,6 +46,7 @@ impl fmt::Display for RegistryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DuplicateModule(id) => write!(f, "module '{id}' is already registered"),
+            Self::ModuleNotFound(id) => write!(f, "module '{id}' is not registered"),
             Self::InvalidModule(error) => write!(f, "invalid module: {error}"),
         }
     }
@@ -47,7 +55,7 @@ impl fmt::Display for RegistryError {
 impl std::error::Error for RegistryError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::DuplicateModule(_) => None,
+            Self::DuplicateModule(_) | Self::ModuleNotFound(_) => None,
             Self::InvalidModule(error) => Some(error),
         }
     }
