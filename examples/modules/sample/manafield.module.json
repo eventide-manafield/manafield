@@ -1,0 +1,59 @@
+{
+  "id": "sample",
+  "name": "Sample Module",
+  "version": "0.0.1",
+  "operations": [
+    {
+      "id": "hello",
+      "input": null,
+      "output": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "binding": {
+        "type": "http",
+        "method": "GET",
+        "path": "/hello",
+        "codecs": [
+          "json",
+          "messagepack"
+        ]
+      }
+    },
+    {
+      "id": "echo",
+      "input": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "output": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "binding": {
+        "type": "http",
+        "method": "POST",
+        "path": "/echo",
+        "codecs": [
+          "json",
+          "messagepack"
+        ]
+      }
+    }
+  ]
+}
