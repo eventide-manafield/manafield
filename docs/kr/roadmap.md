@@ -140,9 +140,25 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0003 — Registry Snapshot / ArcSwap Read Model
 - [x] ADR-0004 — Runtime Provider Boundary
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
+- [x] ADR-0006 — Instance Build Plan / 인스턴스별 단일 Pipeline
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
+
+## Phase 5 — CI/CD / Instance Build Plan
+
+- [x] 인스턴스별 단일 Pipeline 원칙 확정
+- [x] Module별 Jenkins Job을 만들지 않는 방향 확정
+- [x] Module build contract를 Repository root Dockerfile로 시작
+- [ ] Instance Definition v0
+- [ ] Build Plan Resolver v0
+- [ ] Jenkins 단일 Pipeline skeleton
+- [ ] GitHub webhook → 동일 Instance Pipeline 연결
+- [ ] 변경 source 기반 selective build
+- [ ] Core / Runtime Provider / Module image tagging
+- [ ] Deploy 후 Health / Protocol verification
+- [ ] CI credential store 기반 Secret 주입
+- [ ] Jenkins 외 executor에서도 Build Plan 재사용 가능한 구조 검증
 
 ## Long-term
 
