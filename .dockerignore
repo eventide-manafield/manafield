@@ -1,0 +1,11 @@
+target
+.git
+.github
+docs
+deploy
+examples
+.env
+.env.*
+README.md
+LICENSE
+NOTICE
