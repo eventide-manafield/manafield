@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Json, Router,
-    body::Body,
+    body::{Body, Bytes},
     extract::{Path, State},
     http::{
         HeaderMap, StatusCode,
@@ -11,9 +11,9 @@ use axum::{
     response::Response,
     routing::get,
 };
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 
-use crate::core::RegistryService;
+use crate::core::{ModuleDescriptor, RegistryError, RegistryService};
 
 const JSON_MEDIA_TYPE: &str = "application/json";
 const MESSAGEPACK_MEDIA_TYPE: &str = "application/msgpack";
@@ -37,8 +37,8 @@ pub fn router(registry: RegistryService) -> Router {
 
     Router::new()
         .route("/health", get(health))
-        .route("/modules", get(list_modules))
-        .route("/modules/{id}", get(get_module))
+        .route("/modules", get(list_modules).post(register_module))
+        .route("/modules/{id}", get(get_module).delete(remove_module))
         .with_state(state)
 }
 
@@ -55,7 +55,7 @@ async fn list_modules(
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
     let snapshot = state.registry.snapshot();
-    encode_response(&headers, snapshot.modules())
+    encode_response(&headers, snapshot.modules(), StatusCode::OK)
 }
 
 async fn get_module(
@@ -66,10 +66,70 @@ async fn get_module(
     let snapshot = state.registry.snapshot();
     let module = snapshot.get(&id).ok_or(StatusCode::NOT_FOUND)?;
 
-    encode_response(&headers, module)
+    encode_response(&headers, module, StatusCode::OK)
 }
 
-fn encode_response<T>(headers: &HeaderMap, value: &T) -> Result<Response, StatusCode>
+async fn register_module(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Response, StatusCode> {
+    let module: ModuleDescriptor = decode_request(&headers, &body)?;
+
+    state
+        .registry
+        .register(module.clone())
+        .await
+        .map_err(registry_error_status)?;
+
+    encode_response(&headers, &module, StatusCode::CREATED)
+}
+
+async fn remove_module(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, StatusCode> {
+    let removed = state
+        .registry
+        .remove(&id)
+        .await
+        .map_err(registry_error_status)?;
+
+    encode_response(&headers, &removed, StatusCode::OK)
+}
+
+fn decode_request<T>(headers: &HeaderMap, body: &[u8]) -> Result<T, StatusCode>
+where
+    T: DeserializeOwned,
+{
+    let content_type = headers
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or(JSON_MEDIA_TYPE);
+
+    if content_type.starts_with(MESSAGEPACK_MEDIA_TYPE) {
+        rmp_serde::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)
+    } else if content_type.starts_with(JSON_MEDIA_TYPE) {
+        serde_json::from_slice(body).map_err(|_| StatusCode::BAD_REQUEST)
+    } else {
+        Err(StatusCode::UNSUPPORTED_MEDIA_TYPE)
+    }
+}
+
+fn registry_error_status(error: RegistryError) -> StatusCode {
+    match error {
+        RegistryError::DuplicateModule(_) => StatusCode::CONFLICT,
+        RegistryError::ModuleNotFound(_) => StatusCode::NOT_FOUND,
+        RegistryError::InvalidModule(_) => StatusCode::BAD_REQUEST,
+    }
+}
+
+fn encode_response<T>(
+    headers: &HeaderMap,
+    value: &T,
+    status: StatusCode,
+) -> Result<Response, StatusCode>
 where
     T: Serialize + ?Sized,
 {
@@ -91,7 +151,7 @@ where
     };
 
     Response::builder()
-        .status(StatusCode::OK)
+        .status(status)
         .header(CONTENT_TYPE, content_type)
         .body(Body::from(body))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
