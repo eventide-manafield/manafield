@@ -114,6 +114,7 @@ flowchart TB
 
 - [Architecture](docs/kr/architecture.md)
 - [Module Protocol](docs/kr/module-protocol.md)
+- [Operation](docs/kr/operation.md)
 - [Roadmap](docs/kr/roadmap.md)
 
 ## License
@@ -175,6 +176,7 @@ This will validate real-world lifecycle management involving an application runt
 
 - [Architecture](docs/en/architecture.md)
 - [Module Protocol](docs/en/module-protocol.md)
+- [Operation](docs/en/operation.md)
 - [Roadmap](docs/en/roadmap.md)
 
 ## Status
