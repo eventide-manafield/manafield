@@ -62,6 +62,24 @@ pub fn validate_module(module: &ModuleDescriptor) -> Result<(), ValidationError>
         }
     }
 
+    if let Some(health_operation_id) = &module.health_operation {
+        if health_operation_id.trim().is_empty() {
+            return Err(ValidationError::EmptyHealthOperationId);
+        }
+
+        let health_operation = module
+            .operations
+            .iter()
+            .find(|operation| operation.id == *health_operation_id)
+            .ok_or_else(|| ValidationError::UnknownHealthOperation(health_operation_id.clone()))?;
+
+        if health_operation.input.is_some() {
+            return Err(ValidationError::HealthOperationHasInput(
+                health_operation_id.clone(),
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -71,7 +89,10 @@ pub enum ValidationError {
     EmptyModuleName,
     EmptyModuleVersion,
     EmptyOperationId,
+    EmptyHealthOperationId,
     DuplicateOperationId(String),
+    UnknownHealthOperation(String),
+    HealthOperationHasInput(String),
     InvalidInputSchema {
         operation_id: String,
         source: SchemaError,
@@ -94,8 +115,15 @@ impl fmt::Display for ValidationError {
             Self::EmptyModuleName => write!(f, "module name must not be empty"),
             Self::EmptyModuleVersion => write!(f, "module version must not be empty"),
             Self::EmptyOperationId => write!(f, "operation id must not be empty"),
+            Self::EmptyHealthOperationId => write!(f, "health operation id must not be empty"),
             Self::DuplicateOperationId(id) => {
                 write!(f, "operation id '{id}' is duplicated")
+            }
+            Self::UnknownHealthOperation(id) => {
+                write!(f, "health operation '{id}' does not exist")
+            }
+            Self::HealthOperationHasInput(id) => {
+                write!(f, "health operation '{id}' must not require input")
             }
             Self::InvalidInputSchema {
                 operation_id,
@@ -147,6 +175,7 @@ mod tests {
             id: "sample".to_owned(),
             name: "Sample Module".to_owned(),
             version: "0.0.1".to_owned(),
+            health_operation: None,
             operations: vec![OperationContract {
                 id: "echo".to_owned(),
                 input: Some(DataSchema::Object {
@@ -166,9 +195,59 @@ mod tests {
         }
     }
 
+    fn health_operation() -> OperationContract {
+        OperationContract {
+            id: "health".to_owned(),
+            input: None,
+            output: Some(DataSchema::Object {
+                properties: BTreeMap::new(),
+                required: Vec::new(),
+            }),
+            binding: OperationBinding::Http {
+                method: HttpMethod::Get,
+                path: "/manafield/health".to_owned(),
+                codecs: vec![PayloadCodec::Json],
+            },
+        }
+    }
+
     #[test]
     fn accepts_valid_module() {
         assert!(validate_module(&valid_module()).is_ok());
+    }
+
+    #[test]
+    fn accepts_valid_health_operation_reference() {
+        let mut module = valid_module();
+        module.health_operation = Some("health".to_owned());
+        module.operations.push(health_operation());
+
+        assert!(validate_module(&module).is_ok());
+    }
+
+    #[test]
+    fn rejects_missing_health_operation_reference() {
+        let mut module = valid_module();
+        module.health_operation = Some("health".to_owned());
+
+        assert!(matches!(
+            validate_module(&module),
+            Err(ValidationError::UnknownHealthOperation(_))
+        ));
+    }
+
+    #[test]
+    fn rejects_health_operation_with_input() {
+        let mut module = valid_module();
+        let mut health = health_operation();
+        health.input = Some(DataSchema::String);
+        module.health_operation = Some("health".to_owned());
+        module.operations.push(health);
+
+        assert!(matches!(
+            validate_module(&module),
+            Err(ValidationError::HealthOperationHasInput(_))
+        ));
     }
 
     #[test]
