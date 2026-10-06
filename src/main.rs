@@ -1,8 +1,11 @@
 mod api;
+mod core;
 
 use std::net::SocketAddr;
 
 use axum::Router;
+use core::{ApiContract, HttpMethod, ModuleDescriptor, ModuleRegistry};
+use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -20,7 +23,8 @@ async fn main() {
         .parse()
         .expect("MANAFIELD_BIND must be a valid socket address");
 
-    let app = Router::new().merge(api::router());
+    let registry = initial_registry();
+    let app = Router::new().merge(api::router(registry));
 
     let listener = TcpListener::bind(addr)
         .await
@@ -32,6 +36,54 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Manafield Core server failed");
+}
+
+fn initial_registry() -> ModuleRegistry {
+    let mut registry = ModuleRegistry::new();
+
+    registry
+        .register(ModuleDescriptor {
+            id: "sample".to_owned(),
+            name: "Sample Module".to_owned(),
+            version: "0.0.1".to_owned(),
+            apis: vec![
+                ApiContract {
+                    id: "hello".to_owned(),
+                    method: HttpMethod::Get,
+                    path: "/hello".to_owned(),
+                    input: None,
+                    output: Some(json!({
+                        "type": "object",
+                        "required": ["message"],
+                        "properties": {
+                            "message": { "type": "string" }
+                        }
+                    })),
+                },
+                ApiContract {
+                    id: "echo".to_owned(),
+                    method: HttpMethod::Post,
+                    path: "/echo".to_owned(),
+                    input: Some(json!({
+                        "type": "object",
+                        "required": ["message"],
+                        "properties": {
+                            "message": { "type": "string" }
+                        }
+                    })),
+                    output: Some(json!({
+                        "type": "object",
+                        "required": ["message"],
+                        "properties": {
+                            "message": { "type": "string" }
+                        }
+                    })),
+                },
+            ],
+        })
+        .expect("initial module registry must be valid");
+
+    registry
 }
 
 fn init_tracing() {
