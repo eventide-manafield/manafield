@@ -1,0 +1,32 @@
+{
+  "version": 0,
+  "instanceId": "manafield-local",
+  "core": {
+    "source": {
+      "repository": "https://github.com/eventide-manafield/manafield.git",
+      "ref": "main"
+    }
+  },
+  "runtimeProviders": [
+    {
+      "id": "docker"
+    }
+  ],
+  "modules": [
+    {
+      "id": "reference-web",
+      "source": {
+        "repository": "https://github.com/eventide-manafield/manafield-module-reference.git",
+        "ref": "main"
+      },
+      "build": {
+        "type": "docker",
+        "context": ".",
+        "dockerfile": "Dockerfile"
+      }
+    }
+  ],
+  "deployment": {
+    "network": "manafield"
+  }
+}
