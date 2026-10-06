@@ -1,0 +1,27 @@
+version: 0
+
+instance:
+  id: manafield-local
+
+core:
+  source:
+    repository: https://github.com/eventide-manafield/manafield.git
+    ref: main
+
+runtimeProviders:
+  - id: docker
+    enabled: true
+
+modules:
+  - id: reference-web
+    enabled: true
+    source:
+      repository: https://github.com/eventide-manafield/manafield-module-reference.git
+      ref: main
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+
+deployment:
+  network: manafield
