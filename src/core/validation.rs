@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use super::schema::SchemaError;
 use super::{ModuleDescriptor, OperationBinding};
 
 pub fn validate_module(module: &ModuleDescriptor) -> Result<(), ValidationError> {
@@ -25,6 +26,24 @@ pub fn validate_module(module: &ModuleDescriptor) -> Result<(), ValidationError>
 
         if !operation_ids.insert(operation.id.as_str()) {
             return Err(ValidationError::DuplicateOperationId(operation.id.clone()));
+        }
+
+        if let Some(input) = &operation.input {
+            input
+                .validate()
+                .map_err(|source| ValidationError::InvalidInputSchema {
+                    operation_id: operation.id.clone(),
+                    source,
+                })?;
+        }
+
+        if let Some(output) = &operation.output {
+            output
+                .validate()
+                .map_err(|source| ValidationError::InvalidOutputSchema {
+                    operation_id: operation.id.clone(),
+                    source,
+                })?;
         }
 
         match &operation.binding {
@@ -53,7 +72,18 @@ pub enum ValidationError {
     EmptyModuleVersion,
     EmptyOperationId,
     DuplicateOperationId(String),
-    InvalidHttpPath { operation_id: String, path: String },
+    InvalidInputSchema {
+        operation_id: String,
+        source: SchemaError,
+    },
+    InvalidOutputSchema {
+        operation_id: String,
+        source: SchemaError,
+    },
+    InvalidHttpPath {
+        operation_id: String,
+        path: String,
+    },
     NoPayloadCodecs(String),
 }
 
@@ -67,6 +97,20 @@ impl fmt::Display for ValidationError {
             Self::DuplicateOperationId(id) => {
                 write!(f, "operation id '{id}' is duplicated")
             }
+            Self::InvalidInputSchema {
+                operation_id,
+                source,
+            } => write!(
+                f,
+                "invalid input schema for operation '{operation_id}': {source}"
+            ),
+            Self::InvalidOutputSchema {
+                operation_id,
+                source,
+            } => write!(
+                f,
+                "invalid output schema for operation '{operation_id}': {source}"
+            ),
             Self::InvalidHttpPath { operation_id, path } => write!(
                 f,
                 "HTTP path '{path}' for operation '{operation_id}' must start with '/'"
@@ -79,14 +123,24 @@ impl fmt::Display for ValidationError {
     }
 }
 
-impl std::error::Error for ValidationError {}
+impl std::error::Error for ValidationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidInputSchema { source, .. } | Self::InvalidOutputSchema { source, .. } => {
+                Some(source)
+            }
+            _ => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use std::collections::BTreeMap;
 
     use super::*;
     use crate::core::operation::{HttpMethod, OperationBinding, OperationContract, PayloadCodec};
+    use crate::core::schema::DataSchema;
 
     fn valid_module() -> ModuleDescriptor {
         ModuleDescriptor {
@@ -95,8 +149,14 @@ mod tests {
             version: "0.0.1".to_owned(),
             operations: vec![OperationContract {
                 id: "echo".to_owned(),
-                input: Some(json!({ "type": "object" })),
-                output: Some(json!({ "type": "object" })),
+                input: Some(DataSchema::Object {
+                    properties: BTreeMap::new(),
+                    required: Vec::new(),
+                }),
+                output: Some(DataSchema::Object {
+                    properties: BTreeMap::new(),
+                    required: Vec::new(),
+                }),
                 binding: OperationBinding::Http {
                     method: HttpMethod::Post,
                     path: "/echo".to_owned(),
@@ -131,6 +191,20 @@ mod tests {
         assert!(matches!(
             validate_module(&module),
             Err(ValidationError::InvalidHttpPath { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_input_schema() {
+        let mut module = valid_module();
+        module.operations[0].input = Some(DataSchema::Object {
+            properties: BTreeMap::new(),
+            required: vec!["missing".to_owned()],
+        });
+
+        assert!(matches!(
+            validate_module(&module),
+            Err(ValidationError::InvalidInputSchema { .. })
         ));
     }
 }
