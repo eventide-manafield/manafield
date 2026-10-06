@@ -2,7 +2,30 @@
   "id": "sample",
   "name": "Sample Module",
   "version": "0.0.1",
+  "healthOperation": "health",
   "operations": [
+    {
+      "id": "health",
+      "input": null,
+      "output": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "binding": {
+        "type": "http",
+        "method": "GET",
+        "path": "/manafield/health",
+        "codecs": [
+          "json",
+          "messagepack"
+        ]
+      }
+    },
     {
       "id": "hello",
       "input": null,
