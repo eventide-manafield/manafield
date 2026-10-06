@@ -96,6 +96,39 @@ flowchart TB
     Core -->|"Module Protocol"| Integration
 ```
 
+### Registry Read Model
+
+Module Registry는 쓰기 원본과 읽기 Snapshot을 분리합니다.
+
+- `ModuleRegistry`는 Module 등록/변경의 Source of Truth입니다.
+- 쓰기 작업은 `RwLock`을 통해 직렬화합니다.
+- 변경이 완료되면 새로운 불변 `RegistrySnapshot`을 생성합니다.
+- 현재 Snapshot은 `ArcSwap`으로 원자적으로 교체합니다.
+- 일반 조회는 `RwLock`을 거치지 않고 현재 Snapshot을 읽습니다.
+- 이전 Snapshot은 그것을 참조하는 Reader가 모두 사라지면 `Arc` 참조 카운트에 따라 자동으로 해제됩니다.
+
+```mermaid
+flowchart LR
+    Write["Register / Update / Remove"]
+    Registry["ModuleRegistry<br/>Source of Truth<br/>RwLock"]
+    Build["Build new<br/>RegistrySnapshot"]
+    Swap["ArcSwap<br/>atomic swap"]
+    Snapshot["Current immutable<br/>RegistrySnapshot"]
+    Read["Read API / Web / CLI"]
+    Old["Previous Snapshot<br/>kept only while referenced"]
+
+    Write --> Registry
+    Registry --> Build
+    Build --> Swap
+    Swap --> Snapshot
+    Snapshot --> Read
+    Swap -.-> Old
+```
+
+Snapshot 생성과 교체는 Registry write lock을 유지한 상태에서 순서대로 처리하여 여러 쓰기 요청이 서로 다른 순서로 Snapshot을 덮어쓰지 않도록 합니다. 반면 Reader는 Snapshot 생성 중에도 기존 Snapshot을 계속 읽을 수 있습니다.
+
+Registry 변경 Event는 향후 Audit, WebSocket notification, Metrics 등에 사용할 수 있지만, 기본 Read Snapshot의 정합성은 비동기 Event 처리에 의존하지 않는 방향을 유지합니다.
+
 ## 6. 구성요소 유형
 
 ### Module
