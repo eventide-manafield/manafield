@@ -1,0 +1,12 @@
+[package]
+name = "manafield"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.99"
+
+[dependencies]
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
