@@ -27,11 +27,23 @@ impl RegistryService {
         let mut registry = self.registry.write().await;
 
         registry.register(module)?;
-
-        let snapshot = RegistrySnapshot::from_registry(&registry);
-        self.snapshot.store(Arc::new(snapshot));
+        self.publish_snapshot(&registry);
 
         Ok(())
+    }
+
+    pub async fn remove(&self, id: &str) -> Result<ModuleDescriptor, RegistryError> {
+        let mut registry = self.registry.write().await;
+
+        let removed = registry.remove(id)?;
+        self.publish_snapshot(&registry);
+
+        Ok(removed)
+    }
+
+    fn publish_snapshot(&self, registry: &ModuleRegistry) {
+        let snapshot = RegistrySnapshot::from_registry(registry);
+        self.snapshot.store(Arc::new(snapshot));
     }
 }
 
@@ -115,5 +127,28 @@ mod tests {
 
         assert!(second_snapshot.get("first").is_some());
         assert!(second_snapshot.get("second").is_some());
+    }
+
+    #[tokio::test]
+    async fn swaps_snapshot_after_removal() {
+        let service = RegistryService::new();
+
+        service
+            .register(module("sample"))
+            .await
+            .expect("registration should succeed");
+
+        let before_remove = service.snapshot();
+        assert!(before_remove.get("sample").is_some());
+
+        service
+            .remove("sample")
+            .await
+            .expect("removal should succeed");
+
+        let after_remove = service.snapshot();
+
+        assert!(before_remove.get("sample").is_some());
+        assert!(after_remove.get("sample").is_none());
     }
 }
