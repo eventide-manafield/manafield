@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
+use super::schema::DataSchema;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct OperationContract {
     pub id: String,
-    pub input: Option<Value>,
-    pub output: Option<Value>,
+    pub input: Option<DataSchema>,
+    pub output: Option<DataSchema>,
     pub binding: OperationBinding,
 }
 
