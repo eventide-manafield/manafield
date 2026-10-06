@@ -32,24 +32,19 @@
 
 Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, Go, Node.js, Java, Rust 등 **어떤 언어든 상관없이 API 계약만 지키면 연결**할 수 있는 구조를 목표로 합니다.
 
-```text
-                    ┌─────────────────┐
-                    │  Manafield Web  │
-                    │    optional     │
-                    └────────┬────────┘
-                             │ Core API
-                             ▼
-┌────────────────────────────────────────────┐
-│              Manafield Core               │
-│                   Rust                    │
-│                                            │
-│ Registry · Lifecycle · Runtime · Health   │
-│ Permission · Settings · Discovery · Event │
-└───────┬───────────────┬───────────────┬───┘
-        │               │               │
-        ▼               ▼               ▼
-     Module          Service        Integration
-     Python            Node             Go
+```mermaid
+flowchart TB
+    Web["Manafield Web<br/>(Optional)"]
+    Core["Manafield Core<br/>Rust<br/><br/>Registry · Lifecycle · Runtime · Health<br/>Permission · Settings · Discovery · Event"]
+
+    Module["Module<br/>Python"]
+    Service["Service<br/>Node.js"]
+    Integration["Integration<br/>Go"]
+
+    Web -->|"Core API"| Core
+    Core -->|"Module Protocol"| Module
+    Core -->|"Module Protocol"| Service
+    Core -->|"Module Protocol"| Integration
 ```
 
 ## 왜 만들고 있나요?
@@ -94,16 +89,23 @@ Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, G
 
 Misskey처럼 자체 Web, DB, Cache, Storage와 Lifecycle을 가진 서비스를 Manafield가 설치하고 관리할 수 있다면, Module Host로서의 구조가 제대로 동작한다고 볼 수 있습니다.
 
-```text
-Manafield
-   ↓
-Docker Runtime
-   ↓
-Misskey Service Module
-├─ Application
-├─ PostgreSQL
-├─ Redis
-└─ Storage
+```mermaid
+flowchart TB
+    Manafield["Manafield Core"]
+    Docker["Docker Runtime"]
+    Misskey["Misskey Service Module"]
+
+    App["Application"]
+    Postgres["PostgreSQL"]
+    Redis["Redis"]
+    Storage["Storage"]
+
+    Manafield --> Docker
+    Docker --> Misskey
+    Misskey --> App
+    Misskey --> Postgres
+    Misskey --> Redis
+    Misskey --> Storage
 ```
 
 ## 문서
