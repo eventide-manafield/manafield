@@ -3,10 +3,6 @@ name: manafield
 services:
   core:
     image: ${MANAFIELD_CORE_IMAGE:-manafield-core:local}
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      target: core-runtime
     restart: unless-stopped
     init: true
     environment:
@@ -15,11 +11,10 @@ services:
       RUST_LOG: ${MANAFIELD_LOG:-manafield=info}
     ports:
       - "127.0.0.1:${MANAFIELD_CORE_PORT:-18080}:8080"
-    # Bootstrap the reference descriptor until Runtime Provider registration lands.
     volumes:
       - type: bind
-        source: ../../manafield-module-reference/manafield.module.json
-        target: /var/lib/manafield/modules/manafield.module.json
+        source: ${MANAFIELD_MODULES_PATH:-./modules}
+        target: /var/lib/manafield/modules
         read_only: true
     read_only: true
     tmpfs:
@@ -33,9 +28,6 @@ services:
 
   reference-web:
     image: ${MANAFIELD_REFERENCE_IMAGE:-manafield-module-reference:local}
-    build:
-      context: ${MANAFIELD_REFERENCE_CONTEXT:-../../manafield-module-reference}
-      dockerfile: Dockerfile
     restart: unless-stopped
     init: true
     environment:
