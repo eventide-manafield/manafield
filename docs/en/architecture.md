@@ -57,6 +57,35 @@ Modules are intentionally less constrained.
 
 A Module may be implemented using Python, Go, Node.js, Java, Rust, or another environment capable of implementing the protocol.
 
+### Role of Operations
+
+In Manafield, an **Operation** is the common contract used to describe callable functionality exposed by a Module.
+
+Core does not need to understand the Module's internal functions, classes, or implementation language. Instead, Operation Contracts in the Module Descriptor tell Core:
+
+- which capabilities are available
+- which Input / Output Schemas they use
+- which Binding is used to invoke them
+- which Codec is used for payloads
+
+This keeps Module implementations free while giving Core and other clients one consistent model for discovery and validation.
+
+```mermaid
+flowchart LR
+    Module["Module"]
+    Operation["Operation Contract"]
+    Schema["Input / Output<br/>DataSchema"]
+    Binding["Binding<br/>HTTP now, others later"]
+    Codec["Codec<br/>JSON / MessagePack"]
+
+    Module --> Operation
+    Operation --> Schema
+    Operation --> Binding
+    Binding --> Codec
+```
+
+See [Operation](operation.md) for the detailed model.
+
 ## 4. Headless Core
 
 Manafield Core is designed to be headless.
