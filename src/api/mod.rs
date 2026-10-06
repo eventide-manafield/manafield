@@ -13,14 +13,14 @@ use axum::{
 };
 use serde::Serialize;
 
-use crate::core::ModuleRegistry;
+use crate::core::RegistryService;
 
 const JSON_MEDIA_TYPE: &str = "application/json";
 const MESSAGEPACK_MEDIA_TYPE: &str = "application/msgpack";
 
 #[derive(Clone)]
 struct AppState {
-    registry: Arc<ModuleRegistry>,
+    registry: Arc<RegistryService>,
 }
 
 #[derive(Serialize)]
@@ -30,7 +30,7 @@ struct HealthResponse {
     version: &'static str,
 }
 
-pub fn router(registry: ModuleRegistry) -> Router {
+pub fn router(registry: RegistryService) -> Router {
     let state = AppState {
         registry: Arc::new(registry),
     };
@@ -54,7 +54,8 @@ async fn list_modules(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
-    encode_response(&headers, &state.registry.list())
+    let snapshot = state.registry.snapshot();
+    encode_response(&headers, snapshot.modules())
 }
 
 async fn get_module(
@@ -62,13 +63,15 @@ async fn get_module(
     Path(id): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
-    let module = state.registry.get(&id).ok_or(StatusCode::NOT_FOUND)?;
-    encode_response(&headers, &module)
+    let snapshot = state.registry.snapshot();
+    let module = snapshot.get(&id).ok_or(StatusCode::NOT_FOUND)?;
+
+    encode_response(&headers, module)
 }
 
 fn encode_response<T>(headers: &HeaderMap, value: &T) -> Result<Response, StatusCode>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let wants_messagepack = headers
         .get(ACCEPT)
