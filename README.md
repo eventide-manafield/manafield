@@ -74,6 +74,9 @@ Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, G
 
 - `rustc 1.99.0`
 - `cargo 1.99.0`
+- 루트의 `rust-toolchain.toml`로 개발 Toolchain을 고정합니다.
+
+`rustup`을 사용하는 환경에서는 이 Repository 안에서 `cargo` 또는 `rustc`를 실행할 때 지정된 Rust 1.99.0 Toolchain이 자동으로 선택됩니다.
 
 이 버전은 현재 개발 기준이며, 아직 공식적인 **MSRV(Minimum Supported Rust Version)** 를 의미하지는 않습니다.
 
@@ -150,6 +153,9 @@ The current Manafield Core development baseline is **Rust 1.99.0**.
 
 - `rustc 1.99.0`
 - `cargo 1.99.0`
+- The repository root contains `rust-toolchain.toml` to pin the development toolchain.
+
+When using `rustup`, running `cargo` or `rustc` inside this repository automatically selects the pinned Rust 1.99.0 toolchain.
 
 This is the current development baseline and does **not** yet define an official MSRV (Minimum Supported Rust Version).
 
