@@ -27,10 +27,6 @@ impl ModuleRegistry {
     pub fn list(&self) -> Vec<ModuleDescriptor> {
         self.modules.values().cloned().collect()
     }
-
-    pub fn get(&self, id: &str) -> Option<ModuleDescriptor> {
-        self.modules.get(id).cloned()
-    }
 }
 
 #[derive(Debug)]
