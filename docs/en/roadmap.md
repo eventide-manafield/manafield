@@ -6,38 +6,114 @@
 > **The Korean documentation is the primary source of truth.**  
 > If this English version differs from the Korean version, the Korean version takes precedence.
 
-## Phase 0 — Foundation
+## Development Principle
 
-- [ ] Rust Core bootstrap
-- [ ] Core API
-- [ ] Module state model
-- [ ] Module Registry
-- [ ] Manifest parser
-- [ ] Module Protocol v0
-- [ ] Reference Headless Module
+Manafield defines **long-term boundaries and responsibilities early, while implementing only as much internal behavior as currently needed**.
 
-## Phase 1 — Docker Runtime
+- Define boundaries now when they would be expensive to extract later.
+- Future capabilities may remain as interfaces or minimal implementations until needed.
+- Core must remain usable without a specific Runtime or UI.
+- Powerful privileges should be constrained to the smallest practical component.
+- Major architecture decisions are recorded as ADRs.
 
-- [ ] Docker Runtime Adapter
-- [ ] Module container lifecycle
-- [ ] Health checks
+ADR index: [Architecture Decision Records](adr/README.md)
+
+## Phase 0 — Core Foundation
+
+- [x] Rust Core bootstrap
+- [x] Rust 1.99.0 toolchain pinning
+- [x] Core HTTP API bootstrap
+- [x] Module Descriptor model
+- [x] Operation Contract model
+- [x] DataSchema model
+- [x] Binding / Codec separation
+- [x] JSON / MessagePack serialization
+- [x] Health Operation reference
+- [x] Module Manifest discovery
+- [x] Module validation
+- [x] Runtime Module Registry API
+- [x] Immutable RegistrySnapshot
+- [x] ArcSwap-based lock-free read model
+- [ ] Stabilize Module Protocol v0 documentation
+- [ ] Define Registry update semantics
+
+## Phase 0.5 — Reference Module
+
+- [x] Independent repository: `manafield-module-reference`
+- [x] Node.js / TypeScript Module server
+- [x] React Registry Observer
+- [x] `/manafield/health` Operation
+- [x] Core Registry read integration
+- [x] Dockerfile
+- [ ] Core + Reference Module Compose environment
+- [ ] Register the Reference Module in the live Core Registry
+- [ ] Observe the Reference Module from its own UI
+- [ ] Extract Module Template requirements from the reference implementation
+
+## Phase 1 — Runtime Provider Boundary
+
+Runtime implementations are treated as **privileged system components**, not ordinary Modules.
+
+- [x] Architectural separation between Runtime Providers and ordinary Modules
+- [x] Core must not depend on any specific Runtime
+- [x] Process boundary direction for separating Docker privileges from Core
+- [ ] Define Runtime Protocol v0
+- [ ] Define Runtime request / response types
+- [ ] Runtime Provider identity / capability model
+- [ ] Select and implement local Runtime transport
+  - [ ] Evaluate / implement Unix Domain Socket as the initial transport
+- [ ] Core Runtime client
+- [ ] Runtime Provider health / availability
+- [ ] Runtime Provider policy model
+
+### Docker Runtime Provider
+
+The initial direction is to keep Docker Provider code in the same repository while building it as a **separate binary / process**.
+
+- [ ] Organize Cargo workspace / crates
+- [ ] `manafield` Core binary
+- [ ] `manafield-runtime-docker` binary
+- [ ] Docker API client
+- [ ] Mount Docker socket only into the Runtime Provider
+- [ ] Do not mount Docker socket into the Core container
+- [ ] Create / Start / Stop / Remove / Status
+- [ ] Docker network attachment
+- [ ] Resource limits
+- [ ] Policy denying privileged containers
+- [ ] Restrict arbitrary host path mounts
+- [ ] Prevent Docker socket re-exposure
+- [ ] Runtime logs
+
+## Phase 2 — Module Lifecycle
+
+- [ ] Module install model
+- [ ] Runtime requirement / capability declaration
+- [ ] Runtime Provider selection
+- [ ] Module create
 - [ ] Start / Stop / Restart
 - [ ] Runtime status
-- [ ] Basic log access
+- [ ] Actual Health Operation invocation
+- [ ] Health state model
+- [ ] Connect Registry and Runtime state
+- [ ] Failure / retry policy
+- [ ] Runtime cleanup on removal
 
-## Phase 2 — Official Web View
+## Phase 3 — Official Web View
 
 - [ ] Manafield Web
 - [ ] Dynamic Module navigation
+- [ ] Registry / Operation browser
+- [ ] Runtime Provider status UI
+- [ ] Module Health UI
 - [ ] Module Web Contribution
 - [ ] Settings UI
-- [ ] Module status UI
 
-## Phase 3 — Reference Modules
+## Phase 4 — Reference / Existing Services
 
 - [ ] Observe
 - [ ] ProtoDuck Integration
 - [ ] Echo Service
+- [ ] Validate registration of already-running external Services without a Runtime Provider
 
 ## Intermediate Goal — Misskey
 
@@ -55,7 +131,18 @@ This milestone should validate management of a realistic independent service wit
 - Web access
 - lifecycle management
 
-If Misskey can be modeled cleanly without adding Misskey-specific behavior to Core, the Service Module abstraction is probably on the right track.
+If Misskey can be modeled cleanly without Misskey-specific Core behavior, both the Service Module abstraction and Runtime Provider boundary are probably on the right track.
+
+## Architecture Decision Records
+
+- [x] ADR-0001 — Rust Headless Core
+- [x] ADR-0002 — Operation Contract
+- [x] ADR-0003 — Registry Snapshot / ArcSwap Read Model
+- [x] ADR-0004 — Runtime Provider Boundary
+- [x] ADR-0005 — Docker Runtime Provider Process Isolation
+- [ ] Add follow-up ADR when Runtime Protocol becomes concrete
+- [ ] Add follow-up ADR when Module package format becomes concrete
+- [ ] Add follow-up ADR when Permission / trust model becomes concrete
 
 ## Long-term
 
@@ -64,9 +151,11 @@ If Misskey can be modeled cleanly without adding Misskey-specific behavior to Co
 - [ ] Drag & Drop Module installation
 - [ ] Permission review
 - [ ] Dependency management
-- [ ] Module Registry
+- [ ] Distributed Module Registry / discovery
 - [ ] Compatibility Test Kit
 - [ ] Third-party Module isolation
-- [ ] Kubernetes Runtime Adapter
+- [ ] External Runtime Provider protocol
+- [ ] Remote Runtime Provider
+- [ ] Kubernetes Runtime Provider
 
-Kubernetes is intentionally a distant target. Docker is the primary runtime for early versions.
+Kubernetes is intentionally a distant target. Docker is the first Runtime Provider implementation, not a required dependency of Manafield Core.
