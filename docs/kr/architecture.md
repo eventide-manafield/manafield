@@ -63,37 +63,37 @@ Manafield Core는 **Headless**를 기본 구조로 합니다.
 
 즉 Core가 동작하기 위해 내장 Web UI가 필수적이지 않습니다.
 
-```text
-Manafield Core
-├─ Official Web View
-├─ CLI
-├─ Mobile Client
-└─ Other Clients
+```mermaid
+flowchart LR
+    Web["Official Web View"]
+    CLI["CLI"]
+    Mobile["Mobile Client"]
+    Other["Other Clients"]
+    Core["Manafield Core"]
+
+    Web <-->|"Core API"| Core
+    CLI <-->|"Core API"| Core
+    Mobile <-->|"Core API"| Core
+    Other <-->|"Core API"| Core
 ```
 
 공식 Web View를 별도로 제공할 수 있지만, Core와 Module은 Web 없이도 동작할 수 있어야 합니다.
 
 ## 5. 상위 구조
 
-```text
-                    ┌─────────────────┐
-                    │  Manafield Web  │
-                    │    optional     │
-                    └────────┬────────┘
-                             │ Core API
-                             ▼
-┌────────────────────────────────────────────┐
-│              Manafield Core               │
-│                   Rust                    │
-│                                            │
-│ Registry       Lifecycle      Settings    │
-│ Permission     Health         Discovery   │
-│ Runtime        Routing        Events      │
-└───────┬───────────────┬───────────────┬───┘
-        │               │               │
-        │ Protocol      │ Protocol      │ Protocol
-        ▼               ▼               ▼
-     Module          Service        Integration
+```mermaid
+flowchart TB
+    Web["Manafield Web<br/>(Optional)"]
+    Core["Manafield Core<br/>Rust<br/><br/>Registry · Lifecycle · Settings<br/>Permission · Health · Discovery<br/>Runtime · Routing · Events"]
+
+    Module["Module"]
+    Service["Service"]
+    Integration["Integration"]
+
+    Web -->|"Core API"| Core
+    Core -->|"Module Protocol"| Module
+    Core -->|"Module Protocol"| Service
+    Core -->|"Module Protocol"| Integration
 ```
 
 ## 6. 구성요소 유형
@@ -135,24 +135,18 @@ Manafield는 Container Runtime 자체를 구현하지 않습니다.
 
 Core는 Runtime Adapter 경계를 통해 기존 실행 환경을 사용합니다.
 
-초기 목표:
+초기 목표와 장기 Runtime 확장 방향은 다음과 같습니다.
 
-```text
-Manafield Core
-      │
-      │ Runtime Adapter
-      ▼
-    Docker
-```
+```mermaid
+flowchart LR
+    Core["Manafield Core"]
+    Adapter["Runtime Adapter"]
+    Docker["Docker<br/>(Initial Target)"]
+    K8s["Kubernetes<br/>(Long-term)"]
 
-장기 목표 후보:
-
-```text
-Manafield Core
-      │
-      │ Runtime Adapter
-      ▼
- Kubernetes
+    Core --> Adapter
+    Adapter --> Docker
+    Adapter -.-> K8s
 ```
 
 개념적인 인터페이스 예시는 다음과 같습니다.
@@ -193,12 +187,12 @@ Module이 외부 URL을 제공합니다.
 
 기본 아키텍처에서는 임의의 Module 코드를 Core 프로세스 내부에 직접 로드하지 않습니다.
 
-```text
-Manafield Core
-      │
-      │ API
-      ▼
-Module Process / Container
+```mermaid
+flowchart LR
+    Core["Manafield Core"]
+    Module["Module Process / Container"]
+
+    Core <-->|"Module Protocol / API"| Module
 ```
 
 이 구조는 언어 독립성을 높이고, 보안 및 장애 경계를 더 명확하게 만듭니다.
