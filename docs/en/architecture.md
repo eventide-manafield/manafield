@@ -57,6 +57,20 @@ Modules are intentionally less constrained.
 
 A Module may be implemented using Python, Go, Node.js, Java, Rust, or another environment capable of implementing the protocol.
 
+### Boundary-first Development
+
+Manafield defines **boundaries and responsibilities that would be expensive to extract later according to the long-term architecture, while implementing only the internal behavior currently needed**.
+
+This does not mean implementing every future feature up front. It means explicitly establishing boundaries such as:
+
+- Core and Module
+- Operation and Binding / Codec
+- Registry write model and read snapshot
+- Core and Runtime Provider
+- ordinary Modules and privileged system components
+
+Major architecture decisions and their rationale are recorded in [ADRs](adr/README.md).
+
 ### Role of Operations
 
 In Manafield, an **Operation** is the common contract used to describe callable functionality exposed by a Module.
@@ -193,37 +207,68 @@ These categories describe execution characteristics and responsibility while sha
 
 ## 7. Runtime Model
 
-Manafield does **not** implement a container runtime.
+Manafield Core is not tied to a specific execution technology.
 
-Instead, Core talks to runtime implementations through an adapter boundary.
+Actual Module creation, start, stop, removal, and runtime control are delegated to a **Runtime Provider**. A Runtime Provider is not an ordinary Module; it is a privileged system component that controls an execution environment.
 
-The initial target and long-term runtime direction are:
+Core must remain useful without a Runtime Provider for Registry, Operation discovery, validation, and similar base capabilities.
 
 ```mermaid
 flowchart LR
+    Core["Manafield Core<br/>no docker.sock"]
+    Protocol["Runtime Protocol"]
+    DockerProvider["Docker Runtime Provider<br/>separate process"]
+    Docker["Docker daemon"]
+    Modules["Module containers"]
+
+    Core --> Protocol
+    Protocol --> DockerProvider
+    DockerProvider --> Docker
+    Docker --> Modules
+```
+
+The initial Docker Provider is maintained in the **same repository / release** as Core but built and executed as a separate binary / process.
+
+```text
+same source / release
+├─ manafield
+└─ manafield-runtime-docker
+```
+
+In Docker deployment, Core does not receive `docker.sock`; only the Docker Runtime Provider does. This separates Docker-specific privilege and policy from general Core API and Registry logic.
+
+Core and Provider communicate through a constrained **Runtime Protocol**. The protocol should express Manafield lifecycle operations rather than arbitrary Docker command execution.
+
+For example:
+
+```text
+Create
+Start
+Stop
+Remove
+Status
+```
+
+Unix Domain Socket is the preferred initial local transport candidate. Future Runtime Providers may target local processes, remote hosts, Kubernetes, or other environments.
+
+```mermaid
+flowchart TB
     Core["Manafield Core"]
-    Adapter["Runtime Adapter"]
-    Docker["Docker<br/>(Initial Target)"]
-    K8s["Kubernetes<br/>(Long-term)"]
+    RuntimeProtocol["Runtime Protocol"]
 
-    Core --> Adapter
-    Adapter --> Docker
-    Adapter -.-> K8s
+    DockerProvider["Docker Provider"]
+    ProcessProvider["Process Provider<br/>(future)"]
+    RemoteProvider["Remote Provider<br/>(future)"]
+    K8sProvider["Kubernetes Provider<br/>(long-term)"]
+
+    Core --> RuntimeProtocol
+    RuntimeProtocol --> DockerProvider
+    RuntimeProtocol -.-> ProcessProvider
+    RuntimeProtocol -.-> RemoteProvider
+    RuntimeProtocol -.-> K8sProvider
 ```
 
-Conceptually:
-
-```rust
-trait ModuleRuntime {
-    async fn install(&self, module: &ModuleSpec) -> Result<()>;
-    async fn start(&self, id: &ModuleId) -> Result<()>;
-    async fn stop(&self, id: &ModuleId) -> Result<()>;
-    async fn status(&self, id: &ModuleId) -> Result<ModuleStatus>;
-    async fn remove(&self, id: &ModuleId) -> Result<()>;
-}
-```
-
-The exact Rust API is not finalized.
+The detailed Runtime Protocol and capability model are still being designed. See [ADR-0004](adr/0004-runtime-provider-boundary.md) and [ADR-0005](adr/0005-docker-provider-isolation.md) for rationale.
 
 ## 8. Web Contributions
 
