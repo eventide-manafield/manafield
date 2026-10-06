@@ -145,8 +145,8 @@ Operation이 HTTP로 제공되는 경우 HTTP 정보는 Operation 자체가 아�
 ```rust
 struct OperationContract {
     id: String,
-    input: Option<Value>,
-    output: Option<Value>,
+    input: Option<DataSchema>,
+    output: Option<DataSchema>,
     binding: OperationBinding,
 }
 
@@ -160,6 +160,39 @@ enum OperationBinding {
 ```
 
 현재 `OperationBinding`에는 HTTP만 존재합니다. 다른 통신 방식을 실제로 지원하게 될 때 새로운 variant를 추가합니다.
+
+### DataSchema
+
+Operation의 Input/Output은 더 이상 임의의 JSON 값으로 저장하지 않고 Manafield Core의 `DataSchema` 타입으로 역직렬화합니다.
+
+초기 지원 타입은 다음과 같습니다.
+
+- `string`
+- `integer`
+- `number`
+- `boolean`
+- `array` — `items`에 다른 `DataSchema`를 포함
+- `object` — `properties`에 이름별 `DataSchema`를 포함하고 `required`로 필수 필드를 선언
+
+`array`와 `object`는 재귀적으로 다른 Schema를 포함할 수 있으므로 중첩 데이터 구조도 표현할 수 있습니다.
+
+예:
+
+```json
+{
+  "type": "object",
+  "required": ["name", "tags"],
+  "properties": {
+    "name": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
+```
+
+Core는 Object Schema의 `required` 항목이 실제 `properties`에 존재하는지, 중복 선언되지 않았는지까지 검증합니다.
 
 초기 `PayloadCodec`은 `Json`과 `MessagePack`을 제공합니다. 같은 Rust 자료형을 Serde를 통해 두 형식으로 직렬화할 수 있도록 하며, Module은 자신이 지원하는 Codec 목록을 Binding metadata로 광고할 수 있습니다.
 
