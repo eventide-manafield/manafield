@@ -15,6 +15,8 @@ Module은 Manafield Core 코드를 import하거나 필수 SDK를 사용할 필�
 
 언어별 SDK는 편의를 위해 제공할 수 있지만 선택 사항이어야 합니다.
 
+> Operation의 DataSchema, Binding, Codec, Health Operation 구조는 [Operation](operation.md) 문서에서 별도로 정리합니다.
+
 ## 2. Operation, Binding, Codec
 
 Manafield는 Module이 제공하는 호출 가능한 기능을 **Operation**으로 표현합니다.
