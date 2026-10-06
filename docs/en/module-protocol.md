@@ -15,7 +15,7 @@ A Module should not need to import Manafield Core code or use a mandatory SDK.
 
 Language-specific SDKs may exist for convenience, but they must remain optional.
 
-## 2. Operations and Bindings
+## 2. Operations, Bindings, and Codecs
 
 Manafield represents callable functionality exposed by a Module as an **Operation**.
 
@@ -29,11 +29,35 @@ Operation
 ├─ Output Schema
 └─ Binding
    └─ HTTP
+      └─ Codec
+         ├─ JSON
+         └─ MessagePack
 ```
 
 Additional bindings such as gRPC, TCP, WebSocket, or other mechanisms may be introduced when they are actually needed.
 
 HTTP is the **first implemented binding**, not a restriction that makes the entire Manafield Module Protocol HTTP-only.
+
+A Binding describes how an Operation is invoked, while a **Codec describes how its payload is serialized on the wire**.
+
+The initial HTTP binding supports:
+
+- **JSON** — the default human-readable format for inspection and debugging
+- **MessagePack** — an optional compact binary representation of the same data model
+
+HTTP uses `Accept` / `Content-Type` for codec selection.
+
+```http
+Accept: application/json
+```
+
+or:
+
+```http
+Accept: application/msgpack
+```
+
+Rather than defining one abstract `binary` mode, Manafield declares concrete wire codecs. Additional formats such as CBOR or Protobuf may be introduced later as separate codecs or binding-specific policies.
 
 ## 3. Minimal Endpoints
 
@@ -110,7 +134,8 @@ Example:
   "binding": {
     "type": "http",
     "method": "POST",
-    "path": "/echo"
+    "path": "/echo",
+    "codecs": ["json", "messagepack"]
   }
 }
 ```
@@ -129,11 +154,14 @@ enum OperationBinding {
     Http {
         method: HttpMethod,
         path: String,
+        codecs: Vec<PayloadCodec>,
     },
 }
 ```
 
 At the moment, `OperationBinding` contains only HTTP. New variants are added when another invocation mechanism is actually supported.
+
+The initial `PayloadCodec` variants are `Json` and `MessagePack`. Serde allows the same Rust data model to be serialized into either representation, and a Module can advertise its supported codecs as binding metadata.
 
 When a Module is registered, Core stores the Module descriptor and its Operation contracts together in the Registry.
 
@@ -156,9 +184,12 @@ This allows Core and Web/CLI clients to discover, without knowing the Module's i
 - expected Output Schemas
 - the Binding used to invoke each Operation
 - HTTP method and path when the Binding is HTTP
+- codecs supported by that Binding
 - future permission/capability requirements
 
 Initially Operation information is **discovery and validation metadata**. Automatic proxy/route wiring can be added after the Registry model stabilizes.
+
+The current Core Module discovery response experimentally supports HTTP content negotiation. JSON is the default response, while `Accept: application/msgpack` returns MessagePack binary data.
 
 ## 6. Manifest
 
