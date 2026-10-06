@@ -96,6 +96,39 @@ flowchart TB
     Core -->|"Module Protocol"| Integration
 ```
 
+### Registry Read Model
+
+The Module Registry separates the mutable write model from its read snapshot.
+
+- `ModuleRegistry` is the source of truth for registration and mutation.
+- Writes are serialized through an `RwLock`.
+- After a successful mutation, Core builds a new immutable `RegistrySnapshot`.
+- The current snapshot is atomically replaced through `ArcSwap`.
+- Normal reads do not acquire the Registry `RwLock`; they read the current snapshot.
+- Previous snapshots are automatically released through `Arc` reference counting once no readers still hold them.
+
+```mermaid
+flowchart LR
+    Write["Register / Update / Remove"]
+    Registry["ModuleRegistry<br/>Source of Truth<br/>RwLock"]
+    Build["Build new<br/>RegistrySnapshot"]
+    Swap["ArcSwap<br/>atomic swap"]
+    Snapshot["Current immutable<br/>RegistrySnapshot"]
+    Read["Read API / Web / CLI"]
+    Old["Previous Snapshot<br/>kept only while referenced"]
+
+    Write --> Registry
+    Registry --> Build
+    Build --> Swap
+    Swap --> Snapshot
+    Snapshot --> Read
+    Swap -.-> Old
+```
+
+Snapshot construction and swapping occur while the Registry write lock is still held so concurrent writers cannot publish snapshots out of order. Readers can continue using the previous snapshot while a new one is being built.
+
+Future Registry events may feed audit logs, WebSocket notifications, metrics, and similar consumers, but the primary read snapshot should not depend on asynchronous event processing for consistency.
+
 ## 6. Component Types
 
 ### Module
