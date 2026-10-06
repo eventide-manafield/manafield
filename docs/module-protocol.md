@@ -1,0 +1,142 @@
+# Manafield Module Protocol
+
+> Draft protocol notes. Nothing in this document is stable yet.
+
+## 1. Principle
+
+Manafield Modules communicate with Core through a language-independent protocol.
+
+> **The protocol is the contract.**
+
+A Module should not need to import Manafield Core code or use a mandatory SDK.
+
+Language-specific SDKs may exist for convenience, but they must remain optional.
+
+## 2. Initial Transport
+
+The initial protocol is expected to use HTTP for the basic control and discovery surface.
+
+WebSocket or another message/event transport may be added when required.
+
+## 3. Minimal Endpoints
+
+Early protocol experiments may begin with:
+
+```http
+GET /manafield/health
+GET /manafield/info
+
+GET /manafield/settings/schema
+GET /manafield/settings
+PUT /manafield/settings
+```
+
+These routes are examples, not a finalized specification.
+
+## 4. Module Information
+
+Example:
+
+```json
+{
+  "id": "example",
+  "name": "Example Module",
+  "version": "0.1.0",
+  "apiVersion": "v1",
+  "capabilities": [
+    "example.read"
+  ]
+}
+```
+
+Possible responsibilities of the info endpoint:
+
+- identity
+- Module version
+- supported Manafield protocol version
+- capabilities
+- optional Web contribution metadata
+
+## 5. Manifest
+
+A Module may provide a manifest that Core can validate before installation or registration.
+
+Concept example:
+
+```yaml
+id: example
+name: Example Module
+version: 0.1.0
+
+manafieldApi: v1
+type: module
+
+runtime:
+  type: container
+
+container:
+  image: ghcr.io/example/example-module:0.1.0
+  port: 8080
+
+health:
+  method: GET
+  path: /manafield/health
+
+web:
+  mode: proxy
+  route: /example
+
+permissions:
+  - example.read
+```
+
+The manifest schema is not finalized.
+
+## 6. Compatibility Goal
+
+A future Core implementation should be replaceable without forcing Modules to be rewritten, as long as both sides implement the same protocol version.
+
+For example:
+
+```text
+Rust Core v0.x
+      ↓ replaced
+
+Go Core vNext
+
+Module Protocol v1 remains stable
+      ↓
+
+Existing Modules continue to work
+```
+
+This is an architectural goal, not a compatibility guarantee yet.
+
+## 7. Module Templates
+
+Core and Module templates are expected to live in separate repositories.
+
+Possible templates:
+
+```text
+manafield-module-template-go
+manafield-module-template-python
+manafield-module-template-node
+```
+
+A developer should be able to start from a template repository and implement the protocol without cloning Manafield Core.
+
+## 8. Security Direction
+
+The protocol should make permissions and capabilities explicit.
+
+A Module package should eventually be able to declare:
+
+- requested permissions
+- runtime requirements
+- exposed ports
+- storage requirements
+- dependencies
+- Web contributions
+
+The exact security model will be designed after the basic protocol and Docker runtime are functional.
