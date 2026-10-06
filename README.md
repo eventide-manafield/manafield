@@ -80,10 +80,12 @@ flowchart TB
 - **Headless Core** — Web UI가 없어도 동작합니다.
 - **Language-independent Modules** — 언어와 Framework에 종속되지 않습니다.
 - **API-first Protocol** — Core와 Module은 API 계약으로 연결됩니다.
-- **Docker Runtime** — 초기 실행 환경입니다.
+- **Runtime Provider** — Module 실행 환경은 Core와 분리된 Provider가 담당합니다.
+- **Docker Provider first** — Docker는 첫 Runtime Provider 구현이며 Core의 필수 의존성은 아닙니다.
 - **Optional Web Views** — Module이 필요할 때만 Web UI를 제공합니다.
 - **Isolated Modules** — Core 프로세스와 Module 실행환경을 분리합니다.
-- **Runtime abstraction** — 먼 미래에는 Kubernetes도 연결할 수 있도록 설계합니다.
+- **Privilege boundary** — Docker 같은 강한 권한은 Core가 아니라 별도 Runtime Provider 프로세스에 둡니다.
+- **Runtime abstraction** — 장기적으로 Process, Remote, Kubernetes 같은 다른 Provider를 추가할 수 있도록 설계합니다.
 
 ## 중간 목표
 
@@ -118,6 +120,7 @@ flowchart TB
 - [Module Protocol](docs/kr/module-protocol.md)
 - [Operation](docs/kr/operation.md)
 - [Roadmap](docs/kr/roadmap.md)
+- [Architecture Decision Records](docs/kr/adr/README.md)
 
 ## License
 
@@ -161,10 +164,12 @@ This is the current development baseline and does **not** yet define an official
 - **Headless Core** — no mandatory Web UI
 - **Language-independent Modules**
 - **API-first Module Protocol**
-- **Docker as the initial Runtime**
+- **Runtime Providers** separated from Core
+- **Docker Provider first**, without making Docker a Core dependency
 - **Optional Web Contributions**
 - **Isolated Module execution**
-- **Runtime abstraction** with Kubernetes as a long-term target
+- **Privilege boundaries** for powerful runtime control
+- **Runtime abstraction** for future Process, Remote, and Kubernetes Providers
 
 `manafield.studio` is not Manafield itself. It is planned to become **one Manafield instance operated by Eventide**.
 
@@ -182,6 +187,7 @@ This will validate real-world lifecycle management involving an application runt
 - [Module Protocol](docs/en/module-protocol.md)
 - [Operation](docs/en/operation.md)
 - [Roadmap](docs/en/roadmap.md)
+- [Architecture Decision Records](docs/en/adr/README.md)
 
 ## Status
 
