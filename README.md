@@ -68,6 +68,15 @@ Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, G
 
 `manafield.studio`는 Manafield 자체가 아니라 **Eventide가 운영하는 하나의 Manafield 인스턴스**가 될 예정입니다.
 
+## 개발 기준 버전
+
+현재 Manafield Core 개발 기준 Rust toolchain은 **Rust 1.99.0**입니다.
+
+- `rustc 1.99.0`
+- `cargo 1.99.0`
+
+이 버전은 현재 개발 기준이며, 아직 공식적인 **MSRV(Minimum Supported Rust Version)** 를 의미하지는 않습니다.
+
 ## 목표 구조
 
 - **Headless Core** — Web UI가 없어도 동작합니다.
@@ -134,6 +143,15 @@ Its guiding principle is:
 > **Strict Core, free Modules.**
 
 The Core is planned to be implemented in **Rust**, while Modules may use any language or framework as long as they implement the Manafield Module Protocol.
+
+## Development Toolchain
+
+The current Manafield Core development baseline is **Rust 1.99.0**.
+
+- `rustc 1.99.0`
+- `cargo 1.99.0`
+
+This is the current development baseline and does **not** yet define an official MSRV (Minimum Supported Rust Version).
 
 ## Highlights
 
