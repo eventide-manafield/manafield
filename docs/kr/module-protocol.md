@@ -15,11 +15,25 @@ Module은 Manafield Core 코드를 import하거나 필수 SDK를 사용할 필�
 
 언어별 SDK는 편의를 위해 제공할 수 있지만 선택 사항이어야 합니다.
 
-## 2. 초기 Transport
+## 2. Operation과 Binding
 
-초기 Protocol은 기본적인 제어와 탐색을 위해 HTTP를 사용하는 방향으로 시작합니다.
+Manafield는 Module이 제공하는 호출 가능한 기능을 **Operation**으로 표현합니다.
 
-필요해질 경우 WebSocket 또는 다른 Message/Event Transport를 추가할 수 있습니다.
+Operation 자체는 특정 통신 방식에 종속되지 않으며, 실제 호출 방식은 **Binding**으로 분리합니다.
+
+초기 구현에서 지원하는 Binding은 HTTP 하나뿐입니다.
+
+```text
+Operation
+├─ Input Schema
+├─ Output Schema
+└─ Binding
+   └─ HTTP
+```
+
+향후 필요에 따라 gRPC, TCP, WebSocket 또는 다른 방식의 Binding을 추가할 수 있도록 구조를 열어둡니다.
+
+현재 HTTP는 **첫 번째 구현 대상**이지, Manafield Module Protocol 전체를 HTTP로 제한하는 의미가 아닙니다.
 
 ## 3. 최소 Endpoint
 
@@ -60,25 +74,25 @@ Info endpoint는 다음과 같은 정보를 제공할 수 있습니다.
 - capabilities
 - 선택적인 Web contribution metadata
 
-## 5. API 자동 인식
+## 5. Operation 자동 인식
 
-Module은 자신의 기능뿐 아니라 **외부에 제공하는 API의 형태**를 Core에 설명할 수 있어야 합니다.
+Module은 자신의 기능을 **Operation Contract** 목록으로 Core에 설명할 수 있어야 합니다.
 
-개발자 관점에서는 다음과 같은 개념으로 볼 수 있습니다.
+개발자 관점에서는 다음과 같이 생각할 수 있습니다.
 
 ```text
-API<Input, Output>
+Operation<Input, Output>
 ```
 
-하지만 Core는 외부 Module의 언어별 타입을 직접 알 수 없으므로, 실제 Protocol에서는 입력과 출력을 **언어 독립적인 Schema**로 표현합니다.
+Core는 외부 Module의 언어별 타입을 직접 알 수 없으므로 Input과 Output은 **언어 독립적인 Schema**로 표현합니다.
+
+Operation이 HTTP로 제공되는 경우 HTTP 정보는 Operation 자체가 아니라 Binding에 들어갑니다.
 
 예:
 
 ```json
 {
   "id": "echo",
-  "method": "POST",
-  "path": "/echo",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -92,13 +106,36 @@ API<Input, Output>
     "properties": {
       "message": { "type": "string" }
     }
+  },
+  "binding": {
+    "type": "http",
+    "method": "POST",
+    "path": "/echo"
   }
 }
 ```
 
-초기 구현에서는 JSON Schema와 유사한 표현을 사용해 실험합니다.
+초기 Rust 모델은 다음 개념을 따릅니다.
 
-Module이 등록될 때 Core는 Module descriptor와 API descriptor를 함께 Registry에 저장합니다.
+```rust
+struct OperationContract {
+    id: String,
+    input: Option<Value>,
+    output: Option<Value>,
+    binding: OperationBinding,
+}
+
+enum OperationBinding {
+    Http {
+        method: HttpMethod,
+        path: String,
+    },
+}
+```
+
+현재 `OperationBinding`에는 HTTP만 존재합니다. 다른 통신 방식을 실제로 지원하게 될 때 새로운 variant를 추가합니다.
+
+Module이 등록될 때 Core는 Module descriptor와 Operation contracts를 함께 Registry에 저장합니다.
 
 ```mermaid
 sequenceDiagram
@@ -106,25 +143,22 @@ sequenceDiagram
     participant Core
     participant Registry
 
-    Module->>Core: Module descriptor + API contracts
-    Core->>Core: Validate module and API schemas
-    Core->>Registry: Register module
-    Core->>Registry: Register API descriptors
+    Module->>Core: Module descriptor + Operation contracts
+    Core->>Core: Validate schemas and bindings
+    Core->>Registry: Register module and operations
     Registry-->>Core: Registered
 ```
 
-이를 통해 Core와 Web/CLI Client는 Module 내부 구현 언어를 몰라도 다음 정보를 자동으로 인식할 수 있습니다.
+이를 통해 Core와 Web/CLI Client는 Module 내부 구현 언어를 몰라도 다음 정보를 탐색할 수 있습니다.
 
-- 어떤 API가 존재하는지
-- HTTP Method
-- Module 내부 Path
+- 어떤 Operation이 존재하는지
 - 예상 Input Schema
 - 예상 Output Schema
+- 어떤 Binding으로 호출되는지
+- HTTP Binding이라면 Method와 Path
 - 향후 필요한 Permission / Capability
 
-초기에는 API 정보를 **탐색 및 검증용 metadata**로 사용합니다. 실제 자동 Proxy/Route 연결은 Registry 구조가 안정화된 뒤 추가합니다.
-
-Module API는 다른 Module 또는 Core route와 충돌하지 않도록 향후 Module ID 기반 namespace를 기본으로 사용하는 방향을 고려합니다.
+초기에는 Operation 정보를 **탐색 및 검증용 metadata**로 사용합니다. 실제 자동 Proxy/Route 연결은 Registry 구조가 안정화된 뒤 추가합니다.
 
 ## 6. Manifest
 
