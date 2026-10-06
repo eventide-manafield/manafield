@@ -3,5 +3,5 @@ mod operation;
 mod registry;
 
 pub use module::ModuleDescriptor;
-pub use operation::{HttpMethod, OperationBinding, OperationContract};
+pub use operation::{HttpMethod, OperationBinding, OperationContract, PayloadCodec};
 pub use registry::ModuleRegistry;
