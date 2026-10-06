@@ -291,6 +291,29 @@ Repository의 `examples/modules/sample/manafield.module.json`은 현재 구현�
 
 이 파일 형식은 현재 개발 중인 Descriptor/Manifest 형태이며, 향후 Runtime, Permission, Dependency 등의 설치 metadata가 합쳐지면서 변경될 수 있습니다.
 
+### Runtime Registry API
+
+Core가 실행된 뒤에도 Module Descriptor를 등록하거나 제거할 수 있습니다.
+
+```http
+POST   /modules
+GET    /modules
+GET    /modules/{id}
+DELETE /modules/{id}
+```
+
+`POST /modules`는 `application/json`과 `application/msgpack` 요청을 받을 수 있으며, 응답 형식은 `Accept` 헤더에 따라 JSON 또는 MessagePack으로 선택됩니다.
+
+등록/삭제가 성공하면 `ModuleRegistry`가 변경되고 새 `RegistrySnapshot`이 생성되어 `ArcSwap`을 통해 즉시 publish됩니다. 조회 요청은 mutable Registry가 아니라 현재 Snapshot을 읽습니다.
+
+현재 주요 상태 코드는 다음과 같습니다.
+
+- 등록 성공: `201 Created`
+- 중복 Module ID: `409 Conflict`
+- 잘못된 Module Descriptor: `400 Bad Request`
+- 존재하지 않는 Module 조회/삭제: `404 Not Found`
+- 지원하지 않는 요청 Codec: `415 Unsupported Media Type`
+
 ## 7. 호환성 목표
 
 향후 Core 구현을 다른 언어 또는 구조로 교체하더라도 동일한 Protocol version을 구현한다면 기존 Module이 계속 동작할 수 있는 구조를 목표로 합니다.
