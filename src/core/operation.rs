@@ -12,7 +12,11 @@ pub struct OperationContract {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum OperationBinding {
-    Http { method: HttpMethod, path: String },
+    Http {
+        method: HttpMethod,
+        path: String,
+        codecs: Vec<PayloadCodec>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -20,4 +24,11 @@ pub enum OperationBinding {
 pub enum HttpMethod {
     Get,
     Post,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PayloadCodec {
+    Json,
+    MessagePack,
 }
