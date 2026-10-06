@@ -13,8 +13,8 @@ const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8080";
 async fn main() {
     init_tracing();
 
-    let bind_addr = std::env::var("MANAFIELD_BIND")
-        .unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
+    let bind_addr =
+        std::env::var("MANAFIELD_BIND").unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
 
     let addr: SocketAddr = bind_addr
         .parse()
@@ -35,12 +35,10 @@ async fn main() {
 }
 
 fn init_tracing() {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("manafield=info"));
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("manafield=info"));
 
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 }
 
 async fn shutdown_signal() {
