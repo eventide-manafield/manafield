@@ -18,7 +18,7 @@
 > **한국어 문서를 기준 문서로 우선합니다.**  
 > 한국어판과 영문판의 내용이 다를 경우 한국어판을 우선합니다.
 
-[한국어](#한국어) · [English](#english) · [Architecture (KR)](docs/kr/architecture.md) · [Module Protocol (KR)](docs/kr/module-protocol.md) · [Roadmap (KR)](docs/kr/roadmap.md)
+[한국어](#한국어) · [English](#english)
 
 ---
 
@@ -112,17 +112,9 @@ Misskey Service Module
 
 한국어 문서를 기준으로 유지하며, 영어 문서는 이를 바탕으로 동기화합니다.
 
-### 한국어
-
 - [Architecture](docs/kr/architecture.md)
 - [Module Protocol](docs/kr/module-protocol.md)
 - [Roadmap](docs/kr/roadmap.md)
-
-### English
-
-- [Architecture](docs/en/architecture.md)
-- [Module Protocol](docs/en/module-protocol.md)
-- [Roadmap](docs/en/roadmap.md)
 
 ## License
 
@@ -180,14 +172,6 @@ A major milestone is to:
 This will validate real-world lifecycle management involving an application runtime, database, cache, storage, networking, health checks, and a Web service.
 
 ## Documentation
-
-### Korean — Primary
-
-- [Architecture](docs/kr/architecture.md)
-- [Module Protocol](docs/kr/module-protocol.md)
-- [Roadmap](docs/kr/roadmap.md)
-
-### English
 
 - [Architecture](docs/en/architecture.md)
 - [Module Protocol](docs/en/module-protocol.md)
