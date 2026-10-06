@@ -2,6 +2,7 @@ mod loader;
 mod module;
 mod operation;
 mod registry;
+mod schema;
 mod validation;
 
 pub use loader::discover_modules;
