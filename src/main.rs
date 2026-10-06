@@ -4,7 +4,7 @@ mod core;
 use std::net::SocketAddr;
 
 use axum::Router;
-use core::{ApiContract, HttpMethod, ModuleDescriptor, ModuleRegistry};
+use core::{HttpMethod, ModuleDescriptor, ModuleRegistry, OperationBinding, OperationContract};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::info;
@@ -46,11 +46,9 @@ fn initial_registry() -> ModuleRegistry {
             id: "sample".to_owned(),
             name: "Sample Module".to_owned(),
             version: "0.0.1".to_owned(),
-            apis: vec![
-                ApiContract {
+            operations: vec![
+                OperationContract {
                     id: "hello".to_owned(),
-                    method: HttpMethod::Get,
-                    path: "/hello".to_owned(),
                     input: None,
                     output: Some(json!({
                         "type": "object",
@@ -59,11 +57,13 @@ fn initial_registry() -> ModuleRegistry {
                             "message": { "type": "string" }
                         }
                     })),
+                    binding: OperationBinding::Http {
+                        method: HttpMethod::Get,
+                        path: "/hello".to_owned(),
+                    },
                 },
-                ApiContract {
+                OperationContract {
                     id: "echo".to_owned(),
-                    method: HttpMethod::Post,
-                    path: "/echo".to_owned(),
                     input: Some(json!({
                         "type": "object",
                         "required": ["message"],
@@ -78,6 +78,10 @@ fn initial_registry() -> ModuleRegistry {
                             "message": { "type": "string" }
                         }
                     })),
+                    binding: OperationBinding::Http {
+                        method: HttpMethod::Post,
+                        path: "/echo".to_owned(),
+                    },
                 },
             ],
         })
