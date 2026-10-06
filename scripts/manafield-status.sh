@@ -6,28 +6,14 @@ if [ "$#" -ne 0 ]; then
   exit 64
 fi
 
-CORE_URL="http://127.0.0.1:18080"
-REFERENCE_URL="http://127.0.0.1:18081"
-PROJECT="manafield"
+CORE_URL="${MANAFIELD_CORE_URL:-http://127.0.0.1:18080}"
+REFERENCE_URL="${MANAFIELD_REFERENCE_URL:-http://127.0.0.1:18081}"
+REFERENCE_MODULE_ID="${MANAFIELD_REFERENCE_MODULE_ID:-reference-web}"
 
 failed=0
 
 section() {
   printf '\n== %s ==\n' "$1"
-}
-
-check_container() {
-  service="$1"
-  result="$(
-    docker ps       --filter "label=com.docker.compose.project=$PROJECT"       --filter "label=com.docker.compose.service=$service"       --format '{{.Names}} | {{.Status}}'       2>/dev/null
-  )"
-
-  if [ -n "$result" ]; then
-    printf '[ok] %s: %s\n' "$service" "$result"
-  else
-    printf '[fail] %s: no running container found\n' "$service"
-    failed=1
-  fi
 }
 
 check_http() {
@@ -45,19 +31,40 @@ check_http() {
   fi
 }
 
-section "Manafield containers"
-check_container core
-check_container reference-web
+check_registry_module() {
+  label="$1"
+  url="$2"
+  module_id="$3"
 
-section "Manafield endpoints"
+  response="$(curl --fail --silent --show-error --max-time 3 "$url" 2>&1)"
+  status=$?
+
+  if [ "$status" -ne 0 ]; then
+    printf '[fail] %s\n%s\n' "$label" "$response"
+    failed=1
+    return
+  fi
+
+  if printf '%s' "$response" | grep -Fq "\"id\":\"$module_id\""; then
+    printf '[ok] %s: %s\n' "$label" "$module_id"
+  else
+    printf '[fail] %s: module %s not found\n' "$label" "$module_id"
+    printf '%s\n' "$response"
+    failed=1
+  fi
+}
+
+section "Manafield Core"
 check_http "Core health" "$CORE_URL/health"
-check_http "Core registry" "$CORE_URL/modules"
+check_registry_module "Core registry contains reference module" "$CORE_URL/modules" "$REFERENCE_MODULE_ID"
+
+section "Reference Module"
 check_http "Reference health" "$REFERENCE_URL/manafield/health"
-check_http "Reference -> Core registry" "$REFERENCE_URL/api/core/modules"
+check_registry_module "Reference can read Core registry" "$REFERENCE_URL/api/core/modules" "$REFERENCE_MODULE_ID"
 
 section "Result"
 if [ "$failed" -eq 0 ]; then
-  echo "Manafield deployment looks healthy."
+  echo "Manafield deployment is healthy."
 else
   echo "Manafield deployment has one or more failures."
 fi
