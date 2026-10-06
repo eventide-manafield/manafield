@@ -23,7 +23,20 @@ The project aims to provide a small control plane capable of connecting and mana
 
 `manafield.studio` is an instance built on top of Manafield, not Manafield itself.
 
-## 2. Core Philosophy
+## 2. Development Baseline
+
+The current Manafield Core development baseline is **Rust 1.99.0**.
+
+```text
+rustc 1.99.0
+cargo 1.99.0
+```
+
+This is the current development and validation baseline. It does **not** yet define the project's official MSRV (Minimum Supported Rust Version).
+
+A formal minimum supported Rust version may be defined later as the project stabilizes.
+
+## 3. Core Philosophy
 
 ### Strict Core, Free Modules
 
@@ -44,7 +57,7 @@ Modules are intentionally less constrained.
 
 A Module may be implemented using Python, Go, Node.js, Java, Rust, or another environment capable of implementing the protocol.
 
-## 3. Headless Core
+## 4. Headless Core
 
 Manafield Core is designed to be headless.
 
@@ -60,7 +73,7 @@ Manafield Core
 
 An official Web View may be provided separately, but the Core and Modules should remain usable without it.
 
-## 4. High-level Architecture
+## 5. High-level Architecture
 
 ```text
                     ┌─────────────────┐
@@ -83,7 +96,7 @@ An official Web View may be provided separately, but the Core and Modules should
      Module          Service        Integration
 ```
 
-## 5. Component Types
+## 6. Component Types
 
 ### Module
 
@@ -116,7 +129,7 @@ Examples:
 
 These categories describe execution characteristics and responsibility while sharing as much of the common Module Protocol as practical.
 
-## 6. Runtime Model
+## 7. Runtime Model
 
 Manafield does **not** implement a container runtime.
 
@@ -156,7 +169,7 @@ trait ModuleRuntime {
 
 The exact Rust API is not finalized.
 
-## 7. Web Contributions
+## 8. Web Contributions
 
 A Module does not need to provide a UI.
 
@@ -176,7 +189,7 @@ The Module points to an external URL.
 
 Future versions may experiment with more tightly integrated remote UI mechanisms, but they are intentionally outside the initial scope.
 
-## 8. Isolation
+## 9. Isolation
 
 The default architecture avoids loading arbitrary Module code directly into the Core process.
 
@@ -192,7 +205,7 @@ This makes language independence easier and provides a clearer security and fail
 
 Third-party isolation may later include restricted containers or sandboxing.
 
-## 9. Non-goals
+## 10. Non-goals
 
 Manafield does not aim to reimplement:
 
