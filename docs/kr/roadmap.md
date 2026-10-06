@@ -23,6 +23,7 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Rust Core bootstrap
 - [x] Rust 1.99.0 toolchain pinning
 - [x] Core HTTP API bootstrap
+- [x] Core Dockerfile
 - [x] Module Descriptor 모델
 - [x] Operation Contract 모델
 - [x] DataSchema 모델
@@ -45,7 +46,7 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] `/manafield/health` Operation
 - [x] Core Registry 조회 연결
 - [x] Dockerfile
-- [ ] Core + Reference Module Compose 환경
+- [x] Core + Reference Module Compose 환경
 - [ ] Reference Module을 실제 Core Registry에 등록
 - [ ] Observer에서 자기 자신 관찰
 - [ ] Reference 구현에서 Module Template 요구사항 추출
