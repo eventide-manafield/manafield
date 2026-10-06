@@ -15,7 +15,7 @@ Module은 Manafield Core 코드를 import하거나 필수 SDK를 사용할 필�
 
 언어별 SDK는 편의를 위해 제공할 수 있지만 선택 사항이어야 합니다.
 
-## 2. Operation과 Binding
+## 2. Operation, Binding, Codec
 
 Manafield는 Module이 제공하는 호출 가능한 기능을 **Operation**으로 표현합니다.
 
@@ -29,11 +29,35 @@ Operation
 ├─ Output Schema
 └─ Binding
    └─ HTTP
+      └─ Codec
+         ├─ JSON
+         └─ MessagePack
 ```
 
 향후 필요에 따라 gRPC, TCP, WebSocket 또는 다른 방식의 Binding을 추가할 수 있도록 구조를 열어둡니다.
 
 현재 HTTP는 **첫 번째 구현 대상**이지, Manafield Module Protocol 전체를 HTTP로 제한하는 의미가 아닙니다.
+
+Binding은 연결/호출 방식을 나타내고, **Codec은 Payload를 어떤 형식으로 직렬화하는지**를 나타냅니다.
+
+초기 HTTP Binding에서는 다음 Codec을 지원합니다.
+
+- **JSON** — 사람이 읽고 디버깅하기 쉬운 기본 형식
+- **MessagePack** — 동일한 구조를 더 compact한 바이너리 형식으로 전송하기 위한 선택지
+
+HTTP에서는 `Accept` / `Content-Type`을 사용해 Codec을 선택하는 방향으로 구현합니다.
+
+```http
+Accept: application/json
+```
+
+또는:
+
+```http
+Accept: application/msgpack
+```
+
+`binary`라는 추상 타입 하나를 두기보다, 실제 wire format을 명시적인 Codec으로 선언합니다. 향후 CBOR, Protobuf 등 다른 형식이 필요하면 별도 Codec 또는 Binding 정책으로 확장할 수 있습니다.
 
 ## 3. 최소 Endpoint
 
@@ -110,7 +134,8 @@ Operation이 HTTP로 제공되는 경우 HTTP 정보는 Operation 자체가 아�
   "binding": {
     "type": "http",
     "method": "POST",
-    "path": "/echo"
+    "path": "/echo",
+    "codecs": ["json", "messagepack"]
   }
 }
 ```
@@ -129,11 +154,14 @@ enum OperationBinding {
     Http {
         method: HttpMethod,
         path: String,
+        codecs: Vec<PayloadCodec>,
     },
 }
 ```
 
 현재 `OperationBinding`에는 HTTP만 존재합니다. 다른 통신 방식을 실제로 지원하게 될 때 새로운 variant를 추가합니다.
+
+초기 `PayloadCodec`은 `Json`과 `MessagePack`을 제공합니다. 같은 Rust 자료형을 Serde를 통해 두 형식으로 직렬화할 수 있도록 하며, Module은 자신이 지원하는 Codec 목록을 Binding metadata로 광고할 수 있습니다.
 
 Module이 등록될 때 Core는 Module descriptor와 Operation contracts를 함께 Registry에 저장합니다.
 
@@ -156,9 +184,12 @@ sequenceDiagram
 - 예상 Output Schema
 - 어떤 Binding으로 호출되는지
 - HTTP Binding이라면 Method와 Path
+- 해당 Binding이 지원하는 Codec
 - 향후 필요한 Permission / Capability
 
 초기에는 Operation 정보를 **탐색 및 검증용 metadata**로 사용합니다. 실제 자동 Proxy/Route 연결은 Registry 구조가 안정화된 뒤 추가합니다.
+
+현재 Core의 Module discovery 응답은 실험적으로 HTTP content negotiation을 지원합니다. 기본 응답은 JSON이며, `Accept: application/msgpack`을 보내면 MessagePack 바이너리로 응답합니다.
 
 ## 6. Manifest
 
