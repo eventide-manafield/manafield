@@ -226,6 +226,38 @@ permissions:
 
 The manifest schema is not finalized.
 
+### Current development-time Module discovery
+
+Core can use the `MANAFIELD_MODULES_DIR` environment variable to select the root directory for Module discovery. The default is `modules`.
+
+Core recursively searches that directory for files named `manafield.module.json`.
+
+```text
+MANAFIELD_MODULES_DIR
+        ↓
+discover manafield.module.json
+        ↓
+JSON → ModuleDescriptor
+        ↓
+Registry validation
+        ↓
+ModuleRegistry
+```
+
+Current validation rules include:
+
+- Module ID, name, and version must not be empty
+- Operation IDs must be unique within a Module
+- HTTP paths must begin with `/`
+- HTTP Operations must declare at least one Codec
+- duplicate Module IDs cannot be registered
+
+Invalid manifests are not silently ignored; they cause Core startup to fail.
+
+`examples/modules/sample/manafield.module.json` in the repository is the current implementation example.
+
+This is a development-time Descriptor/Manifest shape and may evolve as installation metadata such as Runtime, permissions, and dependencies is added.
+
 ## 7. Compatibility Goal
 
 A future Core implementation should be replaceable without forcing Modules to be rewritten, as long as both sides implement the same protocol version.
