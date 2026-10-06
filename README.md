@@ -32,6 +32,8 @@
 
 Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, Go, Node.js, Java, Rust 등 **어떤 언어든 상관없이 API 계약만 지키면 연결**할 수 있는 구조를 목표로 합니다.
 
+Module이 외부에 제공하는 기능은 **Operation**이라는 공통 계약으로 표현합니다. Operation은 기능의 ID, Input/Output Schema, 호출 방식(Binding), Payload 형식(Codec)을 설명하며, Core는 이를 통해 Module의 구현 언어를 몰라도 어떤 기능을 어떻게 호출할 수 있는지 이해합니다.
+
 ```mermaid
 flowchart TB
     Web["Manafield Web<br/>(Optional)"]
@@ -139,6 +141,8 @@ Its guiding principle is:
 > **Strict Core, free Modules.**
 
 The Core is planned to be implemented in **Rust**, while Modules may use any language or framework as long as they implement the Manafield Module Protocol.
+
+Functionality exposed by a Module is described through a common **Operation** contract. An Operation describes the capability ID, Input/Output Schema, invocation Binding, and Payload Codec so Core can understand what a Module provides without knowing its implementation language.
 
 ## Development Toolchain
 
