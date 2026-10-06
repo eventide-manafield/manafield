@@ -226,6 +226,38 @@ permissions:
 
 Manifest Schema는 아직 확정되지 않았습니다.
 
+### 현재 개발용 Module discovery
+
+현재 Core는 `MANAFIELD_MODULES_DIR` 환경변수로 Module 탐색 루트 디렉터리를 지정할 수 있습니다. 지정하지 않으면 기본값은 `modules`입니다.
+
+Core는 해당 디렉터리 아래에서 `manafield.module.json` 파일을 재귀적으로 탐색합니다.
+
+```text
+MANAFIELD_MODULES_DIR
+        ↓
+manafield.module.json 탐색
+        ↓
+JSON → ModuleDescriptor
+        ↓
+Registry validation
+        ↓
+ModuleRegistry
+```
+
+현재 검증 규칙에는 다음이 포함됩니다.
+
+- Module ID / 이름 / 버전은 비어 있을 수 없음
+- 한 Module 안에서 Operation ID는 중복될 수 없음
+- HTTP Path는 `/`로 시작해야 함
+- HTTP Operation은 최소 하나 이상의 Codec을 선언해야 함
+- 동일 Module ID를 중복 등록할 수 없음
+
+잘못된 Manifest는 조용히 무시하지 않고 Core 시작을 실패시킵니다.
+
+Repository의 `examples/modules/sample/manafield.module.json`은 현재 구현을 검증하기 위한 예시입니다.
+
+이 파일 형식은 현재 개발 중인 Descriptor/Manifest 형태이며, 향후 Runtime, Permission, Dependency 등의 설치 metadata가 합쳐지면서 변경될 수 있습니다.
+
 ## 7. 호환성 목표
 
 향후 Core 구현을 다른 언어 또는 구조로 교체하더라도 동일한 Protocol version을 구현한다면 기존 Module이 계속 동작할 수 있는 구조를 목표로 합니다.
