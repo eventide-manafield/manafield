@@ -60,7 +60,73 @@ Possible responsibilities of the info endpoint:
 - capabilities
 - optional Web contribution metadata
 
-## 5. Manifest
+## 5. API Discovery
+
+A Module should be able to describe not only its identity, but also the **shape of the APIs it exposes**.
+
+At the developer level, this can be thought of as:
+
+```text
+API<Input, Output>
+```
+
+Core cannot know language-specific types from arbitrary external Modules, so the wire protocol represents input and output using **language-independent schemas**.
+
+Example:
+
+```json
+{
+  "id": "echo",
+  "method": "POST",
+  "path": "/echo",
+  "input": {
+    "type": "object",
+    "required": ["message"],
+    "properties": {
+      "message": { "type": "string" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["message"],
+    "properties": {
+      "message": { "type": "string" }
+    }
+  }
+}
+```
+
+The early implementation experiments with a JSON-Schema-like representation.
+
+When a Module is registered, Core stores both the Module descriptor and its API descriptors in the Registry.
+
+```mermaid
+sequenceDiagram
+    participant Module
+    participant Core
+    participant Registry
+
+    Module->>Core: Module descriptor + API contracts
+    Core->>Core: Validate module and API schemas
+    Core->>Registry: Register module
+    Core->>Registry: Register API descriptors
+    Registry-->>Core: Registered
+```
+
+This allows Core and Web/CLI clients to discover, without knowing the Module's implementation language:
+
+- available APIs
+- HTTP methods
+- Module-local paths
+- expected input schemas
+- expected output schemas
+- future permission/capability requirements
+
+Initially this API information is **discovery and validation metadata**. Automatic proxy/route wiring can be added after the Registry model stabilizes.
+
+A Module-ID-based namespace is being considered as the default way to avoid route collisions between Modules and Core routes.
+
+## 6. Manifest
 
 A Module may provide a manifest that Core can validate before installation or registration.
 
@@ -95,7 +161,7 @@ permissions:
 
 The manifest schema is not finalized.
 
-## 6. Compatibility Goal
+## 7. Compatibility Goal
 
 A future Core implementation should be replaceable without forcing Modules to be rewritten, as long as both sides implement the same protocol version.
 
@@ -115,7 +181,7 @@ Existing Modules continue to work
 
 This is an architectural goal, not a compatibility guarantee yet.
 
-## 7. Module Templates
+## 8. Module Templates
 
 Core and Module templates are expected to live in separate repositories.
 
@@ -129,7 +195,7 @@ manafield-module-template-node
 
 A developer should be able to start from a template repository and implement the protocol without cloning Manafield Core.
 
-## 8. Security Direction
+## 9. Security Direction
 
 The protocol should make permissions and capabilities explicit.
 
