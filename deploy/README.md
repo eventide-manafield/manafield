@@ -55,9 +55,29 @@ modules:
       dockerfile: Dockerfile
 ```
 
-A future **Build Plan Resolver** will consume this file and produce a CI-executor-neutral plan.
+The **Build Plan Resolver** consumes this file and produces a CI-executor-neutral JSON plan.
 
-Jenkins will execute that plan instead of owning Manafield's deployment model.
+Run it with:
+
+```bash
+cargo run --features build-plan --bin manafield-build-plan -- \
+  deploy/instance.example.yaml \
+  build-plan.json
+```
+
+Without the second path, the resolver prints the plan to stdout.
+
+See [build-plan.example.json](build-plan.example.json) for the current normalized output.
+
+The current v0 resolver:
+
+- validates the Instance Definition version
+- validates required IDs and source references
+- rejects duplicate Module / Runtime Provider IDs
+- removes disabled Runtime Providers and Modules from the resulting plan
+- normalizes Module build instructions for the CI executor
+
+Jenkins will execute the generated Build Plan instead of owning Manafield's deployment model.
 
 ## Module Build Contract
 
