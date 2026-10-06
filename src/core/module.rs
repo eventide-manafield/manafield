@@ -23,7 +23,4 @@ pub struct ApiContract {
 pub enum HttpMethod {
     Get,
     Post,
-    Put,
-    Patch,
-    Delete,
 }
