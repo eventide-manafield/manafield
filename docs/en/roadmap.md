@@ -142,6 +142,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0004 — Runtime Provider Boundary
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
 - [x] ADR-0006 — Instance Build Plan / single Pipeline per instance
+- [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
@@ -152,6 +153,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] No Jenkins Job per Module
 - [x] Start the Module build contract with a root-level Dockerfile
 - [x] Instance Definition v0
+- [x] Separate public platform code from private Instance Configuration
 - [x] Build Plan Resolver v0
 - [ ] Single Jenkins Pipeline skeleton
 - [ ] Connect GitHub webhooks to the same Instance Pipeline
