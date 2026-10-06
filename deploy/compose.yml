@@ -1,0 +1,55 @@
+name: manafield
+
+services:
+  core:
+    image: ${MANAFIELD_CORE_IMAGE:-manafield-core:local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: core-runtime
+    restart: unless-stopped
+    init: true
+    environment:
+      MANAFIELD_BIND: 0.0.0.0:8080
+      MANAFIELD_MODULES_DIR: /var/lib/manafield/modules
+      RUST_LOG: ${MANAFIELD_LOG:-manafield=info}
+    ports:
+      - "127.0.0.1:${MANAFIELD_CORE_PORT:-18080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - manafield
+
+  reference-web:
+    image: ${MANAFIELD_REFERENCE_IMAGE:-manafield-module-reference:local}
+    build:
+      context: ${MANAFIELD_REFERENCE_CONTEXT:-../../manafield-module-reference}
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: 8080
+      MANAFIELD_CORE_URL: http://core:8080
+    ports:
+      - "127.0.0.1:${MANAFIELD_REFERENCE_PORT:-18081}:8080"
+    depends_on:
+      core:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - manafield
+
+networks:
+  manafield:
+    name: ${MANAFIELD_NETWORK:-manafield}
