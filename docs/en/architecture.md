@@ -63,37 +63,37 @@ Manafield Core is designed to be headless.
 
 The Core does not require a built-in Web UI to function.
 
-```text
-Manafield Core
-├─ Official Web View
-├─ CLI
-├─ Mobile Client
-└─ Other Clients
+```mermaid
+flowchart LR
+    Web["Official Web View"]
+    CLI["CLI"]
+    Mobile["Mobile Client"]
+    Other["Other Clients"]
+    Core["Manafield Core"]
+
+    Web <-->|"Core API"| Core
+    CLI <-->|"Core API"| Core
+    Mobile <-->|"Core API"| Core
+    Other <-->|"Core API"| Core
 ```
 
 An official Web View may be provided separately, but the Core and Modules should remain usable without it.
 
 ## 5. High-level Architecture
 
-```text
-                    ┌─────────────────┐
-                    │  Manafield Web  │
-                    │    optional     │
-                    └────────┬────────┘
-                             │ Core API
-                             ▼
-┌────────────────────────────────────────────┐
-│              Manafield Core               │
-│                   Rust                    │
-│                                            │
-│ Registry       Lifecycle      Settings    │
-│ Permission     Health         Discovery   │
-│ Runtime        Routing        Events      │
-└───────┬───────────────┬───────────────┬───┘
-        │               │               │
-        │ Protocol      │ Protocol      │ Protocol
-        ▼               ▼               ▼
-     Module          Service        Integration
+```mermaid
+flowchart TB
+    Web["Manafield Web<br/>(Optional)"]
+    Core["Manafield Core<br/>Rust<br/><br/>Registry · Lifecycle · Settings<br/>Permission · Health · Discovery<br/>Runtime · Routing · Events"]
+
+    Module["Module"]
+    Service["Service"]
+    Integration["Integration"]
+
+    Web -->|"Core API"| Core
+    Core -->|"Module Protocol"| Module
+    Core -->|"Module Protocol"| Service
+    Core -->|"Module Protocol"| Integration
 ```
 
 ## 6. Component Types
@@ -135,24 +135,18 @@ Manafield does **not** implement a container runtime.
 
 Instead, Core talks to runtime implementations through an adapter boundary.
 
-Initial target:
+The initial target and long-term runtime direction are:
 
-```text
-Manafield Core
-      │
-      │ Runtime Adapter
-      ▼
-    Docker
-```
+```mermaid
+flowchart LR
+    Core["Manafield Core"]
+    Adapter["Runtime Adapter"]
+    Docker["Docker<br/>(Initial Target)"]
+    K8s["Kubernetes<br/>(Long-term)"]
 
-Possible future target:
-
-```text
-Manafield Core
-      │
-      │ Runtime Adapter
-      ▼
- Kubernetes
+    Core --> Adapter
+    Adapter --> Docker
+    Adapter -.-> K8s
 ```
 
 Conceptually:
@@ -193,12 +187,12 @@ Future versions may experiment with more tightly integrated remote UI mechanisms
 
 The default architecture avoids loading arbitrary Module code directly into the Core process.
 
-```text
-Manafield Core
-      │
-      │ API
-      ▼
-Module Process / Container
+```mermaid
+flowchart LR
+    Core["Manafield Core"]
+    Module["Module Process / Container"]
+
+    Core <-->|"Module Protocol / API"| Module
 ```
 
 This makes language independence easier and provides a clearer security and failure boundary.
