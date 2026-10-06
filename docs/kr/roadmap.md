@@ -142,6 +142,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0004 — Runtime Provider Boundary
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
 - [x] ADR-0006 — Instance Build Plan / 인스턴스별 단일 Pipeline
+- [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
@@ -152,6 +153,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] Module별 Jenkins Job을 만들지 않는 방향 확정
 - [x] Module build contract를 Repository root Dockerfile로 시작
 - [x] Instance Definition v0
+- [x] 공개 플랫폼과 Private Instance Configuration 분리 원칙
 - [x] Build Plan Resolver v0
 - [ ] Jenkins 단일 Pipeline skeleton
 - [ ] GitHub webhook → 동일 Instance Pipeline 연결
