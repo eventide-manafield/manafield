@@ -23,6 +23,7 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Rust Core bootstrap
 - [x] Rust 1.99.0 toolchain pinning
 - [x] Core HTTP API bootstrap
+- [x] Core Dockerfile
 - [x] Module Descriptor model
 - [x] Operation Contract model
 - [x] DataSchema model
@@ -45,7 +46,7 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] `/manafield/health` Operation
 - [x] Core Registry read integration
 - [x] Dockerfile
-- [ ] Core + Reference Module Compose environment
+- [x] Core + Reference Module Compose environment
 - [ ] Register the Reference Module in the live Core Registry
 - [ ] Observe the Reference Module from its own UI
 - [ ] Extract Module Template requirements from the reference implementation
