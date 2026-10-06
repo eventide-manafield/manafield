@@ -140,9 +140,25 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0003 — Registry Snapshot / ArcSwap Read Model
 - [x] ADR-0004 — Runtime Provider Boundary
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
+- [x] ADR-0006 — Instance Build Plan / single Pipeline per instance
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
+
+## Phase 5 — CI/CD / Instance Build Plan
+
+- [x] One Pipeline per instance
+- [x] No Jenkins Job per Module
+- [x] Start the Module build contract with a root-level Dockerfile
+- [ ] Instance Definition v0
+- [ ] Build Plan Resolver v0
+- [ ] Single Jenkins Pipeline skeleton
+- [ ] Connect GitHub webhooks to the same Instance Pipeline
+- [ ] Selective build based on changed source
+- [ ] Core / Runtime Provider / Module image tagging
+- [ ] Post-deploy Health / Protocol verification
+- [ ] Secret injection through CI credential storage
+- [ ] Validate Build Plan portability beyond Jenkins
 
 ## Long-term
 
