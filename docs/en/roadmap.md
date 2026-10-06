@@ -150,8 +150,8 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] One Pipeline per instance
 - [x] No Jenkins Job per Module
 - [x] Start the Module build contract with a root-level Dockerfile
-- [ ] Instance Definition v0
-- [ ] Build Plan Resolver v0
+- [x] Instance Definition v0
+- [x] Build Plan Resolver v0
 - [ ] Single Jenkins Pipeline skeleton
 - [ ] Connect GitHub webhooks to the same Instance Pipeline
 - [ ] Selective build based on changed source
