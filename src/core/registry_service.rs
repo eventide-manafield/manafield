@@ -66,6 +66,7 @@ mod tests {
             id: id.to_owned(),
             name: format!("{id} Module"),
             version: "0.0.1".to_owned(),
+            health_operation: None,
             operations: vec![OperationContract {
                 id: "hello".to_owned(),
                 input: None,
