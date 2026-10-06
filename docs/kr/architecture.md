@@ -57,6 +57,35 @@ Module의 내부 구현은 의도적으로 최대한 자유롭게 둡니다.
 
 Module은 Python, Go, Node.js, Java, Rust 또는 Protocol을 구현할 수 있는 다른 환경으로 작성할 수 있습니다.
 
+### Operation의 역할
+
+Manafield에서 **Operation**은 Module이 외부에 제공하는 호출 가능한 기능을 표현하는 공통 계약입니다.
+
+Core는 Module 내부의 함수나 클래스 구조를 직접 알지 않습니다. 대신 Module Descriptor에 포함된 Operation Contract를 통해 다음을 이해합니다.
+
+- 어떤 기능을 제공하는지
+- 어떤 Input / Output Schema를 사용하는지
+- 어떤 Binding으로 호출하는지
+- 어떤 Codec으로 Payload를 주고받는지
+
+따라서 Module 구현은 자유롭게 유지하면서도, Core와 다른 Client는 동일한 방식으로 기능을 탐색하고 검증할 수 있습니다.
+
+```mermaid
+flowchart LR
+    Module["Module"]
+    Operation["Operation Contract"]
+    Schema["Input / Output<br/>DataSchema"]
+    Binding["Binding<br/>HTTP now, others later"]
+    Codec["Codec<br/>JSON / MessagePack"]
+
+    Module --> Operation
+    Operation --> Schema
+    Operation --> Binding
+    Binding --> Codec
+```
+
+Operation의 상세 구조는 [Operation](operation.md) 문서를 참고합니다.
+
 ## 4. Headless Core
 
 Manafield Core는 **Headless**를 기본 구조로 합니다.
