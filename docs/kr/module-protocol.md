@@ -194,6 +194,47 @@ Operation의 Input/Output은 더 이상 임의의 JSON 값으로 저장하지 �
 
 Core는 Object Schema의 `required` 항목이 실제 `properties`에 존재하는지, 중복 선언되지 않았는지까지 검증합니다.
 
+### Health Operation 참조
+
+Module은 선택적으로 `healthOperation`에 Operation ID 하나를 지정할 수 있습니다.
+
+```json
+{
+  "id": "example",
+  "name": "Example Module",
+  "version": "0.1.0",
+  "healthOperation": "health",
+  "operations": [
+    {
+      "id": "health",
+      "input": null,
+      "output": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" }
+        },
+        "required": ["status"]
+      },
+      "binding": {
+        "type": "http",
+        "method": "GET",
+        "path": "/manafield/health",
+        "codecs": ["json"]
+      }
+    }
+  ]
+}
+```
+
+`healthOperation`은 Health check 정보를 별도로 복제하지 않고 기존 Operation 하나를 가리키는 참조입니다.
+
+Core는 등록 시 다음을 검증합니다.
+
+- 참조된 Operation ID가 실제 `operations`에 존재해야 함
+- Health Operation은 별도 입력 없이 호출할 수 있도록 `input`이 `null`이어야 함
+
+이를 통해 Health checker는 전체 Operation 목록에서 의미를 추론하지 않고 명시된 Operation을 바로 사용할 수 있습니다.
+
 초기 `PayloadCodec`은 `Json`과 `MessagePack`을 제공합니다. 같은 Rust 자료형을 Serde를 통해 두 형식으로 직렬화할 수 있도록 하며, Module은 자신이 지원하는 Codec 목록을 Binding metadata로 광고할 수 있습니다.
 
 Module이 등록될 때 Core는 Module descriptor와 Operation contracts를 함께 Registry에 저장합니다.
@@ -245,9 +286,24 @@ container:
   image: ghcr.io/example/example-module:0.1.0
   port: 8080
 
-health:
-  method: GET
-  path: /manafield/health
+healthOperation: health
+
+operations:
+  - id: health
+    input: null
+    output:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    binding:
+      type: http
+      method: GET
+      path: /manafield/health
+      codecs:
+        - json
 
 web:
   mode: proxy
@@ -283,6 +339,8 @@ ModuleRegistry
 - 한 Module 안에서 Operation ID는 중복될 수 없음
 - HTTP Path는 `/`로 시작해야 함
 - HTTP Operation은 최소 하나 이상의 Codec을 선언해야 함
+- `healthOperation`을 지정하면 해당 Operation ID가 실제로 존재해야 함
+- Health Operation은 별도 입력을 요구할 수 없음
 - 동일 Module ID를 중복 등록할 수 없음
 
 잘못된 Manifest는 조용히 무시하지 않고 Core 시작을 실패시킵니다.
