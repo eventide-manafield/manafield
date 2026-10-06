@@ -4,7 +4,9 @@ mod core;
 use std::net::SocketAddr;
 
 use axum::Router;
-use core::{HttpMethod, ModuleDescriptor, ModuleRegistry, OperationBinding, OperationContract};
+use core::{
+    HttpMethod, ModuleDescriptor, ModuleRegistry, OperationBinding, OperationContract, PayloadCodec,
+};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::info;
@@ -60,6 +62,7 @@ fn initial_registry() -> ModuleRegistry {
                     binding: OperationBinding::Http {
                         method: HttpMethod::Get,
                         path: "/hello".to_owned(),
+                        codecs: vec![PayloadCodec::Json, PayloadCodec::MessagePack],
                     },
                 },
                 OperationContract {
@@ -81,6 +84,7 @@ fn initial_registry() -> ModuleRegistry {
                     binding: OperationBinding::Http {
                         method: HttpMethod::Post,
                         path: "/echo".to_owned(),
+                        codecs: vec![PayloadCodec::Json, PayloadCodec::MessagePack],
                     },
                 },
             ],
