@@ -15,11 +15,25 @@ A Module should not need to import Manafield Core code or use a mandatory SDK.
 
 Language-specific SDKs may exist for convenience, but they must remain optional.
 
-## 2. Initial Transport
+## 2. Operations and Bindings
 
-The initial protocol is expected to use HTTP for the basic control and discovery surface.
+Manafield represents callable functionality exposed by a Module as an **Operation**.
 
-WebSocket or another message/event transport may be added when required.
+An Operation is transport-neutral. The concrete invocation mechanism is separated into a **Binding**.
+
+The initial implementation supports only an HTTP binding.
+
+```text
+Operation
+├─ Input Schema
+├─ Output Schema
+└─ Binding
+   └─ HTTP
+```
+
+Additional bindings such as gRPC, TCP, WebSocket, or other mechanisms may be introduced when they are actually needed.
+
+HTTP is the **first implemented binding**, not a restriction that makes the entire Manafield Module Protocol HTTP-only.
 
 ## 3. Minimal Endpoints
 
@@ -60,25 +74,25 @@ Possible responsibilities of the info endpoint:
 - capabilities
 - optional Web contribution metadata
 
-## 5. API Discovery
+## 5. Operation Discovery
 
-A Module should be able to describe not only its identity, but also the **shape of the APIs it exposes**.
+A Module describes its callable functionality to Core as a list of **Operation Contracts**.
 
 At the developer level, this can be thought of as:
 
 ```text
-API<Input, Output>
+Operation<Input, Output>
 ```
 
-Core cannot know language-specific types from arbitrary external Modules, so the wire protocol represents input and output using **language-independent schemas**.
+Core cannot know language-specific types from arbitrary external Modules, so Input and Output are represented using **language-independent schemas**.
+
+When an Operation is exposed over HTTP, its HTTP-specific details live in the Binding rather than in the Operation itself.
 
 Example:
 
 ```json
 {
   "id": "echo",
-  "method": "POST",
-  "path": "/echo",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -92,13 +106,36 @@ Example:
     "properties": {
       "message": { "type": "string" }
     }
+  },
+  "binding": {
+    "type": "http",
+    "method": "POST",
+    "path": "/echo"
   }
 }
 ```
 
-The early implementation experiments with a JSON-Schema-like representation.
+The initial Rust model follows this concept:
 
-When a Module is registered, Core stores both the Module descriptor and its API descriptors in the Registry.
+```rust
+struct OperationContract {
+    id: String,
+    input: Option<Value>,
+    output: Option<Value>,
+    binding: OperationBinding,
+}
+
+enum OperationBinding {
+    Http {
+        method: HttpMethod,
+        path: String,
+    },
+}
+```
+
+At the moment, `OperationBinding` contains only HTTP. New variants are added when another invocation mechanism is actually supported.
+
+When a Module is registered, Core stores the Module descriptor and its Operation contracts together in the Registry.
 
 ```mermaid
 sequenceDiagram
@@ -106,25 +143,22 @@ sequenceDiagram
     participant Core
     participant Registry
 
-    Module->>Core: Module descriptor + API contracts
-    Core->>Core: Validate module and API schemas
-    Core->>Registry: Register module
-    Core->>Registry: Register API descriptors
+    Module->>Core: Module descriptor + Operation contracts
+    Core->>Core: Validate schemas and bindings
+    Core->>Registry: Register module and operations
     Registry-->>Core: Registered
 ```
 
 This allows Core and Web/CLI clients to discover, without knowing the Module's implementation language:
 
-- available APIs
-- HTTP methods
-- Module-local paths
-- expected input schemas
-- expected output schemas
+- available Operations
+- expected Input Schemas
+- expected Output Schemas
+- the Binding used to invoke each Operation
+- HTTP method and path when the Binding is HTTP
 - future permission/capability requirements
 
-Initially this API information is **discovery and validation metadata**. Automatic proxy/route wiring can be added after the Registry model stabilizes.
-
-A Module-ID-based namespace is being considered as the default way to avoid route collisions between Modules and Core routes.
+Initially Operation information is **discovery and validation metadata**. Automatic proxy/route wiring can be added after the Registry model stabilizes.
 
 ## 6. Manifest
 
