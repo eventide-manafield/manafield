@@ -102,6 +102,22 @@ Without the second path, the resolver prints the plan to stdout.
 
 See [build-plan.example.json](build-plan.example.json) for the current normalized output.
 
+### First-run bootstrap
+
+If Jenkins can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not exist yet, the Pipeline copies `deploy/instance.bootstrap.yaml` into place before resolving the Build Plan.
+
+The bootstrap definition is intentionally small and portable:
+
+- no secrets
+- no host-specific paths
+- Core from the public `manafield` repository
+- Docker Runtime Provider declared
+- public `manafield-reference` Module as the first runnable example
+
+`deploy/instance.yaml.example` remains the richer configuration reference. The bootstrap file is the safe first-run default.
+
+Future bootstrap options are expected to grow around runnable examples such as PostgreSQL Resource, Example Web, and Example Account once the corresponding Resource / Binding runtime support exists.
+
 The current v0 resolver:
 
 - validates the Instance Definition version
