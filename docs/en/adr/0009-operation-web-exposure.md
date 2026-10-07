@@ -64,7 +64,14 @@ Example:
 /modules/example/...
 ```
 
-Instance configuration may choose whether the public prefix is stripped before forwarding.
+The public prefix is preserved by default rather than stripped.
+
+```text
+public  /echo/foo
+→ module /echo/foo
+```
+
+The Instance-assigned prefix/base path must be available to the Module as runtime configuration so assets, redirects, cookie paths, and browser-side API paths use the same route base.
 
 Prefix Proxy is not the default exposure mode for every Module.
 
