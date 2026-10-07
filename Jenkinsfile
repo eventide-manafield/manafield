@@ -62,16 +62,89 @@ pipeline {
                       echo "If Jenkins runs in a container, bind-mount INSTANCE_ROOT into the container at the same path." >&2
                       exit 1
                     fi
-
-                    if [ ! -f "$INSTANCE_ROOT/instance.yaml" ]; then
-                      cp deploy/instance.bootstrap.yaml "$INSTANCE_ROOT/instance.yaml"
-                      echo "Created bootstrap Instance Definition:"
-                      echo "  $INSTANCE_ROOT/instance.yaml"
-                    else
-                      echo "Using existing Instance Definition:"
-                      echo "  $INSTANCE_ROOT/instance.yaml"
-                    fi
                 '''
+            }
+        }
+
+        stage("Bootstrap Instance") {
+            steps {
+                script {
+                    def instanceExists = sh(
+                        script: 'test -f "$INSTANCE_ROOT/instance.yaml"',
+                        returnStatus: true
+                    ) == 0
+
+                    if (instanceExists) {
+                        echo "Using existing Instance Definition: ${env.INSTANCE_ROOT}/instance.yaml"
+                    } else {
+                        def bootstrap = input(
+                            message: "No instance.yaml was found. Configure the first Manafield instance.",
+                            ok: "Create Instance",
+                            parameters: [
+                                booleanParam(
+                                    name: "INSTALL_EXAMPLE_POSTGRES",
+                                    defaultValue: false,
+                                    description: "Install the PostgreSQL example Resource (planned; not implemented yet)"
+                                ),
+                                booleanParam(
+                                    name: "INSTALL_EXAMPLE_WEB",
+                                    defaultValue: false,
+                                    description: "Install the Example Web Module (planned; not implemented yet)"
+                                ),
+                                booleanParam(
+                                    name: "INSTALL_EXAMPLE_ACCOUNT",
+                                    defaultValue: false,
+                                    description: "Install the Example Account Module (planned; implies PostgreSQL + Example Web)"
+                                ),
+                                string(
+                                    name: "ADMIN_USERNAME",
+                                    defaultValue: "admin",
+                                    description: "Initial example administrator username"
+                                ),
+                                string(
+                                    name: "ADMIN_PASSWORD",
+                                    defaultValue: "admin",
+                                    description: "Initial example administrator password"
+                                )
+                            ]
+                        )
+
+                        def installPostgres = bootstrap["INSTALL_EXAMPLE_POSTGRES"] as boolean
+                        def installWeb = bootstrap["INSTALL_EXAMPLE_WEB"] as boolean
+                        def installAccount = bootstrap["INSTALL_EXAMPLE_ACCOUNT"] as boolean
+
+                        if (installAccount) {
+                            installPostgres = true
+                            installWeb = true
+                        }
+
+                        if (installPostgres || installWeb || installAccount) {
+                            def selected = []
+                            if (installPostgres) {
+                                selected << "PostgreSQL Resource"
+                            }
+                            if (installWeb) {
+                                selected << "Example Web"
+                            }
+                            if (installAccount) {
+                                selected << "Example Account"
+                            }
+
+                            error(
+                                "Selected bootstrap examples are not implemented yet: " +
+                                selected.join(", ") +
+                                ". Re-run the build with the example options unchecked."
+                            )
+                        }
+
+                        sh '''
+                            set -eu
+                            cp deploy/instance.bootstrap.yaml "$INSTANCE_ROOT/instance.yaml"
+                            echo "Created bootstrap Instance Definition:"
+                            echo "  $INSTANCE_ROOT/instance.yaml"
+                        '''
+                    }
+                }
             }
         }
 
