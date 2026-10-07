@@ -109,7 +109,7 @@ pipeline {
                       git -C "$module_dir" checkout --detach FETCH_HEAD
 
                       revision="$(git -C "$module_dir" rev-parse --short=12 HEAD)"
-                      image="manafield-module-$safe_id:$revision"
+                      image="$safe_id:$revision"
 
                       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
                         "$module_id" \
@@ -174,9 +174,10 @@ pipeline {
                 sh '''
                     set -eu
 
-                    network="$(cat ci-plan/network.txt)"
+                    modules_network="$(cat ci-plan/modules-network.txt)"
+                    edge_network="$(cat ci-plan/edge-network.txt)"
                     reference_image="$(
-                      awk -F '\t' '$1 == "reference-web" { print $5; exit }' module-sources.tsv
+                      awk -F '\t' '$1 == "manafield-reference" { print $5; exit }' module-sources.tsv
                     )"
 
                     test -n "$reference_image"
@@ -191,7 +192,8 @@ pipeline {
                       "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
                       "MANAFIELD_REFERENCE_IMAGE=$reference_image" \
                       "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
-                      "MANAFIELD_NETWORK=$network" \
+                      "MANAFIELD_MODULES_NETWORK=$modules_network" \
+                      "MANAFIELD_EDGE_NETWORK=$edge_network" \
                       > "$RELEASE_DIR/release.env"
 
                     tab="$(printf '\t')"
@@ -248,14 +250,14 @@ pipeline {
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
                            http://127.0.0.1:8080/modules >/tmp/manafield-modules.json \
-                        && grep -Fq '"id":"reference-web"' /tmp/manafield-modules.json \
+                        && grep -Fq '"id":"manafield-reference"' /tmp/manafield-modules.json \
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
-                           http://reference-web:8080/manafield/health >/tmp/manafield-reference-health.json \
+                           http://reference:8080/manafield/health >/tmp/manafield-reference-health.json \
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
-                           http://reference-web:8080/api/core/modules >/tmp/manafield-reference-modules.json \
-                        && grep -Fq '"id":"reference-web"' /tmp/manafield-reference-modules.json
+                           http://reference:8080/api/core/modules >/tmp/manafield-reference-modules.json \
+                        && grep -Fq '"id":"manafield-reference"' /tmp/manafield-reference-modules.json
                       then
                         cat /tmp/manafield-core-health.json
                         echo
