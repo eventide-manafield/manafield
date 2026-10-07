@@ -224,9 +224,9 @@ Echo v2 같은 stateful Web Module을 새로 설계할 수 있도록 다음 기�
 - environment-driven application port
 - `manafield.module.json`
 - Protocol Health Operation
-- Resource Requirement를 application configuration으로 binding할 수 있는 경계
+- Capability binding을 application configuration으로 materialize할 수 있는 경계
 
-PostgreSQL/JPA 자체는 모든 Java Web Module의 필수 기능으로 고정하지 않습니다. DB가 필요한 Module만 `database.postgresql` 같은 Resource Requirement를 선언합니다.
+PostgreSQL/JPA 자체는 모든 Java Web Module의 필수 기능으로 고정하지 않습니다. DB가 필요한 Module만 `database.postgresql` 같은 Capability를 요구합니다.
 
 ## 7. Reference에서 Template으로 가져가지 않을 것
 
@@ -292,9 +292,9 @@ Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm i
 
 - Settings endpoint
 - Permission declaration의 최종 schema
-- Capability / Resource Descriptor의 최종 JSON/YAML schema
+- Capability Descriptor / provider-source 표현의 최종 JSON/YAML schema
 - Capability version range / negotiation 문법
-- Resource binding / Secret injection의 최종 schema
+- Capability binding / Secret injection의 최종 schema
 - Runtime requirement schema
 - WebSocket / Event convention
 - Core SDK 의존성
@@ -330,7 +330,7 @@ Module Repository의 Compose가 필요하다면 local development 용도로 제�
 
 Echo가 PostgreSQL/JPA를 사용한다고 해서 Database를 Module Template 필수 요소로 만들지 않습니다.
 
-DB/Storage dependency는 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 Module Capability와 분리된 **Resource Requirement**로 다룹니다. PostgreSQL이 필요한 Module은 개념적으로 `database.postgresql` Resource를 요구하고, concrete Provider/connection binding은 Instance가 결정합니다.
+DB/Storage 요구도 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 같은 **Capability Requirement**로 표현합니다. PostgreSQL이 필요한 Module은 `database.postgresql ^1` Capability를 요구하고, Instance는 그 Capability를 제공하는 concrete Resource와 connection binding을 선택합니다.
 
 ### Secret은 source 또는 Template에 고정하지 않음
 
@@ -388,11 +388,11 @@ Echo v2 private Repository를 만들기 전에 다음을 먼저 만족시키는 
 
 ```text
 Module Template Contract
-├─ Capability / Resource dependency 경계 설명 가능
+├─ 통합 Capability requirement / provider-source 경계 설명 가능
 ├─ stateless Go Web Module 설계 가능
 ├─ Official Go Web Shell 설계 가능
 ├─ Java / Spring Web Module 설계 가능
-└─ database.postgresql을 요구하는 stateful Module 설계 가능
+└─ database.postgresql Capability를 요구하는 stateful Module 설계 가능
 ```
 
 그 뒤 실제 Echo v2를 두 번째 Module로 구현하여 Template Contract를 재검증합니다.
