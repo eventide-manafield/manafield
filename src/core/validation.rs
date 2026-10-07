@@ -174,6 +174,7 @@ mod tests {
         ModuleDescriptor {
             id: "sample".to_owned(),
             name: "Sample Module".to_owned(),
+            description: None,
             version: "0.0.1".to_owned(),
             health_operation: None,
             operations: vec![OperationContract {
