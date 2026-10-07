@@ -11,12 +11,12 @@ pipeline {
     parameters {
         string(
             name: "INSTANCE_ROOT",
-            defaultValue: "/opt/manafield/ai-workspace/instance",
+            defaultValue: "/opt/manafield/instance",
             description: "Private Manafield instance root containing instance.yaml"
         )
         string(
             name: "LOCAL_MODULES_ROOT",
-            defaultValue: "/opt/manafield/ai-workspace/local-modules",
+            defaultValue: "/opt/manafield/local-modules",
             description: "Optional root containing local directory Modules"
         )
     }
@@ -42,41 +42,16 @@ pipeline {
             }
         }
 
-        stage("Confirm Instance Paths") {
-            steps {
-                script {
-                    def confirmed = input(
-                        message: "Use these Manafield paths? Change them if needed, then confirm.",
-                        ok: "Build with these paths",
-                        parameters: [
-                            string(
-                                name: "INSTANCE_ROOT",
-                                defaultValue: params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/ai-workspace/instance",
-                                description: "Directory containing the private instance.yaml"
-                            ),
-                            string(
-                                name: "LOCAL_MODULES_ROOT",
-                                defaultValue: params.LOCAL_MODULES_ROOT?.trim() ?: "/opt/manafield/ai-workspace/local-modules",
-                                description: "Root scanned for local directory Modules"
-                            )
-                        ]
-                    )
-
-                    env.INSTANCE_ROOT = confirmed["INSTANCE_ROOT"]?.trim() ?: ""
-                    env.LOCAL_MODULES_ROOT = confirmed["LOCAL_MODULES_ROOT"]?.trim() ?: ""
-
-                    if (!env.INSTANCE_ROOT) {
-                        error("INSTANCE_ROOT must not be empty")
-                    }
-
-                    echo "INSTANCE_ROOT=${env.INSTANCE_ROOT}"
-                    echo "LOCAL_MODULES_ROOT=${env.LOCAL_MODULES_ROOT ?: '(unused)'}"
-                }
-            }
-        }
-
         stage("Resolve Build Plan") {
             steps {
+                script {
+                    env.INSTANCE_ROOT = params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/instance"
+                    env.LOCAL_MODULES_ROOT = params.LOCAL_MODULES_ROOT?.trim() ?: "/opt/manafield/local-modules"
+
+                    echo "INSTANCE_ROOT=${env.INSTANCE_ROOT}"
+                    echo "LOCAL_MODULES_ROOT=${env.LOCAL_MODULES_ROOT}"
+                }
+
                 sh '''
                     set -eu
 
