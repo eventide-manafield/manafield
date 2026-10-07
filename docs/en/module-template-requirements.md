@@ -266,7 +266,7 @@ Wait for additional real Module implementations before standardizing:
 
 - Settings endpoints
 - final Permission declaration schema
-- final Capability Descriptor / provider-source JSON/YAML schema
+- final Capability Descriptor and Module/Resource Instance registry metadata schema
 - Capability version-range / negotiation syntax
 - final Capability binding / Secret injection schema
 - Runtime requirement schema
@@ -304,7 +304,7 @@ If a Module repository includes Compose, prefer treating it as local-development
 
 Echo uses PostgreSQL/JPA, but that does not make a database universal.
 
-Database/Storage needs follow [ADR-0010](adr/0010-capability-dependency-resolution.md) through the same **Capability Requirement** model. A Module that needs PostgreSQL requires `database.postgresql ^1`, while the Instance selects a concrete Resource providing that Capability and the connection binding.
+Database/Storage needs follow [ADR-0010](adr/0010-capability-dependency-resolution.md) through the same **Capability Requirement** model. A Module that needs PostgreSQL requires `database.postgresql ^1`, while the consumer Instance explicitly binds its Requirement slot to a concrete Resource Instance ID providing that Capability. Discovery only lists candidates and never binds automatically.
 
 ### Secrets are not fixed into source or Templates
 
@@ -360,7 +360,7 @@ Before creating the private Echo v2 repository, first make the Template Contract
 
 ```text
 Module Template Contract
-├─ unified Capability requirement / provider-source boundaries
+├─ unified Capability requirement / Module·Resource Instance boundaries
 ├─ stateless Go Web Modules
 ├─ Official Go Web Shell
 ├─ Java / Spring Web Modules
