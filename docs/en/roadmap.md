@@ -38,7 +38,7 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [ ] Stabilize Module Protocol v0 documentation
 - [ ] Define Registry update semantics
 
-## Phase 0.5 — Reference Module
+## Phase 0.5 — Manafield Reference
 
 - [x] Independent repository: `manafield-module-reference`
 - [x] Node.js / TypeScript Module server
@@ -46,9 +46,9 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] `/manafield/health` Operation
 - [x] Core Registry read integration
 - [x] Dockerfile
-- [x] Core + Reference Module Compose environment
-- [ ] Register the Reference Module in the live Core Registry
-- [ ] Observe the Reference Module from its own UI
+- [x] Core + Manafield Reference Compose environment
+- [ ] Register the Manafield Reference in the live Core Registry
+- [ ] Observe the Manafield Reference from its own UI
 - [ ] Extract Module Template requirements from the reference implementation
 
 ## Phase 1 — Runtime Provider Boundary
