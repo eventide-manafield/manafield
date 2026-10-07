@@ -46,7 +46,12 @@ register_resource() {
       echo "Registered Resource '$RESOURCE_ID' in Manafield Core"
       ;;
     409)
-      echo "Resource '$RESOURCE_ID' is already registered"
+      if [ "$(resource_status)" = "200" ]; then
+        echo "Resource '$RESOURCE_ID' is already registered"
+      else
+        echo "Instance ID '$RESOURCE_ID' is already used by another registered instance" >&2
+        return 1
+      fi
       ;;
     *)
       echo "Resource registration is not available yet (HTTP ${status:-000})" >&2

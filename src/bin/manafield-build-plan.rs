@@ -122,6 +122,12 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
     }
     fs::write(directory.join("modules.tsv"), modules)?;
 
+    let mut resources = String::new();
+    for resource in &plan.resources {
+        resources.push_str(&format!("{}\t{}\n", resource.id, resource.provider,));
+    }
+    fs::write(directory.join("resources.tsv"), resources)?;
+
     Ok(())
 }
 
@@ -150,15 +156,15 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         }
     }
 
-    let mut module_ids = HashSet::new();
+    let mut instance_ids = HashSet::new();
     let mut exposure_hosts = HashSet::new();
     let mut has_exposure = false;
 
     for module in &definition.modules {
         require_non_empty("modules[].id", &module.id)?;
 
-        if !module_ids.insert(module.id.as_str()) {
-            return Err(format!("duplicate module id '{}'", module.id));
+        if !instance_ids.insert(module.id.as_str()) {
+            return Err(format!("duplicate instance id '{}'", module.id));
         }
 
         validate_module_source(&format!("modules[{}].source", module.id), &module.source)?;
@@ -190,6 +196,18 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
                     }
                 }
             }
+        }
+    }
+
+    for resource in &definition.resources {
+        require_non_empty("resources[].id", &resource.id)?;
+        require_non_empty(
+            &format!("resources[{}].provider", resource.id),
+            &resource.provider,
+        )?;
+
+        if !instance_ids.insert(resource.id.as_str()) {
+            return Err(format!("duplicate instance id '{}'", resource.id));
         }
     }
 
@@ -259,6 +277,8 @@ struct InstanceDefinition {
     runtime_providers: Vec<RuntimeProviderDefinition>,
     #[serde(default)]
     modules: Vec<ModuleDefinition>,
+    #[serde(default)]
+    resources: Vec<ResourceDefinition>,
     deployment: DeploymentDefinition,
 }
 
@@ -306,6 +326,14 @@ struct ModuleDefinition {
     build: ModuleBuildDefinition,
     #[serde(default)]
     exposure: Option<ExposureDefinition>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResourceDefinition {
+    id: String,
+    #[serde(default = "default_true")]
+    enabled: bool,
+    provider: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -376,6 +404,7 @@ struct BuildPlan {
     core: CorePlan,
     runtime_providers: Vec<RuntimeProviderPlan>,
     modules: Vec<ModulePlan>,
+    resources: Vec<ResourcePlan>,
     deployment: DeploymentDefinition,
 }
 
@@ -408,6 +437,15 @@ impl From<InstanceDefinition> for BuildPlan {
                     exposure: module.exposure,
                 })
                 .collect(),
+            resources: definition
+                .resources
+                .into_iter()
+                .filter(|resource| resource.enabled)
+                .map(|resource| ResourcePlan {
+                    id: resource.id,
+                    provider: resource.provider,
+                })
+                .collect(),
             deployment: definition.deployment,
         }
     }
@@ -430,6 +468,12 @@ struct ModulePlan {
     build: ModuleBuildPlan,
     #[serde(skip_serializing_if = "Option::is_none")]
     exposure: Option<ExposureDefinition>,
+}
+
+#[derive(Debug, Serialize)]
+struct ResourcePlan {
+    id: String,
+    provider: String,
 }
 
 #[derive(Debug, Serialize)]

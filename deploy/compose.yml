@@ -51,6 +51,61 @@ services:
         aliases:
           - manafield-reference
 
+  example-postgres:
+    profiles:
+      - example-postgresql
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${MANAFIELD_EXAMPLE_POSTGRES_DB:-manafield}
+      POSTGRES_USER: ${MANAFIELD_EXAMPLE_POSTGRES_USER:-manafield}
+      POSTGRES_PASSWORD: ${MANAFIELD_EXAMPLE_POSTGRES_PASSWORD:-manafield}
+    volumes:
+      - example-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      modules:
+        aliases:
+          - example-postgres
+
+  example-postgres-provider:
+    profiles:
+      - example-postgresql
+    image: ${MANAFIELD_POSTGRES_PROVIDER_IMAGE:-manafield-resource-postgresql:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_POSTGRES_RESOURCE_ID:-example-postgres}
+      MANAFIELD_RESOURCE_NAME: ${MANAFIELD_POSTGRES_RESOURCE_NAME:-Example PostgreSQL}
+      POSTGRES_HOST: example-postgres
+      POSTGRES_PORT: 5432
+      MANAFIELD_POSTGRES_CAPABILITY_VERSION: 1.0.0
+      MANAFIELD_RESOURCE_CHECK_INTERVAL: 5
+    depends_on:
+      core:
+        condition: service_healthy
+      example-postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - modules
+
+volumes:
+  example-postgres-data:
+
 networks:
   modules:
     name: ${MANAFIELD_MODULES_NETWORK:-manafield-modules}

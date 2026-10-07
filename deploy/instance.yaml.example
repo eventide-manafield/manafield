@@ -44,6 +44,13 @@ modules:
       context: .
       dockerfile: Dockerfile
 
+resources:
+  # Desired Resource example. The provider creates/observes the concrete Resource
+  # and registers its live metadata with Core.
+  - id: example-postgres
+    enabled: false
+    provider: postgresql
+
 deployment:
   # Internal Core <-> Module network.
   modulesNetwork: manafield-modules

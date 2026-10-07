@@ -108,16 +108,27 @@ If Jenkins can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not 
 
 The Wizard is intentionally shown **only when the Instance Definition does not exist**. Existing instances continue directly to normal builds.
 
-The planned bootstrap choices are:
+The bootstrap choices are:
 
-- PostgreSQL example Resource
-- Example Web Module
-- Example Account Module
+- PostgreSQL example Resource — implemented
+- Example Web Module — planned
+- Example Account Module — planned
 - initial administrator username / password, defaulting to `admin / admin`
 
 Selecting Example Account implies both PostgreSQL and Example Web.
 
-The corresponding example implementations are not available yet. Until they are implemented, selecting any of those example options stops before writing `instance.yaml` with a clear diagnostic. Leaving them unchecked creates the current minimal bootstrap definition from `deploy/instance.bootstrap.yaml`.
+Selecting only PostgreSQL appends a desired Resource request to the generated `instance.yaml`:
+
+```yaml
+resources:
+  - id: example-postgres
+    enabled: true
+    provider: postgresql
+```
+
+That entry does **not** mean Core already knows the Resource exists. The Build Plan carries the desired Resource request to Jenkins; Jenkins starts PostgreSQL plus the PostgreSQL Resource Provider; the Provider waits for the database to become healthy and then registers the live Resource Instance with Core through `POST /resources`.
+
+Example Web / Account remain unavailable for now. Selecting either stops before writing `instance.yaml` with a clear diagnostic. Leaving all example options unchecked creates the current minimal bootstrap definition from `deploy/instance.bootstrap.yaml`.
 
 The minimal bootstrap definition is intentionally small and portable:
 
@@ -133,9 +144,25 @@ The current v0 resolver:
 
 - validates the Instance Definition version
 - validates required IDs and source references
-- rejects duplicate Module / Runtime Provider IDs
-- removes disabled Runtime Providers and Modules from the resulting plan
-- normalizes Module build instructions for the CI executor
+- rejects duplicate Instance IDs across Modules and Resources
+- rejects duplicate Runtime Provider IDs
+- removes disabled Runtime Providers, Modules, and Resources from the resulting plan
+- normalizes Module build instructions and Resource provider requests for the CI executor
+
+### Resource requests
+
+Desired Resources are declared separately from Modules.
+
+```yaml
+resources:
+  - id: example-postgres
+    enabled: true
+    provider: postgresql
+```
+
+The Build Plan preserves the generic `id + provider` request and emits `ci-plan/resources.tsv`.
+
+The Resource provider is responsible for creating or observing the concrete Resource and registering live metadata with Core. Core does not infer that a Resource exists merely because it appears in the Instance Definition.
 
 ### Module source types
 
@@ -209,10 +236,17 @@ The adapter boundary is intentionally provider-specific: future implementations 
 
 The current Compose stack is [compose.yml](compose.yml).
 
-It starts:
+Without optional profiles it starts:
 
 - Manafield Core
 - Manafield Reference
+
+When the `example-postgresql` profile is enabled it additionally starts:
+
+- disposable/example PostgreSQL
+- PostgreSQL Resource Provider
+
+The Provider registers the live Resource with Core after PostgreSQL is healthy.
 
 The Docker Runtime Provider is not included yet because its binary and Runtime Protocol have not been implemented.
 
@@ -325,11 +359,12 @@ The pipeline:
 3. discovers requested local directory Modules under `LOCAL_MODULES_ROOT`
 4. runs Core verification in the Docker `verify` target
 5. snapshots enabled Git/local Module sources into the workspace
-6. builds Core and Module images tagged by Git revision or local content revision
+6. builds Core / Module images and any selected Resource Provider images
 7. creates an immutable-ish release directory
 8. stages Module descriptors for Core discovery
-9. deploys the release with Docker Compose
-10. verifies Core health, Registry state, Manafield Reference health, and registered Module IDs
+9. enables required Compose profiles for desired Resources
+10. deploys the release with Docker Compose
+11. verifies Core health, Module Registry state, Resource Registry state, and Manafield Reference health
 
 A Jenkins deployment directory is expected to look like:
 

@@ -234,7 +234,9 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Single Jenkins Pipeline skeleton
 - [x] First-run bootstrap from `instance.bootstrap.yaml` when `instance.yaml` is absent
 - [x] One-time Bootstrap Wizard skeleton / Account implies PostgreSQL + Example Web
-- [ ] Implement selectable bootstrap examples: PostgreSQL Resource / Example Web / Example Account
+- [x] Wire selectable PostgreSQL Resource example through bootstrap deployment
+- [ ] Implement bootstrap Example Web
+- [ ] Implement bootstrap Example Account
 - [ ] Connect GitHub webhooks to the same Instance Pipeline
 - [ ] Selective build based on changed source
 - [ ] Core / Runtime Provider / Module image tagging

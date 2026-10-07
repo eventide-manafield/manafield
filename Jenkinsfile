@@ -84,7 +84,7 @@ pipeline {
                                 booleanParam(
                                     name: "INSTALL_EXAMPLE_POSTGRES",
                                     defaultValue: false,
-                                    description: "Install the PostgreSQL example Resource (planned; not implemented yet)"
+                                    description: "Install the PostgreSQL example Resource"
                                 ),
                                 booleanParam(
                                     name: "INSTALL_EXAMPLE_WEB",
@@ -118,11 +118,8 @@ pipeline {
                             installWeb = true
                         }
 
-                        if (installPostgres || installWeb || installAccount) {
+                        if (installWeb || installAccount) {
                             def selected = []
-                            if (installPostgres) {
-                                selected << "PostgreSQL Resource"
-                            }
                             if (installWeb) {
                                 selected << "Example Web"
                             }
@@ -133,13 +130,26 @@ pipeline {
                             error(
                                 "Selected bootstrap examples are not implemented yet: " +
                                 selected.join(", ") +
-                                ". Re-run the build with the example options unchecked."
+                                ". PostgreSQL can already be bootstrapped independently."
                             )
                         }
+
+                        env.BOOTSTRAP_INSTALL_POSTGRES = installPostgres ? "true" : "false"
 
                         sh '''
                             set -eu
                             cp deploy/instance.bootstrap.yaml "$INSTANCE_ROOT/instance.yaml"
+
+                            if [ "${BOOTSTRAP_INSTALL_POSTGRES:-false}" = "true" ]; then
+                              cat >> "$INSTANCE_ROOT/instance.yaml" <<'EOF'
+
+resources:
+  - id: example-postgres
+    enabled: true
+    provider: postgresql
+EOF
+                            fi
+
                             echo "Created bootstrap Instance Definition:"
                             echo "  $INSTANCE_ROOT/instance.yaml"
                         '''
@@ -441,6 +451,41 @@ pipeline {
                       printf 'module.%s.revision=%s\n' "$module_id" "$revision" \
                         >> resolved-images.env
                     done < module-sources.tsv
+
+                    : > resource-providers.tsv
+
+                    if [ -s ci-plan/resources.tsv ]; then
+                      while IFS="$tab" read -r resource_id provider; do
+                        [ -n "$resource_id" ] || continue
+
+                        case "$provider" in
+                          postgresql)
+                            provider_image="manafield-resource-postgresql:$CORE_SHA"
+
+                            docker build \
+                              --label "org.opencontainers.image.revision=$CORE_SHA" \
+                              --tag "$provider_image" \
+                              --file providers/postgresql/Dockerfile \
+                              providers/postgresql
+
+                            printf '%s\t%s\t%s\n' \
+                              "$resource_id" \
+                              "$provider" \
+                              "$provider_image" \
+                              >> resource-providers.tsv
+
+                            printf 'resource.%s.provider.image=%s\n' \
+                              "$resource_id" \
+                              "$provider_image" \
+                              >> resolved-images.env
+                            ;;
+                          *)
+                            echo "Unsupported Resource provider: $provider" >&2
+                            exit 1
+                            ;;
+                        esac
+                      done < ci-plan/resources.tsv
+                    fi
                 '''
             }
         }
@@ -462,6 +507,33 @@ pipeline {
 
                     test -n "$reference_image"
 
+                    postgres_count="$(
+                      awk -F '\t' '$2 == "postgresql" { count += 1 } END { print count + 0 }' \
+                        ci-plan/resources.tsv
+                    )"
+
+                    if [ "$postgres_count" -gt 1 ]; then
+                      echo "PostgreSQL Provider v0 currently supports one Resource per Instance." >&2
+                      exit 1
+                    fi
+
+                    postgres_resource_id=""
+                    postgres_provider_image=""
+                    compose_profiles=""
+
+                    if [ "$postgres_count" -eq 1 ]; then
+                      postgres_resource_id="$(
+                        awk -F '\t' '$2 == "postgresql" { print $1; exit }' ci-plan/resources.tsv
+                      )"
+                      postgres_provider_image="$(
+                        awk -F '\t' '$2 == "postgresql" { print $3; exit }' resource-providers.tsv
+                      )"
+
+                      test -n "$postgres_resource_id"
+                      test -n "$postgres_provider_image"
+                      compose_profiles="example-postgresql"
+                    fi
+
                     mkdir -p "$RELEASE_DIR/modules"
 
                     cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
@@ -474,7 +546,12 @@ pipeline {
                       "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
                       "MANAFIELD_MODULES_NETWORK=$modules_network" \
                       "MANAFIELD_EDGE_NETWORK=$edge_network" \
+                      "MANAFIELD_POSTGRES_PROVIDER_IMAGE=$postgres_provider_image" \
+                      "MANAFIELD_POSTGRES_RESOURCE_ID=$postgres_resource_id" \
+                      "MANAFIELD_POSTGRES_RESOURCE_NAME=Example PostgreSQL" \
                       > "$RELEASE_DIR/release.env"
+
+                    printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"
 
                     tab="$(printf '\t')"
 
@@ -537,6 +614,13 @@ pipeline {
                 sh '''
                     set -eu
 
+                    compose_profiles="$(cat "$RELEASE_DIR/compose-profiles.txt")"
+                    if [ -n "$compose_profiles" ]; then
+                      export COMPOSE_PROFILES="$compose_profiles"
+                    else
+                      unset COMPOSE_PROFILES || true
+                    fi
+
                     docker compose \
                       --env-file "$RELEASE_DIR/release.env" \
                       --file "$RELEASE_DIR/compose.yml" \
@@ -590,6 +674,13 @@ pipeline {
                 sh '''
                     set -eu
 
+                    compose_profiles="$(cat "$RELEASE_DIR/compose-profiles.txt")"
+                    if [ -n "$compose_profiles" ]; then
+                      export COMPOSE_PROFILES="$compose_profiles"
+                    else
+                      unset COMPOSE_PROFILES || true
+                    fi
+
                     core_container="$(
                       docker compose \
                         --env-file "$RELEASE_DIR/release.env" \
@@ -598,6 +689,23 @@ pipeline {
                     )"
 
                     test -n "$core_container"
+
+                    verify_expected_resources() {
+                      if [ ! -s ci-plan/resources.tsv ]; then
+                        return 0
+                      fi
+
+                      docker exec "$core_container" \
+                        curl --fail --silent --show-error \
+                        http://127.0.0.1:8080/resources >/tmp/manafield-resources.json \
+                        || return 1
+
+                      while IFS="$(printf '\t')" read -r resource_id _; do
+                        [ -n "$resource_id" ] || continue
+                        resource_pattern="$(printf '"id":"%s"' "$resource_id")"
+                        grep -Fq "$resource_pattern" /tmp/manafield-resources.json || return 1
+                      done < ci-plan/resources.tsv
+                    }
 
                     attempts=30
                     while [ "$attempts" -gt 0 ]; do
@@ -613,6 +721,7 @@ pipeline {
                              module_pattern="$(printf '"id":"%s"' "$module_id")"
                              grep -Fq "$module_pattern" /tmp/manafield-modules.json
                            done < module-sources.tsv \
+                        && verify_expected_resources \
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
                            http://reference:8080/manafield/health >/tmp/manafield-reference-health.json \
@@ -625,6 +734,10 @@ pipeline {
                         echo
                         cat /tmp/manafield-reference-health.json
                         echo
+                        if [ -f /tmp/manafield-resources.json ]; then
+                          cat /tmp/manafield-resources.json
+                          echo
+                        fi
                         break
                       fi
 
@@ -647,7 +760,7 @@ pipeline {
     post {
         always {
             archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,local-modules.tsv,module-sources.tsv,ci-plan/**",
+                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,local-modules.tsv,module-sources.tsv,resource-providers.tsv,ci-plan/**",
                 allowEmptyArchive: true
             )
         }
@@ -655,6 +768,13 @@ pipeline {
         failure {
             sh '''
                 if [ -n "${RELEASE_DIR:-}" ] && [ -f "$RELEASE_DIR/compose.yml" ]; then
+                  if [ -f "$RELEASE_DIR/compose-profiles.txt" ]; then
+                    compose_profiles="$(cat "$RELEASE_DIR/compose-profiles.txt")"
+                    if [ -n "$compose_profiles" ]; then
+                      export COMPOSE_PROFILES="$compose_profiles"
+                    fi
+                  fi
+
                   docker compose \
                     --env-file "$RELEASE_DIR/release.env" \
                     --file "$RELEASE_DIR/compose.yml" \

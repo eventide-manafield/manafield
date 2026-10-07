@@ -69,7 +69,22 @@ MANAFIELD_RESOURCE_CHECK_INTERVAL
   default: 5
 ```
 
-## Example
+## Bootstrap integration
+
+On the first Jenkins run, selecting **PostgreSQL example Resource** writes this desired Resource request into the generated Instance Definition:
+
+```yaml
+resources:
+  - id: example-postgres
+    enabled: true
+    provider: postgresql
+```
+
+The Build Plan emits that request to `ci-plan/resources.tsv`. Jenkins builds this Provider image, activates the `example-postgresql` Compose profile, and waits until Core reports the registered Resource through `GET /resources`.
+
+The desired request and the live registration are intentionally separate: the Instance Definition asks for the Resource, while this Provider proves that the concrete Resource is actually available.
+
+## Manual example
 
 The bundled `compose.example.yml` starts a disposable/example PostgreSQL instance and this Provider on the existing `manafield-modules` network.
 
