@@ -29,7 +29,7 @@ Private by default
 └─ deployment-specific configuration
 ```
 
-The repository's `deploy/instance.example.yaml` is a public example only and is not the storage location for a real production instance definition.
+The repository's `deploy/instance.yaml.example` is a public example only and is not the storage location for a real production instance definition.
 
 Personal Modules and Integrations may be either public or private as long as they implement the Manafield Protocol.
 
