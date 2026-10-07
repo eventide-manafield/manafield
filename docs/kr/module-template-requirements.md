@@ -292,7 +292,7 @@ Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm i
 
 - Settings endpoint
 - Permission declaration의 최종 schema
-- Capability Descriptor / provider-source 표현의 최종 JSON/YAML schema
+- Capability Descriptor와 Module/Resource Instance 등록 metadata의 최종 JSON/YAML schema
 - Capability version range / negotiation 문법
 - Capability binding / Secret injection의 최종 schema
 - Runtime requirement schema
@@ -330,7 +330,7 @@ Module Repository의 Compose가 필요하다면 local development 용도로 제�
 
 Echo가 PostgreSQL/JPA를 사용한다고 해서 Database를 Module Template 필수 요소로 만들지 않습니다.
 
-DB/Storage 요구도 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 같은 **Capability Requirement**로 표현합니다. PostgreSQL이 필요한 Module은 `database.postgresql ^1` Capability를 요구하고, Instance는 그 Capability를 제공하는 concrete Resource와 connection binding을 선택합니다.
+DB/Storage 요구도 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 같은 **Capability Requirement**로 표현합니다. PostgreSQL이 필요한 Module은 `database.postgresql ^1` Capability를 요구하고, consumer Instance의 Requirement slot은 이를 제공하는 concrete Resource Instance ID에 명시적으로 Binding합니다. Discovery는 후보를 보여줄 뿐 자동 Binding하지 않습니다.
 
 ### Secret은 source 또는 Template에 고정하지 않음
 
@@ -388,7 +388,7 @@ Echo v2 private Repository를 만들기 전에 다음을 먼저 만족시키는 
 
 ```text
 Module Template Contract
-├─ 통합 Capability requirement / provider-source 경계 설명 가능
+├─ 통합 Capability requirement / Module·Resource Instance 경계 설명 가능
 ├─ stateless Go Web Module 설계 가능
 ├─ Official Go Web Shell 설계 가능
 ├─ Java / Spring Web Module 설계 가능
