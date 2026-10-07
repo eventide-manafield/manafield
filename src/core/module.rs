@@ -6,6 +6,8 @@ use super::OperationContract;
 pub struct ModuleDescriptor {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub version: String,
     #[serde(
         rename = "healthOperation",
