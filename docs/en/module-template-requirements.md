@@ -215,7 +215,84 @@ Wait for additional real Module implementations before standardizing:
 - a specific Web framework
 - a specific HTTP server framework
 
-## 10. Next validation
+## 10. Additional boundaries confirmed by the Echo comparison
+
+The existing Spring Boot-based `manafield-echo` service was reviewed as a second, substantially different service case.
+
+Echo is not yet registered against the current Module Protocol, so this **does not yet complete second real Module validation**.
+
+It does strengthen several boundaries.
+
+### Production Compose wiring is not the common Module contract
+
+Echo's existing Compose file directly contains DB networking, reverse-proxy networking, Traefik labels, host port publishing, and a host secret mount.
+
+Do not copy this production infrastructure wiring into generic Module Templates.
+
+Prefer moving these responsibilities to:
+
+```text
+Instance Definition
+Runtime Provider
+Ingress Provider
+Secret injection
+```
+
+If a Module repository includes Compose, prefer treating it as local-development convenience.
+
+### Database / Storage is an optional requirement
+
+Echo uses PostgreSQL/JPA, but that does not make a database universal.
+
+Database/Storage dependencies should become separate Runtime/package metadata when that model is defined.
+
+### Secrets are not fixed into source or Templates
+
+Echo needs a JWT public key and DB credentials.
+
+An `.env.example` containing only variable names and placeholders can be useful, but Templates should not contain:
+
+- a real `.env`
+- real keys
+- real passwords
+- host-specific secret paths
+
+### Authentication is not a generic Template implementation
+
+Echo's JWT verifier and legacy Manafield API session validation are current integration details.
+
+Do not make one authentication mechanism a universal Module Template default before the Manafield Identity / Permission model stabilizes.
+
+### Framework routes are not automatically Operations
+
+Echo already exposes many REST routes, but not every framework endpoint should automatically become a Manafield Operation.
+
+An Operation is the **public callable contract Manafield can discover and invoke**.
+
+Echo migration should validate:
+
+- which framework endpoints become Operations
+- how UI-internal APIs remain separate
+- how Descriptor/route drift is prevented
+
+Annotation/code generation remains a candidate, not a Template requirement.
+
+### Good defaults visible for a future Java Template
+
+- pinned Java toolchain
+- Gradle Wrapper
+- JDK build / JRE runtime multi-stage image
+- environment-driven runtime port
+- an application test task
+
+Recommended additions:
+
+- non-root runtime user
+- Docker HEALTHCHECK
+
+See [Echo Module Migration Review](echo-module-migration-review.md) for the detailed review.
+
+## 11. Next validation
 
 Do not freeze a TS/React Template repository from a single implementation yet.
 
