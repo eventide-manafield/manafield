@@ -268,19 +268,28 @@ Jenkins parameters:
 - `INSTANCE_ROOT` — private Instance root containing `instance.yaml`
 - `LOCAL_MODULES_ROOT` — optional root scanned for `source.type: dir` Modules
 
-When Jenkins itself runs in a container, the host paths used by those parameters must also be visible inside the Jenkins container. A recommended Compose bind-mount layout is:
+When Jenkins itself runs in a container, keep stable paths inside the Jenkins container and map whatever host paths the installation uses into them.
+
+Recommended Jenkins container paths:
+
+```text
+/opt/manafield/instance
+/opt/manafield/local-modules
+```
+
+Example Compose bind mounts:
 
 ```yaml
 services:
   jenkins:
     volumes:
-      - /opt/manafield/ai-workspace/instance:/opt/manafield/ai-workspace/instance
-      - /opt/manafield/ai-workspace/local-modules:/opt/manafield/ai-workspace/local-modules:ro
+      - ${MANAFIELD_INSTANCE_HOST_PATH:-/srv/manafield/instance}:/opt/manafield/instance
+      - ${MANAFIELD_LOCAL_MODULES_HOST_PATH:-/srv/manafield/local-modules}:/opt/manafield/local-modules:ro
 ```
 
-`INSTANCE_ROOT` must be writable because Jenkins creates release directories under it. `LOCAL_MODULES_ROOT` may be read-only because local Module sources are copied into the Jenkins workspace before Docker build.
+`INSTANCE_ROOT` defaults to `/opt/manafield/instance` and must be writable because Jenkins creates release directories under it. `LOCAL_MODULES_ROOT` defaults to `/opt/manafield/local-modules` and may be read-only because local Module sources are copied into the Jenkins workspace before Docker build.
 
-Keeping the same absolute path inside and outside the container avoids host/container path translation in the Instance Definition and Pipeline.
+If an installation uses different in-container paths, use **Build with Parameters** to override them. See `Jenkinsfile.example` for the path-related customization points.
 
 The pipeline:
 
