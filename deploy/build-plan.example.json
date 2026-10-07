@@ -23,11 +23,20 @@
         "type": "docker",
         "context": ".",
         "dockerfile": "Dockerfile"
+      },
+      "exposure": {
+        "type": "host",
+        "host": "reference.example.test",
+        "targetPort": 8080
       }
     }
   ],
   "deployment": {
     "modulesNetwork": "manafield-modules",
-    "edgeNetwork": "manafield-edge"
+    "edgeNetwork": "manafield-edge",
+    "ingress": {
+      "provider": "traefik",
+      "output": "./dynamic/manafield.yml"
+    }
   }
 }
