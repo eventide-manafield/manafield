@@ -1,0 +1,34 @@
+# Minimal first-run Manafield Instance Definition.
+# Jenkins copies this file to <INSTANCE_ROOT>/instance.yaml when no instance exists yet.
+# Keep this file portable: no secrets and no host-specific absolute paths.
+
+version: 0
+
+instance:
+  id: manafield-bootstrap
+
+core:
+  source:
+    repository: https://github.com/eventide-manafield/manafield.git
+    ref: main
+
+runtimeProviders:
+  - id: docker
+    enabled: true
+
+modules:
+  # Public reference Module: the first runnable example and Registry observer.
+  - id: manafield-reference
+    enabled: true
+    source:
+      type: git
+      repository: https://github.com/eventide-manafield/manafield-module-reference.git
+      ref: main
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+
+deployment:
+  modulesNetwork: manafield-modules
+  edgeNetwork: manafield-edge
