@@ -7,6 +7,7 @@ rust-version = "1.99"
 [features]
 default = []
 build-plan = ["dep:serde_yaml_ng"]
+ingress-traefik = ["dep:serde_yaml_ng"]
 
 [dependencies]
 arc-swap = "1"
@@ -23,3 +24,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 name = "manafield-build-plan"
 path = "src/bin/manafield-build-plan.rs"
 required-features = ["build-plan"]
+
+[[bin]]
+name = "manafield-ingress-traefik"
+path = "src/bin/manafield-ingress-traefik.rs"
+required-features = ["ingress-traefik"]
