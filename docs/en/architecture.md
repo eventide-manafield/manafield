@@ -340,25 +340,23 @@ Core connects only to `manafield-modules` by default. Modules that need an exter
 
 `manafield-edge` is treated as an external Docker network owned by host infrastructure rather than by an individual Manafield Compose deployment. See [ADR-0008](adr/0008-network-planes.md) for rationale.
 
-## 8. Web Contributions
+## 8. Web Contributions / Exposure
 
 A Module does not need to provide a UI.
 
-Initial Web contribution concepts:
+The fact that a Module provides a Web surface is separate from **where that surface is publicly exposed**. Concrete public exposure is selected by the private Instance Definition and an Ingress Provider.
 
-### none
+The current Web Exposure model uses:
 
-No Web UI.
+- `none` — no public Web exposure
+- `host` — a dedicated hostname
+- `prefix` — exposure under a path prefix
+- `routes` — explicit root-level route claims
+- `external` — an external URL outside Manafield
 
-### proxy
+Public URLs are not derived automatically from Operation IDs or Binding paths.
 
-The Module runs its own Web application and Manafield exposes or routes it through an instance.
-
-### external
-
-The Module points to an external URL.
-
-Future versions may experiment with more tightly integrated remote UI mechanisms, but they are intentionally outside the initial scope.
+See [ADR-0009](adr/0009-operation-web-exposure.md) for the decision.
 
 ## 9. Isolation
 
