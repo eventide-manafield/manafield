@@ -103,15 +103,26 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [x] ADR-0010 — Capability 기반 Dependency Resolution
 - [x] Module / Operation optional `description` metadata
 - [x] Capability Contract v0 설계 → [Capability Contract](capability.md)
+- [x] Capability matching surface를 `id + version`으로 제한
+- [x] Module Instance / Resource Instance 공통 Capability registry metadata 원칙
+- [x] Instance ID unique / duplicate conflict 원칙
+- [x] Binding = Requirement slot → target Instance ID
+- [x] Binding state = `UNBOUND` / `BOUND`
+- [x] Resolver/Discovery 자동 Binding 금지
+- [x] Discovery 3단계: compatible / advanced same-ID / full
+- [x] Capability version mismatch = warning + log + continue
+- [x] endpoint/config value는 Instance, config schema는 Definition에 배치
 - [ ] `provides.capabilities` / `requires.capabilities` Core 모델 구현
 - [ ] Capability ↔ Operation contract validation
 - [x] Capability SemVer / range 정책
-- [ ] Instance concrete Capability binding
+- [ ] concrete Binding 저장/조회 구현
+- [ ] Capability Discovery API 구현
+- [ ] Binding validation / diagnostic error model
 - [ ] dependency graph / cycle validation
-- [ ] Resource가 제공하는 Capability metadata 모델
-- [ ] Resource Provider boundary / protocol
+- [ ] Resource Instance Capability metadata 구현
+- [ ] Resource 관리 컴포넌트 boundary / protocol
 - [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource Provider v0 (`database.postgresql` Capability)
+- [ ] PostgreSQL Resource 관리 구현 v0 (`database.postgresql` Capability)
 - [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation / Capability binding
 
 ## Phase 2 — Module Lifecycle
