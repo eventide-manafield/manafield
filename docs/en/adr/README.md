@@ -16,4 +16,6 @@ ADRs focus on **long-lived boundaries and responsibilities** rather than transie
 | [0008](0008-network-planes.md) | Manafield Network Planes | Accepted |
 | [0009](0009-operation-web-exposure.md) | Separate Operation Routing from Web Exposure | Accepted |
 
+| [0010](0010-capability-dependency-resolution.md) | Capability-Based Dependency Resolution | Accepted |
+
 Add new ADRs sequentially as long-term decisions are made.
