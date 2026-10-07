@@ -456,19 +456,23 @@ Tag
 → descriptive / non-binding metadata
 ```
 
-Infrastructure such as databases, caches, and object storage is expressed separately as a Resource Requirement.
+Infrastructure needs such as databases, caches, and object storage use the same Capability model.
 
 ```yaml
 requires:
-  resources:
+  capabilities:
     state:
       id: database.postgresql
-      version: 1
+      version: "^1.0.0"
 ```
 
-A Provider, rather than an ordinary Module, satisfies a Resource Requirement. A PostgreSQL Provider may prepare connection information, while application SQL still goes directly from the Module through its native JDBC, `pg`, `psycopg`, or equivalent client.
+`database.postgresql` is a Capability Contract, not a separate Resource Requirement type.
 
-The final Descriptor schema, version ranges, binding syntax, and dependency-cycle policy are not yet fixed. The long-lived boundary follows [ADR-0010](adr/0010-capability-dependency-resolution.md).
+The Instance may bind this Capability to a concrete Resource such as `main-postgres`. A PostgreSQL Provider may prepare connection information, while application SQL still goes directly from the Module through its native JDBC, `pg`, `psycopg`, or equivalent client.
+
+Capability versions are **SemVer contract versions** independent from Module release versions. Providers declare exact versions and consumers declare SemVer ranges. The Resolver does not infer compatibility from Operation subsets.
+
+See [Capability Contract](capability.md) for the v0 model. The long-lived boundary follows [ADR-0010](adr/0010-capability-dependency-resolution.md).
 
 ## 9. Module Templates
 
@@ -496,11 +500,11 @@ A Module package should eventually be able to declare:
 
 - requested permissions
 - provided / required Capabilities
-- Resource requirements
+- required Capabilities
 - runtime requirements
 - exposed ports
 - storage requirements
-- dependency binding metadata
+- Capability binding metadata
 - Web contributions
 
 The exact security model will be designed after the basic protocol and Docker runtime are functional.
