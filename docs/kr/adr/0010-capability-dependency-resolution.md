@@ -58,7 +58,7 @@ manafield.identity
 → Module이 제공할 수 있음
 
 database.postgresql
-→ Provider가 등록/관리하는 Resource가 제공할 수 있음
+→ Resource Instance가 제공할 수 있음
 ```
 
 ### 2. Module identity와 Capability를 분리한다
@@ -89,7 +89,7 @@ better-account
 third-party-account
 ```
 
-모두 `manafield.identity`의 compatible provider 후보가 될 수 있습니다.
+모두 `manafield.identity`의 compatible target 후보가 될 수 있습니다.
 
 정말 특정 구현체의 고유 동작에 의존하는 경우 exact implementation dependency를 별도 escape hatch로 둘 수 있지만 일반 dependency의 기본값으로 사용하지 않습니다.
 
@@ -145,7 +145,7 @@ PATCH
 → 기존 계약 의미를 유지하는 수정
 ```
 
-Provider는 자신이 구현한 **정확한 Capability version**을 선언합니다.
+Capability를 제공하는 Instance는 자신이 구현한 **정확한 Capability version**을 선언합니다.
 
 ```yaml
 provides:
