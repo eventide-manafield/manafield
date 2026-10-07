@@ -125,6 +125,35 @@ Module Web Surface
 
 Module별 frontend bundle을 Shell process 안에 동적으로 로드하는 모델은 실제 필요가 생긴 뒤 별도 설계합니다.
 
+#### Web Surface kind
+
+Module의 public Web intent는 최소한 `page`와 `api`를 구분합니다.
+
+```text
+page
+→ user-facing 화면
+→ Web Shell navigation 후보
+
+api
+→ public HTTP API
+→ navigation entry 없음
+```
+
+HTTP endpoint, Operation, public API surface는 자동으로 같은 개념으로 취급하지 않습니다.
+
+#### Prefix preservation
+
+Same-origin prefix routing은 기본적으로 prefix를 strip하지 않습니다.
+
+```text
+public  /echo/foo
+→ module /echo/foo
+```
+
+Instance가 할당한 base path는 Module에 runtime configuration으로 전달할 수 있어야 하며, Module은 asset/redirect/cookie/browser API path를 같은 base path 기준으로 구성합니다.
+
+자세한 metadata 설계는 [Web Surface v0](../web-surface.md)을 참고합니다.
+
 ### 6. 독립 subdomain exposure도 계속 지원한다
 
 Same-origin composition은 통합 Manafield UX를 위한 선택지이지 모든 Web service의 강제 규칙이 아닙니다.
