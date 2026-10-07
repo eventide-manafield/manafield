@@ -94,24 +94,24 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Prevent Docker socket re-exposure
 - [ ] Runtime logs
 
-## Phase 1.5 — Capability / Resource Dependency
+## Phase 1.5 — Capability Resolution / Provider Binding
 
 - [x] Separate Module identity from dependency contracts
 - [x] Separate Tag and Capability semantics
-- [x] Separate functional Capabilities from infrastructure Resource dependencies
+- [x] Unify ordinary requirements under Capability Contracts
 - [x] ADR-0010 — Capability-Based Dependency Resolution
 - [x] Optional Module / Operation `description` metadata
-- [ ] Capability Descriptor v0
-- [ ] `provides.capabilities` / `requires.capabilities` schema
+- [x] Capability Contract v0 design → [Capability Contract](capability.md)
+- [ ] Implement `provides.capabilities` / `requires.capabilities` in Core models
 - [ ] Capability ↔ Operation contract validation
-- [ ] Capability version / constraint policy
+- [x] Capability SemVer / range policy
 - [ ] Instance concrete Capability binding
 - [ ] Dependency graph / cycle validation
-- [ ] Resource Requirement Descriptor v0
+- [ ] Capability metadata model for Resources
 - [ ] Resource Provider boundary / protocol
 - [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource Provider v0
-- [ ] Per-Module database/schema/account allocation on a shared PostgreSQL instance
+- [ ] PostgreSQL Resource Provider v0 (`database.postgresql` Capability)
+- [ ] Per-Module database/schema/account allocation / Capability binding on a shared PostgreSQL instance
 
 ## Phase 2 — Module Lifecycle
 
