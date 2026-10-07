@@ -29,7 +29,7 @@ Private by default
 └─ deployment-specific configuration
 ```
 
-Repository의 `deploy/instance.example.yaml`은 공개 가능한 예제일 뿐 실제 운영 인스턴스 설정의 저장 위치가 아닙니다.
+Repository의 `deploy/instance.yaml.example`은 공개 가능한 예제일 뿐 실제 운영 인스턴스 설정의 저장 위치가 아닙니다.
 
 개인 Module과 Integration은 Manafield Protocol을 구현하는 한 Public 또는 Private 중 어느 형태든 사용할 수 있습니다.
 
