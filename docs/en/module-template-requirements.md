@@ -38,6 +38,13 @@ The descriptor contains at least:
 - `version`
 - `operations`
 
+Search/listing UI may also use optional display metadata:
+
+- Module `description`
+- Operation `description`
+
+Descriptions are nullable/optional and do not participate in dependency or compatibility resolution.
+
 Each Operation follows the currently supported Binding and Codec rules.
 
 Current HTTP Binding validation includes:
@@ -118,7 +125,22 @@ The Module only needs to serve correctly on its internal port.
 
 See ADR-0009 for this boundary.
 
-## 6. TypeScript / React Template v0 candidate
+## 6. Template layers and implementation profiles
+
+The common Module Template does not make one framework the platform standard.
+
+```text
+Module Template Contract
+├─ TS / React Web profile
+├─ Java / Spring Web profile
+└─ future implementation profiles
+```
+
+The common Contract covers Protocol requirements, build/runtime boundaries, Health, optional description metadata, and dependency/resource declaration rules.
+
+Each implementation Profile only provides a convenient skeleton for satisfying the same Contract in a particular stack.
+
+### TypeScript / React Web profile candidate
 
 Reusable baseline currently visible in `manafield-reference`:
 
@@ -158,6 +180,23 @@ Current implementation baseline:
 - Node/Express server
 
 This stack is a **TS/React Template implementation choice**, not a Module Protocol requirement.
+
+### Java / Spring Web profile candidate
+
+To support a greenfield Echo v2 or similar stateful Web Modules, useful candidate defaults include:
+
+- pinned Java toolchain
+- Gradle Wrapper
+- Spring Boot Web
+- JDK build / JRE runtime multi-stage image
+- non-root runtime user
+- Docker HEALTHCHECK
+- environment-driven application port
+- `manafield.module.json`
+- Protocol Health Operation
+- a clean boundary for binding Resource Requirements into application configuration
+
+PostgreSQL/JPA is not a universal Java Web requirement. Only Modules that need it should declare a Resource Requirement such as `database.postgresql`.
 
 ## 7. Do not copy these Reference-specific parts into a generic Template
 
@@ -206,9 +245,10 @@ For Node templates, prefer `npm ci` over `npm install` when a lockfile is presen
 Wait for additional real Module implementations before standardizing:
 
 - Settings endpoints
-- Permission / Capability declarations
-- Storage conventions
-- Dependency declarations
+- final Permission declaration schema
+- final Capability / Resource Descriptor JSON/YAML schema
+- Capability version-range / negotiation syntax
+- final Resource binding / Secret injection schema
 - Runtime requirement schema
 - WebSocket / Event conventions
 - Core SDK dependency
@@ -244,7 +284,7 @@ If a Module repository includes Compose, prefer treating it as local-development
 
 Echo uses PostgreSQL/JPA, but that does not make a database universal.
 
-Database/Storage dependencies should become separate Runtime/package metadata when that model is defined.
+Database/Storage dependencies follow [ADR-0010](adr/0010-capability-dependency-resolution.md) as **Resource Requirements** separate from Module Capabilities. A Module that needs PostgreSQL conceptually requires `database.postgresql`, while the Instance selects the concrete Provider and connection binding.
 
 ### Secrets are not fixed into source or Templates
 
@@ -269,7 +309,7 @@ Echo already exposes many REST routes, but not every framework endpoint should a
 
 An Operation is the **public callable contract Manafield can discover and invoke**.
 
-Echo migration should validate:
+The new Echo v2 design should validate:
 
 - which framework endpoints become Operations
 - how UI-internal APIs remain separate
@@ -294,12 +334,25 @@ See [Echo Module Migration Review](echo-module-migration-review.md) for the deta
 
 ## 11. Next validation
 
-Do not freeze a TS/React Template repository from a single implementation yet.
+Do not migrate the existing Echo backend/deployment structure in place. Reuse only valuable CSS/JS/static frontend assets from the private Echo repository; design the Echo v2 backend and Module wiring from the current architecture.
 
-Implement a **second real Module**, compare it with this document, and extract only the stable shared pieces into:
+Before creating the private Echo v2 repository, first make the Template Contract strong enough to describe:
+
+```text
+Module Template Contract
+├─ Capability / Resource dependency boundaries
+├─ stateless Web Modules
+├─ Java / Spring Web Modules
+└─ stateful Modules requiring database.postgresql
+```
+
+Then implement Echo v2 as the second real Module and use it to revalidate the Template Contract.
+
+Implementation-specific template repositories may then be split when useful:
 
 ```text
 manafield-module-template-ts-react
+manafield-module-template-java-spring
 ```
 
-The Template should be a minimal runnable example with Reference-specific behavior removed.
+No Template replaces the Manafield Protocol or makes its implementation language mandatory.
