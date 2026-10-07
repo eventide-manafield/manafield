@@ -144,7 +144,10 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         "deployment.modulesNetwork",
         &definition.deployment.modules_network,
     )?;
-    require_non_empty("deployment.edgeNetwork", &definition.deployment.edge_network)?;
+    require_non_empty(
+        "deployment.edgeNetwork",
+        &definition.deployment.edge_network,
+    )?;
 
     Ok(())
 }
