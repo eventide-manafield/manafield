@@ -16,4 +16,6 @@ ADR은 구현 세부사항보다 **오래 유지할 경계와 책임**을 남기
 | [0008](0008-network-planes.md) | Manafield Network Planes | Accepted |
 | [0009](0009-operation-web-exposure.md) | Operation Routing과 Web Exposure 분리 | Accepted |
 
+| [0010](0010-capability-dependency-resolution.md) | Capability 기반 Dependency Resolution | Accepted |
+
 새로운 장기 결정이 생기면 번호를 이어 추가합니다.
