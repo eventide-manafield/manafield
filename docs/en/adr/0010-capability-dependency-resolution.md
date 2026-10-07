@@ -1,34 +1,39 @@
-# ADR-0010 — Capability-Based Dependency Resolution
+# ADR-0010 — Capability-Based Requirement Resolution
 
 - Status: **Accepted**
 - Date: 2026-10-07
 
 ## Context
 
-Manafield Modules may use different implementation languages and deployment forms, and multiple implementations may provide the same functionality.
+Manafield components may require functionality from other Modules as well as infrastructure such as databases, caches, and storage.
 
-If dependencies are pinned directly to concrete Module IDs:
+Modeling each need with a separate dependency grammar would continually expand the model:
 
-- a compatible fork cannot satisfy the dependency merely because it has a different ID
-- replacing an official implementation becomes difficult
-- Module identity is forced to also act as the functional contract
-- different instances cannot easily select different implementations
+```text
+module dependency
+resource dependency
+database dependency
+storage dependency
+...
+```
 
-Using free-form `tags` for dependency resolution is too weak in the opposite direction.
+From the consumer's perspective, the common question is simpler:
 
-Two Modules may both have an `auth` tag while one only provides a login UI and another only validates sessions. A tag does not prove wire-level or semantic compatibility.
+> **“Which contracts are required for this component to run?”**
 
-Infrastructure resources such as databases, caches, and storage also have a different role from ordinary user-facing Modules. Those resources should be prepared and bound by Providers.
+Pinning dependencies to concrete Module IDs also prevents compatible forks or alternate implementations from satisfying the same requirement.
+
+Free-form tags are too weak in the opposite direction because they do not establish compatibility.
 
 ## Decision
 
-### 1. Separate Module identity from dependency contracts
+### 1. Express all ordinary requirements as Capability Contracts
 
-A Module `id` identifies a **concrete implementation**.
+Manafield unifies ordinary dependencies and requirements under **Capability Contracts**.
 
-General Module dependencies should target a **Capability Contract**, not a concrete Module ID.
+Module functionality and infrastructure resources do not use separate `requires` namespaces.
 
-Conceptual example:
+Example:
 
 ```yaml
 id: manafield-echo
@@ -37,10 +42,32 @@ requires:
   capabilities:
     identity:
       id: manafield.identity
-      version: 1
+      version: "^1.0.0"
+
+    state:
+      id: database.postgresql
+      version: "^1.0.0"
 ```
 
-An identity implementation may provide that Capability:
+From Echo's perspective both entries are required contracts.
+
+The difference is **what provides the Capability and how the concrete binding is delivered**.
+
+```text
+manafield.identity
+→ may be provided by a Module
+
+database.postgresql
+→ may be provided by a Provider-managed Resource
+```
+
+### 2. Separate Module identity from Capability contracts
+
+A Module `id` identifies a concrete implementation.
+
+Ordinary requirements target Capabilities rather than concrete Module IDs.
+
+Example:
 
 ```yaml
 id: manafield-account
@@ -48,139 +75,237 @@ id: manafield-account
 provides:
   capabilities:
     - id: manafield.identity
-      version: 1
+      version: "1.2.0"
+      description: User identity and session contract
 ```
 
-A fork or alternate implementation may provide the same Capability when it satisfies the same contract.
+A fork or alternate implementation may provide the same Capability when it completely satisfies the same contract.
 
-```yaml
-id: better-account
+Concrete implementation dependencies may exist as an explicit escape hatch for implementation-specific behavior, but they are not the default dependency model.
 
-provides:
-  capabilities:
-    - id: manafield.identity
-      version: 1
-```
+### 3. Capabilities are stronger versioned contracts than tags
 
-Echo depends on the `manafield.identity v1` contract rather than the implementation name.
+`tags` are non-binding metadata for search, classification, and UI filtering.
 
-### 2. Capabilities are stronger contracts than tags
-
-`tags` are descriptive metadata for search, classification, UI filtering, and humans.
-
-Tags are not used for dependency resolution.
+Tags do not satisfy dependencies.
 
 ```text
 Tag
 → descriptive / non-binding metadata
 
 Capability
-→ dependency / compatibility contract
+→ versioned dependency / compatibility contract
 ```
 
-A Capability has at least a stable ID and version.
+A Capability has at least:
 
-Searchable/listable entries such as Modules, Operations, Capabilities, and Resources may carry an optional human-readable `description`. Descriptions are display metadata for humans; **Descriptions do not participate in contract resolution or compatibility checks**.
+- a stable `id`
+- a contract version
+- an optional `description`
+- compatibility semantics defined by the contract
 
-Over time, a Capability Contract should be able to refer to one or more Operations plus semantic compatibility rules.
+Description is human-readable display/search metadata and does not participate in compatibility checks.
+
+### 4. Capability versions are SemVer contract versions
+
+Capability versions are independent from Module release versions.
 
 Example:
 
 ```text
-manafield.identity v1
-├─ identity.current-user
-├─ identity.validate-session
-└─ semantic compatibility rules
+Module:
+  better-account v7.3.1
+
+Provides:
+  manafield.identity v2.1.0
 ```
 
-The exact Descriptor schema and version-constraint syntax are deferred.
+The Module version identifies an implementation release. The Capability version identifies **which contract the implementation is compatible with**.
 
-### 3. Distinguish Operations from Capabilities
+Capability Contract versions use SemVer.
 
-An Operation is **one callable functionality contract**.
+```text
+MAJOR
+→ contract change that breaks backward compatibility
 
-A Capability is a **higher-level compatibility contract that interchangeable implementations can satisfy**.
+MINOR
+→ backward-compatible contract expansion
+
+PATCH
+→ correction that preserves contract meaning
+```
+
+Providers declare the **exact Capability version** they implement.
+
+```yaml
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: "2.3.1"
+```
+
+Consumers declare an accepted **SemVer range**.
+
+```yaml
+requires:
+  capabilities:
+    identity:
+      id: manafield.identity
+      version: "^2.1.0"
+```
+
+The initial constraint syntax follows common SemVer-range conventions; conceptually `^2.1.0` means `>=2.1.0 <3.0.0`.
+
+The exact parser/library is selected during implementation.
+
+### 5. Do not perform feature-subset negotiation
+
+The Resolver does not infer that a provider is acceptable because it happens to implement only the subset of Operations used by one consumer.
+
+If Capability v3 adds an Operation and a fork based on v2 cherry-picks only that Operation, Manafield does not automatically classify that fork as v3-compatible.
+
+The implementation author declares which Capability versions are **fully implemented**.
+
+```text
+Capability compatibility
+→ whole-contract granularity
+
+Operation-subset inference
+→ not performed
+```
+
+A feature may become a separate Capability when it has independent contractual value, but Manafield does not split Capabilities speculatively.
+
+### 6. Distinguish Operations from Capabilities
+
+An Operation is one callable contract.
+
+A Capability is a higher-level compatibility contract that may compose one or more Operations plus semantic rules.
 
 ```text
 Capability
 └─ one or more Operations + semantic contract
 ```
 
-Not every Operation must belong to a Capability.
+Not every Operation belongs to a Capability.
 
-Framework routes and UI-internal endpoints are not automatically promoted to Operations or Capabilities.
+Framework routes and Web-UI-internal endpoints are not automatically promoted to Operations or Capabilities.
 
-### 4. The Instance selects concrete bindings
+Core may validate mechanically checkable parts such as required Operation presence, but it does not infer full semantic compatibility.
 
-Requirements and concrete implementation selection are separate.
+### 7. Capability providers may be Modules or Resources
+
+The matching model is unified while provider semantics may differ.
+
+#### Module-provided Capability
+
+Example:
 
 ```text
-Module requirement
+manafield.identity ^1
         ↓
-Capability candidates in Registry
+Account Module
+```
+
+A Module provides the Capability through Operations.
+
+#### Resource-provided Capability
+
+Example:
+
+```text
+database.postgresql ^1
+        ↓
+main-postgres Resource
+        ↓ managed / registered by
+PostgreSQL Provider
+```
+
+A Resource is a concrete resource available to an Instance.
+
+Examples:
+
+```text
+main-postgres
+dev-postgres
+remote-postgres
+```
+
+Each Resource may advertise the Capability IDs and exact contract versions it satisfies.
+
+A Provider may discover, provision, allocate, and prepare connection metadata for Resources.
+
+### 8. The Instance selects concrete Capability bindings
+
+Requirements are separate from concrete provider selection.
+
+Example:
+
+```text
+Echo.state
+requires database.postgresql ^1
+        ↓
+compatible candidates
+├─ main-postgres
+└─ dev-postgres
         ↓
 Instance binding
         ↓
-Concrete Module
+main-postgres
 ```
 
-When multiple candidates exist, Core does not silently choose one.
-
-The Instance Definition or a management UI selects the concrete binding.
-
-Automatic binding when exactly one candidate exists is deferred.
-
-For rare cases that truly depend on implementation-specific behavior, an explicit exact-implementation dependency may exist as an escape hatch, but it is not the default model.
-
-### 5. Express infrastructure resource dependencies separately
-
-Databases, caches, object storage, filesystems, and similar resources are distinct from Module Capabilities.
-
-Conceptual example:
+Conceptual Instance configuration:
 
 ```yaml
-requires:
-  resources:
-    state:
-      id: database.postgresql
-      version: 1
+bindings:
+  capabilities:
+    echo.state:
+      resource: main-postgres
 ```
 
-A **Provider**, rather than an ordinary Module, satisfies such a requirement.
+Module-provided Capabilities follow the same principle:
 
-```text
-Echo
-└─ requires resource: database.postgresql
-                         ↓
-                 PostgreSQL Provider
+```yaml
+bindings:
+  capabilities:
+    echo.identity:
+      module: better-account
 ```
 
-A Provider is not a query proxy.
+The final binding schema is deferred.
 
-A PostgreSQL Provider may be responsible for provisioning and allocation such as:
+Core does not silently pick between multiple candidates.
 
-- creating a database or schema
-- creating Module-scoped accounts and permissions
-- producing connection metadata
-- preparing secret references
+Automatic binding when only one candidate exists is also deferred.
 
-The application still talks directly to PostgreSQL through its native client.
+### 9. A Resource Provider is not an application-data proxy
+
+Providing a Resource that satisfies `database.postgresql` does not mean Core or the Provider proxies SQL traffic.
+
+A PostgreSQL Provider may handle:
+
+- registration/discovery of existing PostgreSQL Resources
+- database/schema allocation
+- Module-scoped accounts and permissions
+- connection metadata
+- secret references
+
+Applications still query PostgreSQL directly through native clients.
 
 ```text
 Java Module   → JDBC / PostgreSQL driver ─┐
-Node Module   → pg                       ├→ PostgreSQL
-Python Module → psycopg                  ┘
+Go Module     → pgx / database/sql        ├→ PostgreSQL
+Node Module   → pg                        ├→ PostgreSQL
+Python Module → psycopg                   ┘
 ```
 
 Core does not embed JDBC or database-specific application clients.
 
-### 6. Providers are not ordinary Modules
+### 10. Providers are not ordinary Modules
 
-Providers are system-side components used to connect Manafield to execution environments and infrastructure resources.
+Providers are system-side components.
 
-In addition to the already-established Runtime Provider boundary, future Resource Providers may exist.
-
-Example:
+Current or future examples:
 
 ```text
 Provider
@@ -194,38 +319,41 @@ Provider
 
 Do not prematurely force these into one universal Provider Protocol.
 
-Different Provider families may have different privilege and lifecycle requirements and can receive separate protocols.
+Capability matching may be shared while each Provider family receives its own lifecycle, privilege boundary, and protocol.
 
 ## Consequences
 
 ### Benefits
 
-- compatible forks and alternate implementations can satisfy existing dependencies
-- the ecosystem is not unnecessarily coupled to official implementation IDs
-- each Instance can choose concrete implementations
-- functional dependencies and infrastructure resource dependencies are clearly separated
+- one `requires.capabilities` grammar for ordinary requirements
+- Module functionality and infrastructure resources can share SemVer contract matching
+- forks and alternate implementations are not tied to concrete Module IDs
+- an Instance can list compatible providers/resources before selecting a binding
 - shared PostgreSQL infrastructure can later allocate isolated databases/schemas to multiple Modules
-- language independence remains centered on protocol contracts
+- the Resolver avoids feature-subset inference and remains bounded in complexity
 
 ### Costs
 
-- Capability ID and version policies are required
-- Capability-to-Operation validation is required
-- binding and ambiguity policy is required when multiple candidates exist
-- Resource Provider protocols and secret injection need additional design
-- dependency graphs must be validated before Module installation
+- Capability Contract Registry / descriptors are required
+- SemVer range matching is required
+- binding semantics vary depending on whether the provider source is a Module or Resource
+- ambiguity policy is needed when multiple candidates exist
+- Provider protocols and secret injection require additional design
+- dependency graph / cycle validation is required
 
 ## Non-goals
 
 This ADR does not finalize:
 
 - the final Capability Descriptor JSON/YAML schema
-- version range / negotiation syntax
+- the final schema for Capability provider sources
+- the final Instance binding schema
 - automatic provider selection
 - the PostgreSQL Provider Protocol
 - database credential secret format
 - Module package format
 - Permission / trust model
 - dependency-cycle policy
+- feature-subset negotiation
 
-These will be defined by follow-up design documents or ADRs as implementation approaches.
+These will be defined by follow-up design documents or ADRs during implementation.
