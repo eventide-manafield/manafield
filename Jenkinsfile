@@ -69,6 +69,90 @@ pipeline {
             }
         }
 
+        stage("Ingress Provider Preflight") {
+            steps {
+                script {
+                    env.INGRESS_PROVIDER_STATE = sh(
+                        script: '''
+                            set -eu
+
+                            if [ ! -s ci-plan/ingress-provider.txt ]; then
+                              echo "NOT_CONFIGURED"
+                              exit 0
+                            fi
+
+                            provider="$(cat ci-plan/ingress-provider.txt)"
+
+                            case "$provider" in
+                              traefik)
+                                test -s ci-plan/ingress-bootstrap-compose.txt
+                                test -s ci-plan/ingress-bootstrap-service.txt
+                                test -s ci-plan/ingress-output.txt
+
+                                compose_file="$(cat ci-plan/ingress-bootstrap-compose.txt)"
+                                service="$(cat ci-plan/ingress-bootstrap-service.txt)"
+                                output="$(cat ci-plan/ingress-output.txt)"
+                                dynamic_dir="$(dirname "$output")"
+
+                                set +e
+                                bash deploy/ingress/traefik-provider.sh \
+                                  check \
+                                  "$compose_file" \
+                                  "$service" \
+                                  "$dynamic_dir" \
+                                  >/tmp/manafield-ingress-check.log 2>&1
+                                status=$?
+                                set -e
+
+                                case "$status" in
+                                  0)
+                                    echo "READY"
+                                    ;;
+                                  2)
+                                    echo "BOOTSTRAP_REQUIRED"
+                                    ;;
+                                  *)
+                                    cat /tmp/manafield-ingress-check.log >&2
+                                    exit "$status"
+                                    ;;
+                                esac
+                                ;;
+                              *)
+                                echo "Unsupported ingress provider: $provider" >&2
+                                exit 1
+                                ;;
+                            esac
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    if (env.INGRESS_PROVIDER_STATE == "BOOTSTRAP_REQUIRED") {
+                        input(
+                            message: "Traefik ingress provider bootstrap is required for this Manafield instance.",
+                            ok: "Bootstrap Traefik"
+                        )
+
+                        sh '''
+                            set -eu
+
+                            compose_file="$(cat ci-plan/ingress-bootstrap-compose.txt)"
+                            service="$(cat ci-plan/ingress-bootstrap-service.txt)"
+                            output="$(cat ci-plan/ingress-output.txt)"
+                            dynamic_dir="$(dirname "$output")"
+
+                            bash deploy/ingress/traefik-provider.sh \
+                              apply \
+                              "$compose_file" \
+                              "$service" \
+                              "$dynamic_dir"
+                        '''
+                    } else {
+                        echo "Ingress provider state: ${env.INGRESS_PROVIDER_STATE}"
+                    }
+                }
+            }
+        }
+
         stage("Verify Core") {
             steps {
                 sh '''
