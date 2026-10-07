@@ -13,6 +13,7 @@ Manafield에서 **Operation**은 Module이 외부에 제공하는 호출 가능�
 Operation은 "어떻게 구현되었는가"보다 다음을 설명합니다.
 
 - 어떤 기능인지 식별하는 ID
+- 검색/목록에서 표시할 수 있는 optional description
 - 어떤 입력을 받는지
 - 어떤 출력을 반환하는지
 - 어떤 방식으로 호출할 수 있는지
@@ -34,6 +35,7 @@ Python, Go, Node.js, Java, Rust 등 어떤 환경에서 구현하더라도 동�
 ```rust
 struct OperationContract {
     id: String,
+    description: Option<String>,
     input: Option<DataSchema>,
     output: Option<DataSchema>,
     binding: OperationBinding,
@@ -66,6 +68,8 @@ flowchart TB
 
 현재 Operation Contract는 Module Registry에 저장되어 **탐색과 검증을 위한 계약 정보**로 사용됩니다.
 
+`description`은 nullable/optional 표시용 metadata입니다. Registry 검색 결과나 관리 UI에서 사람이 Operation의 의미를 빠르게 이해하도록 돕지만, 호출 compatibility나 Capability 충족 여부에는 사용하지 않습니다.
+
 실제 Operation 자동 Proxy / 호출 기능은 아직 구현 범위에 포함되지 않았습니다.
 
 ## 3. Input / Output
@@ -79,6 +83,7 @@ Operation의 Input과 Output은 언어별 타입을 직접 저장하지 않고 *
 ```json
 {
   "id": "echo",
+  "description": "전달받은 메시지를 그대로 반환합니다.",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -241,11 +246,13 @@ Health Operation의 Output Schema는 현재 고정하지 않습니다.
 {
   "id": "sample",
   "name": "Sample Module",
+  "description": "Operation Contract 예시를 제공하는 샘플 Module",
   "version": "0.0.1",
   "healthOperation": "health",
   "operations": [
     {
       "id": "health",
+      "description": "Module 상태를 확인합니다.",
       "input": null,
       "output": {
         "type": "object",
@@ -268,6 +275,7 @@ Health Operation의 Output Schema는 현재 고정하지 않습니다.
     },
     {
       "id": "echo",
+      "description": "전달받은 메시지를 그대로 반환합니다.",
       "input": {
         "type": "object",
         "required": ["message"],
@@ -334,3 +342,21 @@ Reader는 mutable Registry를 직접 조회하지 않고 현재 `RegistrySnapsho
 - Health Operation은 Input을 요구할 수 없음
 
 이 규칙들은 현재 구현 기준이며, Protocol 안정화 과정에서 변경될 수 있습니다.
+
+
+## 10. Capability와의 관계
+
+Operation과 Capability는 같은 개념이 아닙니다.
+
+```text
+Operation
+→ 하나의 호출 가능한 기능 계약
+
+Capability
+→ 대체 가능한 구현들이 공통으로 만족해야 하는 상위 호환성 계약
+   └─ 하나 이상의 Operation + semantic rules
+```
+
+예를 들어 `manafield.identity v1` Capability가 여러 Identity 관련 Operation을 요구할 수 있습니다. 반대로 Module 내부 또는 Web UI 전용 Operation은 어떤 Capability에도 속하지 않을 수 있습니다.
+
+Capability 기반 dependency의 장기 경계는 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 참고합니다.
