@@ -241,7 +241,86 @@ Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm i
 - 특정 Web framework
 - 특정 HTTP server framework
 
-## 10. 다음 검증
+## 10. Echo 비교 검토에서 추가로 확인된 경계
+
+기존 Spring Boot 기반 `manafield-echo`를 두 번째 서비스 사례로 비교 검토했습니다.
+
+Echo는 아직 현재 Module Protocol에 맞춰 실제 등록된 Module은 아니므로 **두 번째 실제 Module 검증 완료로 보지는 않습니다.**
+
+다만 다음 경계는 더 명확해졌습니다.
+
+### Deployment Compose는 공통 Module 계약이 아님
+
+Echo의 기존 Compose에는 DB network, reverse proxy network, Traefik labels, host port, host secret mount가 직접 들어 있습니다.
+
+이런 production infrastructure wiring은 Module Template 기본값으로 복제하지 않습니다.
+
+새 구조에서는 가능한 한 다음 계층으로 이동합니다.
+
+```text
+Instance Definition
+Runtime Provider
+Ingress Provider
+Secret injection
+```
+
+Module Repository의 Compose가 필요하다면 local development 용도로 제한하는 방향을 우선합니다.
+
+### Database / Storage는 optional requirement
+
+Echo가 PostgreSQL/JPA를 사용한다고 해서 Database를 Module Template 필수 요소로 만들지 않습니다.
+
+DB/Storage dependency는 향후 Runtime requirement / package metadata가 구체화될 때 별도 선언 모델로 다룹니다.
+
+### Secret은 source 또는 Template에 고정하지 않음
+
+Echo는 JWT public key와 DB credential이 필요합니다.
+
+`.env.example`처럼 **변수 이름과 placeholder만 제공하는 예제 파일**은 허용할 수 있지만:
+
+- 실제 `.env`
+- 실제 key
+- 실제 password
+- host-specific secret path
+
+는 Template/Repository에 포함하지 않습니다.
+
+### Authentication은 공통 Template 구현이 아님
+
+Echo의 JWT verifier와 기존 Manafield API session validation은 Echo의 현재 통합 방식입니다.
+
+향후 Manafield Identity / Permission 모델이 안정화되기 전에는 특정 인증 구현을 모든 Module Template의 기본값으로 두지 않습니다.
+
+### Framework route와 Operation은 동일하지 않음
+
+Echo는 다수의 REST endpoint를 이미 제공하지만, 이를 전부 자동으로 Manafield Operation으로 간주하지 않습니다.
+
+Operation은 Manafield가 discover/call할 **공용 기능 계약**입니다.
+
+따라서 실제 Echo migration에서 다음을 검증해야 합니다.
+
+- Framework endpoint 중 어떤 것을 Operation으로 공개할지
+- UI 내부 API와 Operation을 어떻게 구분할지
+- Descriptor와 실제 route 간 drift를 어떻게 방지할지
+
+Annotation/code generation은 후보이지만 아직 Template 요구사항으로 고정하지 않습니다.
+
+### Java Template 후보에서 확인된 좋은 기본값
+
+- Java toolchain 고정
+- Gradle Wrapper 포함
+- JDK build / JRE runtime multi-stage image
+- runtime port 환경변수화
+- application test task 제공
+
+추가로 적용할 권장 기본값:
+
+- non-root runtime user
+- Docker HEALTHCHECK
+
+상세 검토는 [Echo Module Migration Review](echo-module-migration-review.md)를 참고합니다.
+
+## 11. 다음 검증
 
 TS/React Template Repository를 즉시 규격으로 고정하기보다, **두 번째 실제 Module을 하나 더 구현한 뒤** 이 문서와 비교해 공통 부분만 Template으로 추출합니다.
 
