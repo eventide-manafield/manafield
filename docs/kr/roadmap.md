@@ -47,9 +47,9 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Core Registry 조회 연결
 - [x] Dockerfile
 - [x] Core + Manafield Reference Compose 환경
-- [ ] Manafield Reference을 실제 Core Registry에 등록
-- [ ] Observer에서 자기 자신 관찰
-- [ ] Reference 구현에서 Module Template 요구사항 추출
+- [x] Manafield Reference를 실제 Core Registry에 등록
+- [x] Observer에서 자기 자신 관찰
+- [x] Reference 구현에서 Module Template 요구사항 추출 → [Module Template Requirements v0](module-template-requirements.md)
 
 ## Phase 1 — Runtime Provider Boundary
 
