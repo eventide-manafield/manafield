@@ -16,6 +16,7 @@
     {
       "id": "manafield-reference",
       "source": {
+        "type": "git",
         "repository": "https://github.com/eventide-manafield/manafield-module-reference.git",
         "ref": "main"
       },

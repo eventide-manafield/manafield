@@ -35,16 +35,35 @@ Jenkins는 첫 번째 CI executor이지만 Manafield의 배포 모델 자체는 
 
 Module 수가 늘어나더라도 Jenkins Job 수는 증가하지 않습니다.
 
-## Module Build Contract
+## Module Source / Build Contract
 
-각 Module Repository는 자신의 내부 언어나 빌드 도구를 Jenkins에 노출할 필요가 없습니다.
+Module source는 두 종류를 사용합니다.
 
-초기 Container Module의 최소 Build Contract는 Repository root의 `Dockerfile`입니다.
+```text
+git
+→ repository + ref
+
+dir
+→ CI executor가 허용한 local Module root 아래에서 Module ID로 발견
+```
+
+`dir` source는 `instance.yaml`에 임의 host path를 저장하지 않습니다. Jenkins는 별도 `LOCAL_MODULES_ROOT` 값을 받고 그 바로 아래 디렉터리를 스캔합니다.
+
+```text
+<LOCAL_MODULES_ROOT>/<module-id>/manafield.module.json
+```
+
+발견된 local source는 Jenkins workspace로 복사한 뒤 build하며, 원본 host directory 자체를 build workspace로 직접 사용하지 않습니다.
+
+각 Module은 자신의 내부 언어나 빌드 도구를 Jenkins에 노출할 필요가 없습니다.
+
+초기 Container Module의 최소 Build Contract는 Module source root의 `Dockerfile`입니다.
 
 ```text
 Python Module ─┐
 Node Module   ─┼─ own Dockerfile → common build pipeline
 Rust Module   ─┘
+Local Module  ─┘
 ```
 
 향후 별도의 Module package metadata가 필요해지면 이 계약을 확장할 수 있습니다.

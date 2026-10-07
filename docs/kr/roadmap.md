@@ -223,7 +223,9 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 
 - [x] 인스턴스별 단일 Pipeline 원칙 확정
 - [x] Module별 Jenkins Job을 만들지 않는 방향 확정
-- [x] Module build contract를 Repository root Dockerfile로 시작
+- [x] Module build contract를 source root Dockerfile로 시작
+- [x] Module source type `git / dir` 분리
+- [x] Jenkins `LOCAL_MODULES_ROOT` 기반 local Module discovery
 - [x] Instance Definition v0
 - [x] 공개 플랫폼과 Private Instance Configuration 분리 원칙
 - [x] Build Plan Resolver v0

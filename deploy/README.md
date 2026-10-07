@@ -110,6 +110,40 @@ The current v0 resolver:
 - removes disabled Runtime Providers and Modules from the resulting plan
 - normalizes Module build instructions for the CI executor
 
+### Module source types
+
+Module sources are explicit.
+
+Git source:
+
+```yaml
+source:
+  type: git
+  repository: https://github.com/example/module.git
+  ref: main
+```
+
+Local directory source:
+
+```yaml
+source:
+  type: dir
+```
+
+A `dir` source does not store an arbitrary host path in `instance.yaml`.
+
+The Jenkins executor receives a separate `LOCAL_MODULES_ROOT` parameter and scans its direct child directories. A local Module is discovered when this file exists:
+
+```text
+<LOCAL_MODULES_ROOT>/<module-id>/manafield.module.json
+```
+
+The child directory name is the Module ID used by the Instance Definition.
+
+Jenkins copies the discovered directory into its workspace before building it, then derives a content-based `dir-...` revision for image tagging. The source directory itself is not used as the Docker build workspace.
+
+This keeps host-local path policy in the CI/runtime environment rather than in the portable Instance Definition.
+
 Jenkins will execute the generated Build Plan instead of owning Manafield's deployment model.
 
 ### Ingress Adapter v0
@@ -229,17 +263,23 @@ A later Jenkins Pipeline can inject exact image tags directly as environment var
 
 The repository root contains a `Jenkinsfile` implementing the first Instance Build Plan pipeline.
 
+Jenkins parameters:
+
+- `INSTANCE_ROOT` — private Instance root containing `instance.yaml`
+- `LOCAL_MODULES_ROOT` — optional root scanned for `source.type: dir` Modules
+
 The pipeline:
 
 1. checks out Manafield Core
 2. resolves the private `instance.yaml` into `build-plan.json`
-3. runs Core verification in the Docker `verify` target
-4. checks out enabled Module sources
-5. builds Core and Module images tagged by Git revision
-6. creates an immutable-ish release directory
-7. stages Module descriptors for Core discovery
-8. deploys the release with Docker Compose
-9. verifies Core health, Registry state, Manafield Reference health, and Reference-to-Core connectivity
+3. discovers requested local directory Modules under `LOCAL_MODULES_ROOT`
+4. runs Core verification in the Docker `verify` target
+5. snapshots enabled Git/local Module sources into the workspace
+6. builds Core and Module images tagged by Git revision or local content revision
+7. creates an immutable-ish release directory
+8. stages Module descriptors for Core discovery
+9. deploys the release with Docker Compose
+10. verifies Core health, Registry state, Manafield Reference health, and registered Module IDs
 
 A Jenkins deployment directory is expected to look like:
 

@@ -35,16 +35,35 @@ The Instance Definition declares which Core, Runtime Providers, and Modules belo
 
 Adding Modules does not create additional Jenkins Jobs.
 
-## Module Build Contract
+## Module Source / Build Contract
 
-A Module repository should not require Jenkins to understand its implementation language or internal build tools.
+Module sources use two explicit forms.
 
-The initial minimum build contract for container-based Modules is a root-level `Dockerfile`.
+```text
+git
+→ repository + ref
+
+dir
+→ discovered by Module ID under a local Module root allowed by the CI executor
+```
+
+A `dir` source does not store an arbitrary host path in `instance.yaml`. Jenkins receives a separate `LOCAL_MODULES_ROOT` value and scans its direct child directories.
+
+```text
+<LOCAL_MODULES_ROOT>/<module-id>/manafield.module.json
+```
+
+Jenkins copies the discovered local source into its workspace before building it instead of using the host source directory directly as the build workspace.
+
+A Module should not require Jenkins to understand its implementation language or internal build tools.
+
+The initial minimum build contract for container-based Modules is a `Dockerfile` at the Module source root.
 
 ```text
 Python Module ─┐
 Node Module   ─┼─ own Dockerfile → common build pipeline
 Rust Module   ─┘
+Local Module  ─┘
 ```
 
 This contract may later expand through Module package metadata.

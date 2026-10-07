@@ -19,6 +19,7 @@ modules:
   - id: manafield-reference
     enabled: true
     source:
+      type: git
       repository: https://github.com/eventide-manafield/manafield-module-reference.git
       ref: main
     build:
@@ -31,6 +32,17 @@ modules:
       type: host
       host: reference.example.test
       targetPort: 8080
+
+  # Local directory Module example.
+  # Jenkins discovers LOCAL_MODULES_ROOT/hello-world by Module ID.
+  - id: hello-world
+    enabled: false
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
 
 deployment:
   # Internal Core <-> Module network.

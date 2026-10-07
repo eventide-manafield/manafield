@@ -8,6 +8,19 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: "20"))
     }
 
+    parameters {
+        string(
+            name: "INSTANCE_ROOT",
+            defaultValue: "",
+            description: "Private Manafield instance root containing instance.yaml"
+        )
+        string(
+            name: "LOCAL_MODULES_ROOT",
+            defaultValue: "",
+            description: "Optional root containing local directory Modules"
+        )
+    }
+
     environment {
         DOCKER_BUILDKIT = "1"
         COMPOSE_DOCKER_CLI_BUILD = "1"
@@ -37,6 +50,7 @@ pipeline {
                     }
 
                     env.INSTANCE_ROOT = params.INSTANCE_ROOT.trim()
+                    env.LOCAL_MODULES_ROOT = params.LOCAL_MODULES_ROOT?.trim() ?: ""
                 }
 
                 sh '''
@@ -65,6 +79,56 @@ pipeline {
 
                     test -s ci-plan/modules.tsv
                     grep -q '^manafield-reference	' ci-plan/modules.tsv
+                '''
+            }
+        }
+
+        stage("Discover Local Modules") {
+            steps {
+                sh '''
+                    set -eu
+
+                    : > local-modules.tsv
+
+                    if ! awk -F '\t' '$2 == "dir" { found = 1 } END { exit(found ? 0 : 1) }' ci-plan/modules.tsv; then
+                      echo "No local directory Modules requested."
+                      exit 0
+                    fi
+
+                    if [ -z "${LOCAL_MODULES_ROOT:-}" ]; then
+                      echo "LOCAL_MODULES_ROOT is required when a Module uses source.type=dir" >&2
+                      exit 1
+                    fi
+
+                    test -d "$LOCAL_MODULES_ROOT"
+                    local_root="$(cd "$LOCAL_MODULES_ROOT" && pwd -P)"
+
+                    for module_dir in "$local_root"/*; do
+                      [ -d "$module_dir" ] || continue
+                      [ -f "$module_dir/manafield.module.json" ] || continue
+
+                      module_id="$(basename "$module_dir")"
+
+                      printf '%s\t%s\n' \
+                        "$module_id" \
+                        "$module_dir" \
+                        >> local-modules.tsv
+                    done
+
+                    tab="$(printf '\t')"
+
+                    while IFS="$tab" read -r module_id source_type source_value source_ref build_type build_context dockerfile; do
+                      [ -n "$module_id" ] || continue
+                      [ "$source_type" = "dir" ] || continue
+
+                      if ! awk -F '\t' -v id="$module_id" '$1 == id { found = 1 } END { exit(found ? 0 : 1) }' local-modules.tsv; then
+                        echo "Local Module '$module_id' was not found under $local_root" >&2
+                        exit 1
+                      fi
+                    done < ci-plan/modules.tsv
+
+                    echo "Discovered local Modules:"
+                    cat local-modules.tsv
                 '''
             }
         }
@@ -177,7 +241,7 @@ pipeline {
 
                     tab="$(printf '\t')"
 
-                    while IFS="$tab" read -r module_id repository source_ref build_type build_context dockerfile; do
+                    while IFS="$tab" read -r module_id source_type source_value source_ref build_type build_context dockerfile; do
                       [ -n "$module_id" ] || continue
 
                       safe_id="$(
@@ -188,11 +252,40 @@ pipeline {
 
                       module_dir="$WORKSPACE/modules/$safe_id"
 
-                      git clone --no-checkout "$repository" "$module_dir"
-                      git -C "$module_dir" fetch --depth=1 origin "$source_ref"
-                      git -C "$module_dir" checkout --detach FETCH_HEAD
+                      case "$source_type" in
+                        git)
+                          git clone --no-checkout "$source_value" "$module_dir"
+                          git -C "$module_dir" fetch --depth=1 origin "$source_ref"
+                          git -C "$module_dir" checkout --detach FETCH_HEAD
+                          revision="$(git -C "$module_dir" rev-parse --short=12 HEAD)"
+                          ;;
+                        dir)
+                          source_dir="$(
+                            awk -F '\t' -v id="$module_id" \
+                              '$1 == id { print $2; exit }' \
+                              local-modules.tsv
+                          )"
 
-                      revision="$(git -C "$module_dir" rev-parse --short=12 HEAD)"
+                          test -n "$source_dir"
+                          cp -a "$source_dir" "$module_dir"
+
+                          revision="dir-$(
+                            find "$module_dir" \
+                              -type f \
+                              -not -path '*/.git/*' \
+                              -print0 \
+                            | sort -z \
+                            | xargs -0 sha256sum \
+                            | sha256sum \
+                            | cut -c1-12
+                          )"
+                          ;;
+                        *)
+                          echo "Unsupported Module source type: $source_type" >&2
+                          exit 1
+                          ;;
+                      esac
+
                       image="$safe_id:$revision"
 
                       printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
@@ -412,6 +505,10 @@ pipeline {
                            curl --fail --silent --show-error \
                            http://127.0.0.1:8080/modules >/tmp/manafield-modules.json \
                         && grep -Fq '"id":"manafield-reference"' /tmp/manafield-modules.json \
+                        && while IFS="$(printf '\t')" read -r module_id _; do
+                             [ -n "$module_id" ] || continue
+                             grep -Fq "\"id\":\"$module_id\"" /tmp/manafield-modules.json
+                           done < module-sources.tsv \
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
                            http://reference:8080/manafield/health >/tmp/manafield-reference-health.json \
@@ -446,7 +543,7 @@ pipeline {
     post {
         always {
             archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,ci-plan/**",
+                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,local-modules.tsv,module-sources.tsv,ci-plan/**",
                 allowEmptyArchive: true
             )
         }

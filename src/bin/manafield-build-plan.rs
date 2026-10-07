@@ -101,11 +101,20 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
 
     let mut modules = String::new();
     for module in &plan.modules {
+        let (source_type, source_value, source_ref) = match &module.source {
+            ModuleSourceDefinition::Git {
+                repository,
+                git_ref,
+            } => ("git", repository.as_str(), git_ref.as_str()),
+            ModuleSourceDefinition::Dir => ("dir", "-", "-"),
+        };
+
         modules.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\n",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             module.id,
-            module.source.repository,
-            module.source.git_ref,
+            source_type,
+            source_value,
+            source_ref,
             module.build.build_type.as_str(),
             module.build.context,
             module.build.dockerfile,
@@ -152,7 +161,7 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
             return Err(format!("duplicate module id '{}'", module.id));
         }
 
-        validate_source(&format!("modules[{}].source", module.id), &module.source)?;
+        validate_module_source(&format!("modules[{}].source", module.id), &module.source)?;
 
         require_non_empty(
             &format!("modules[{}].build.context", module.id),
@@ -217,6 +226,21 @@ fn validate_source(label: &str, source: &SourceDefinition) -> Result<(), String>
     Ok(())
 }
 
+fn validate_module_source(label: &str, source: &ModuleSourceDefinition) -> Result<(), String> {
+    match source {
+        ModuleSourceDefinition::Git {
+            repository,
+            git_ref,
+        } => {
+            require_non_empty(&format!("{label}.repository"), repository)?;
+            require_non_empty(&format!("{label}.ref"), git_ref)?;
+        }
+        ModuleSourceDefinition::Dir => {}
+    }
+
+    Ok(())
+}
+
 fn require_non_empty(label: &str, value: &str) -> Result<(), String> {
     if value.trim().is_empty() {
         Err(format!("{label} must not be empty"))
@@ -255,6 +279,17 @@ struct SourceDefinition {
     git_ref: String,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ModuleSourceDefinition {
+    Git {
+        repository: String,
+        #[serde(rename = "ref")]
+        git_ref: String,
+    },
+    Dir,
+}
+
 #[derive(Debug, Deserialize)]
 struct RuntimeProviderDefinition {
     id: String,
@@ -267,7 +302,7 @@ struct ModuleDefinition {
     id: String,
     #[serde(default = "default_true")]
     enabled: bool,
-    source: SourceDefinition,
+    source: ModuleSourceDefinition,
     build: ModuleBuildDefinition,
     #[serde(default)]
     exposure: Option<ExposureDefinition>,
@@ -391,7 +426,7 @@ struct RuntimeProviderPlan {
 #[derive(Debug, Serialize)]
 struct ModulePlan {
     id: String,
-    source: SourceDefinition,
+    source: ModuleSourceDefinition,
     build: ModuleBuildPlan,
     #[serde(skip_serializing_if = "Option::is_none")]
     exposure: Option<ExposureDefinition>,

@@ -223,7 +223,9 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 
 - [x] One Pipeline per instance
 - [x] No Jenkins Job per Module
-- [x] Start the Module build contract with a root-level Dockerfile
+- [x] Start the Module build contract with a source-root Dockerfile
+- [x] Separate Module source types into `git / dir`
+- [x] Jenkins local Module discovery through `LOCAL_MODULES_ROOT`
 - [x] Instance Definition v0
 - [x] Separate public platform code from private Instance Configuration
 - [x] Build Plan Resolver v0
