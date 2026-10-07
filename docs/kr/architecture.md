@@ -69,7 +69,7 @@ Manafield는 **나중에 분리하기 비싼 경계와 책임은 장기 구조�
 - Core와 Runtime Provider
 - 일반 Module과 privileged system component
 - Module identity와 Capability Contract
-- 기능 dependency와 infrastructure resource dependency
+- 모든 일반 requirement를 Capability Contract로 표현하는 경계
 
 주요 Architecture 결정과 이유는 [ADR](adr/README.md)에 기록합니다.
 
@@ -128,11 +128,11 @@ Module, Capability, Resource 같은 검색 가능한 항목은 사람이 목록�
 
 실제 concrete Module 선택은 Instance binding에서 해결합니다. 후보가 여러 개인 경우 Core가 임의로 하나를 선택하지 않는 방향을 사용합니다.
 
-Database, Cache, Storage 같은 기반 자원은 Module Capability와 별도 **Resource Requirement**로 표현합니다. Resource는 일반 Module이 아니라 Resource Provider가 준비하거나 할당하며, application data path를 Core가 중계하지 않습니다.
+Database, Cache, Storage 같은 기반 자원 요구도 별도 requirement 문법을 만들지 않고 **Capability**로 표현합니다. 예를 들어 Echo는 `database.postgresql ^1` Capability를 요구하고, Instance는 그 Capability를 제공하는 `main-postgres` 같은 concrete Resource를 binding할 수 있습니다.
 
-예를 들어 PostgreSQL Provider는 database/schema/account/connection secret을 준비할 수 있지만, Echo의 실제 SQL query는 Echo의 JDBC driver가 PostgreSQL에 직접 수행합니다.
+Resource는 일반 Module이 아니라 Resource Provider가 준비하거나 등록할 수 있으며 application data path를 Core가 중계하지 않습니다. PostgreSQL Provider가 database/schema/account/connection secret을 준비하더라도 Echo의 실제 SQL query는 Echo의 JDBC driver가 PostgreSQL에 직접 수행합니다.
 
-자세한 결정은 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 참고합니다.
+자세한 계약 모델은 [Capability Contract v0](capability.md)와 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 참고합니다.
 
 ## 4. Headless Core
 
