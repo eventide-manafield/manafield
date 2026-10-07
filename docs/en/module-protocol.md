@@ -122,6 +122,7 @@ Example:
 ```json
 {
   "id": "echo",
+  "description": "Returns the supplied message.",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -150,6 +151,7 @@ The initial Rust model follows this concept:
 ```rust
 struct OperationContract {
     id: String,
+    description: Option<String>,
     input: Option<DataSchema>,
     output: Option<DataSchema>,
     binding: OperationBinding,
@@ -207,11 +209,13 @@ A Module may optionally specify one Operation ID through `healthOperation`.
 {
   "id": "example",
   "name": "Example Module",
+  "description": "Example implementation of the Module Protocol",
   "version": "0.1.0",
   "healthOperation": "health",
   "operations": [
     {
       "id": "health",
+      "description": "Reports Module health.",
       "input": null,
       "output": {
         "type": "object",
@@ -259,12 +263,13 @@ sequenceDiagram
 This allows Core and Web/CLI clients to discover, without knowing the Module's implementation language:
 
 - available Operations
+- optional human-readable Operation descriptions
 - expected Input Schemas
 - expected Output Schemas
 - the Binding used to invoke each Operation
 - HTTP method and path when the Binding is HTTP
 - codecs supported by that Binding
-- future permission/capability requirements
+- future permission requirements and Capability membership metadata
 
 Operation information is the **discovery and validation contract for callable functionality**.
 
