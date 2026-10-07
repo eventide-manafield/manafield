@@ -54,8 +54,12 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
         format!("{}\n", plan.instance_id),
     )?;
     fs::write(
-        directory.join("network.txt"),
-        format!("{}\n", plan.deployment.network),
+        directory.join("modules-network.txt"),
+        format!("{}\n", plan.deployment.modules_network),
+    )?;
+    fs::write(
+        directory.join("edge-network.txt"),
+        format!("{}\n", plan.deployment.edge_network),
     )?;
 
     let runtime_providers = plan
@@ -136,7 +140,11 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         )?;
     }
 
-    require_non_empty("deployment.network", &definition.deployment.network)?;
+    require_non_empty(
+        "deployment.modulesNetwork",
+        &definition.deployment.modules_network,
+    )?;
+    require_non_empty("deployment.edgeNetwork", &definition.deployment.edge_network)?;
 
     Ok(())
 }
@@ -224,8 +232,10 @@ impl BuildType {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct DeploymentDefinition {
-    network: String,
+    modules_network: String,
+    edge_network: String,
 }
 
 fn default_true() -> bool {
