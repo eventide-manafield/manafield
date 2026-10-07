@@ -14,9 +14,9 @@ FROM source AS verify
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo fmt --check \
-    && cargo check --locked \
-    && cargo test --locked \
-    && cargo clippy --locked -- -D warnings
+    && cargo check --locked --all-features --all-targets \
+    && cargo test --locked --all-features \
+    && cargo clippy --locked --all-features --all-targets -- -D warnings
 
 FROM source AS core-builder
 
