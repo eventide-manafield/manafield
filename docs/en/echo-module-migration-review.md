@@ -2,7 +2,9 @@
 
 > Review of the existing private `manafield-echo` service before adapting it to the current Manafield Module architecture.
 >
-> This is not an implementation plan to immediately rewrite Echo. It records what a second, substantially different service teaches us about Module Template boundaries.
+> This is not an in-place migration plan for the existing Echo. It records what a second, substantially different service teaches us about Module Template boundaries.
+>
+> **Current decision:** build the Echo v2 backend/deployment fresh from the current architecture, reusing only valuable CSS/JS/static frontend assets from the existing private Echo repository.
 
 ## 1. Current Echo shape
 
@@ -83,7 +85,7 @@ Database-backed Modules are valid, but databases are not universal.
 
 Do not standardize PostgreSQL, JPA, DB network names, or Echo-specific DB environment variables in the generic Template.
 
-A future Module package/runtime requirement model can express database/storage dependencies.
+Database/Storage dependencies follow [ADR-0010](adr/0010-capability-dependency-resolution.md) as **Resource Requirements** separate from Module Capabilities. Echo v2 requires PostgreSQL and can become the first real `database.postgresql` consumer.
 
 ### Authentication coupling
 
@@ -93,7 +95,7 @@ Its Web frontend also contains direct references to `https://manafield.studio`.
 
 These are legacy integration details, not generic Template defaults.
 
-When the Identity / Permission model is defined, Echo authentication should be adapted again.
+When Echo v2 needs account/Identity functionality, prefer requiring a Capability Contract such as `manafield.identity` rather than pinning the Echo code to a concrete account Module ID. The Instance selects the concrete implementation binding.
 
 ### Traefik / proxy wiring
 
@@ -138,34 +140,42 @@ The current Echo Dockerfile should additionally gain:
 - a non-root runtime user
 - Docker HEALTHCHECK
 
-## 6. Minimum work to adapt Echo as a current Manafield Module
+## 6. Template boundaries required before designing Echo v2
+
+Before creating the private Echo v2 repository, the common Template Contract and Java/Spring Web profile should be able to describe:
 
 ### Protocol
 
-- add `manafield.module.json`
-- add a Health Operation
-- represent selected callable APIs as Operation Contracts
-- pass Descriptor validation
+- `manafield.module.json`
+- optional Module / Operation `description`
+- a Health Operation
+- Operation Contracts for selected callable APIs
+- the boundary between required/provided Capabilities
+
+### Resource
+
+- a `database.postgresql` Resource Requirement
+- Instance-selected PostgreSQL Provider/allocation
+- database credentials delivered through Secret injection
+- direct application access through Echo's JDBC/PostgreSQL driver
 
 ### Container
 
-- run as non-root
-- add Docker HEALTHCHECK
-- remove host port publication from production deployment
-- remove production Traefik labels from the Module repository
+- non-root runtime
+- Docker HEALTHCHECK
+- runtime-configurable port
+- no production host port or Traefik labels hard-coded into the Module repository
 
 ### Instance Definition
 
-Use the Instance Definition for:
+The Instance selects concrete wiring for:
 
 - source / version
 - build contract
 - Web exposure
-- DB / Secret injection using the currently available deployment mechanisms
-
-### Legacy integration
-
-Existing JWT / direct Manafield API calls may remain temporarily as a migration bridge, but they must not become Template requirements.
+- Capability bindings
+- Resource Provider bindings
+- Secret injection
 
 ## 7. Operation Contract observation
 
@@ -184,7 +194,7 @@ Treating every framework route automatically as a Manafield Operation may be ina
 
 An Operation is not just a list of HTTP routes; it is the **public callable contract Manafield can discover and invoke**.
 
-Echo migration should validate:
+Echo v2 design should validate:
 
 - which HTTP endpoints should become Operations
 - how UI-internal endpoints differ from Operations
@@ -206,9 +216,9 @@ Echo strengthens these boundaries:
 
 ## 9. Status
 
-The Echo analysis is complete, but **the second real Module validation is not yet considered complete**.
+The existing Echo analysis is complete, but **the second real Module validation is not yet considered complete**.
 
-Only after Echo is actually adapted to the current Module Protocol and runs in Core Registry should the roadmap item:
+First stabilize the Template Contract enough to cover Capability/Resource dependencies and a Java/Spring Web profile. Then create the new private Echo v2 repository and run it through the current Core Registry before marking:
 
 ```text
 Revalidate Template requirements with a second real Module
