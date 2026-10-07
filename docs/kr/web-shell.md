@@ -117,6 +117,15 @@ modules:
 
 실제 schema는 Build Plan prefix/routes 설계에서 확정합니다.
 
+Prefix는 strip하지 않습니다.
+
+```text
+/echo/foo
+→ Echo도 /echo/foo로 수신
+```
+
+Instance가 배정한 base path는 초기 Container convention으로 `MANAFIELD_WEB_BASE_PATH=/echo`처럼 주입할 수 있습니다. Module은 이 값을 asset/redirect/cookie/browser-side API path에 일관되게 사용합니다.
+
 ## 6. Navigation metadata
 
 v0에서는 Registry의 다음 metadata를 우선 사용합니다.
@@ -128,18 +137,28 @@ v0에서는 Registry의 다음 metadata를 우선 사용합니다.
 
 Web navigation에 필요한 추가 metadata는 Module Protocol의 기능 dependency와 분리합니다.
 
-향후 Web Contribution metadata 후보:
+Web Surface metadata는 우선 `page`와 `api`를 구분합니다.
+
+```text
+page
+→ navigation 가능한 user-facing surface
+
+api
+→ public HTTP API, navigation 없음
+```
+
+Page metadata 후보:
 
 ```text
 title
 description
 icon
 navigation order/group
-preferred path hint
-web surface presence
 ```
 
-public path 자체는 Instance가 결정하므로 Module manifest의 path hint가 authoritative하지 않습니다.
+public path 자체는 Instance가 결정하므로 Module metadata는 authoritative path를 갖지 않습니다.
+
+자세한 설계는 [Web Surface v0](web-surface.md)을 참고합니다.
 
 ## 7. Authentication
 
