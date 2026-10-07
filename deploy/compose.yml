@@ -33,8 +33,6 @@ services:
     environment:
       PORT: 8080
       MANAFIELD_CORE_URL: http://core:8080
-    ports:
-      - "127.0.0.1:${MANAFIELD_REFERENCE_PORT:-18081}:8080"
     depends_on:
       core:
         condition: service_healthy
