@@ -74,6 +74,17 @@ modules:
       type: docker
       context: .
       dockerfile: Dockerfile
+    exposure:
+      type: host
+      host: reference.example.test
+      targetPort: 8080
+
+deployment:
+  modulesNetwork: manafield-modules
+  edgeNetwork: manafield-edge
+  ingress:
+    provider: traefik
+    output: ./dynamic/manafield.yml
 ```
 
 The **Build Plan Resolver** consumes this file and produces a CI-executor-neutral JSON plan.
@@ -100,6 +111,36 @@ The current v0 resolver:
 
 Jenkins will execute the generated Build Plan instead of owning Manafield's deployment model.
 
+### Ingress Adapter v0
+
+Web exposure is instance configuration, not a hard-coded Module URL.
+
+The current v0 implementation supports host exposure:
+
+```yaml
+exposure:
+  type: host
+  host: reference.example.test
+  targetPort: 8080
+```
+
+and a Traefik ingress adapter:
+
+```yaml
+deployment:
+  ingress:
+    provider: traefik
+    output: /path/to/traefik/dynamic/manafield.yml
+```
+
+`manafield-ingress-traefik` consumes the normalized Build Plan and renders Traefik dynamic configuration. Jenkins publishes the generated file after Module deployment.
+
+The Build Plan Resolver rejects duplicate host claims among enabled Modules before deployment.
+
+Traefik requires a one-time host bootstrap so its file provider watches the configured dynamic directory. Routine Module exposure changes should not require editing the Traefik Compose definition again.
+
+The adapter boundary is intentionally provider-specific: future implementations such as `manafield-ingress-nginx` can consume the same resolved Build Plan without changing Module contracts.
+
 ## Compose deployment
 
 The current Compose stack is [compose.yml](compose.yml).
@@ -107,7 +148,7 @@ The current Compose stack is [compose.yml](compose.yml).
 It starts:
 
 - Manafield Core
-- Manafield Manafield Reference
+- Manafield Reference
 
 The Docker Runtime Provider is not included yet because its binary and Runtime Protocol have not been implemented.
 
