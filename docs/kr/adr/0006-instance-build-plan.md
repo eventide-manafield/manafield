@@ -58,11 +58,11 @@ Pipeline은 변경된 source를 확인하고 가능한 경우 해당 구성요�
 예:
 
 ```text
-reference-web push
+manafield-reference push
         ↓
 Manafield Instance Pipeline
         ↓
-reference-web only
+manafield-reference only
         ↓
 Deploy
         ↓
