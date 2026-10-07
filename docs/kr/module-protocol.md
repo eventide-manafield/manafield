@@ -122,6 +122,7 @@ Operation이 HTTP로 제공되는 경우 HTTP 정보는 Operation 자체가 아�
 ```json
 {
   "id": "echo",
+  "description": "전달받은 메시지를 그대로 반환합니다.",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -150,6 +151,7 @@ Operation이 HTTP로 제공되는 경우 HTTP 정보는 Operation 자체가 아�
 ```rust
 struct OperationContract {
     id: String,
+    description: Option<String>,
     input: Option<DataSchema>,
     output: Option<DataSchema>,
     binding: OperationBinding,
@@ -207,11 +209,13 @@ Module은 선택적으로 `healthOperation`에 Operation ID 하나를 지정할 
 {
   "id": "example",
   "name": "Example Module",
+  "description": "Module Protocol 예시 구현",
   "version": "0.1.0",
   "healthOperation": "health",
   "operations": [
     {
       "id": "health",
+      "description": "Module 상태를 확인합니다.",
       "input": null,
       "output": {
         "type": "object",
@@ -259,6 +263,7 @@ sequenceDiagram
 이를 통해 Core와 Web/CLI Client는 Module 내부 구현 언어를 몰라도 다음 정보를 탐색할 수 있습니다.
 
 - 어떤 Operation이 존재하는지
+- 사람이 읽을 수 있는 optional Operation description
 - 예상 Input Schema
 - 예상 Output Schema
 - 어떤 Binding으로 호출되는지
