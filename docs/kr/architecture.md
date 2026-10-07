@@ -68,6 +68,8 @@ Manafield는 **나중에 분리하기 비싼 경계와 책임은 장기 구조�
 - Registry Write Model과 Read Snapshot
 - Core와 Runtime Provider
 - 일반 Module과 privileged system component
+- Module identity와 Capability Contract
+- 기능 dependency와 infrastructure resource dependency
 
 주요 Architecture 결정과 이유는 [ADR](adr/README.md)에 기록합니다.
 
@@ -99,6 +101,38 @@ flowchart LR
 ```
 
 Operation의 상세 구조는 [Operation](operation.md) 문서를 참고합니다.
+
+### Capability와 Dependency의 역할
+
+Operation은 하나의 호출 가능한 기능을 표현하지만, Module 간 dependency는 특정 구현체 ID나 단일 route 이름에 직접 고정하지 않습니다.
+
+Manafield는 **Capability Contract**를 Module identity와 분리합니다.
+
+```text
+Module ID
+→ concrete implementation identity
+
+Operation
+→ one callable contract
+
+Capability
+→ interchangeable implementations가 공통으로 만족하는 compatibility contract
+
+Tag
+→ 검색 / 분류용 non-binding metadata
+```
+
+Module, Capability, Resource 같은 검색 가능한 항목은 사람이 목록을 이해하기 위한 optional `description` metadata를 가질 수 있습니다. Description은 표시/검색 보조용이며 dependency resolution이나 compatibility 판정에는 사용하지 않습니다.
+
+예를 들어 Echo가 계정 기능을 필요로 한다면 `manafield-account`라는 특정 Module ID보다 `manafield.identity v1` Capability를 요구하는 방향을 사용합니다. Fork 또는 대체 구현도 같은 Capability Contract를 만족하면 dependency 후보가 될 수 있습니다.
+
+실제 concrete Module 선택은 Instance binding에서 해결합니다. 후보가 여러 개인 경우 Core가 임의로 하나를 선택하지 않는 방향을 사용합니다.
+
+Database, Cache, Storage 같은 기반 자원은 Module Capability와 별도 **Resource Requirement**로 표현합니다. Resource는 일반 Module이 아니라 Resource Provider가 준비하거나 할당하며, application data path를 Core가 중계하지 않습니다.
+
+예를 들어 PostgreSQL Provider는 database/schema/account/connection secret을 준비할 수 있지만, Echo의 실제 SQL query는 Echo의 JDBC driver가 PostgreSQL에 직접 수행합니다.
+
+자세한 결정은 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 참고합니다.
 
 ## 4. Headless Core
 
@@ -270,6 +304,26 @@ flowchart TB
 
 Runtime Provider의 상세 Protocol과 capability 모델은 아직 설계 중입니다. 결정 배경은 [ADR-0004](adr/0004-runtime-provider-boundary.md)와 [ADR-0005](adr/0005-docker-provider-isolation.md)를 참고합니다.
 
+### Provider Family
+
+Runtime Provider 외에도 기반 자원을 준비하는 **Resource Provider**를 둘 수 있습니다.
+
+예:
+
+```text
+Provider
+├─ Runtime Provider
+│  └─ Docker
+├─ Resource Provider
+│  └─ PostgreSQL
+└─ Ingress Provider / Adapter
+   └─ Traefik
+```
+
+이 분류는 “일반 Module은 아니지만 Manafield에 시스템 기능을 추가하는 구성요소”라는 공통 성격을 표현합니다.
+
+다만 Runtime, Resource, Ingress는 권한과 lifecycle이 서로 다르므로 하나의 만능 Provider Protocol로 성급하게 통합하지 않습니다. 각 Provider 종류의 Protocol과 보안 경계는 필요할 때 별도로 정의합니다.
+
 ### Network Planes
 
 Manafield의 Docker 배포는 내부 Module 통신과 외부 공개 경계를 별도 네트워크로 분리합니다.
@@ -332,4 +386,4 @@ Manafield는 다음을 새로 구현하려는 프로젝트가 아닙니다.
 - Reverse proxy
 - Kubernetes
 
-기존 기술을 대체하는 대신, 이들을 **Module이라는 공통 모델로 연결하고 관리하는 Control Plane**을 목표로 합니다.
+기존 기술을 대체하는 대신, **Module과 Provider의 명시적인 계약을 통해 기존 기술을 연결하고 관리하는 Control Plane**을 목표로 합니다.
