@@ -141,6 +141,7 @@ Module은 자신의 HTTP server가 내부 port에서 정상 동작하도록만 �
 
 ```text
 Module Template Contract
+├─ Go Web profile
 ├─ TS / React Web profile
 ├─ Java / Spring Web profile
 └─ future implementation profiles
@@ -149,6 +150,25 @@ Module Template Contract
 공통 Contract는 Protocol, build/runtime boundary, Health, optional description metadata, dependency/resource declaration 규칙을 정의합니다.
 
 각 구현 Profile은 같은 Contract를 해당 언어/Framework에서 빠르게 만족하기 위한 골격만 제공합니다.
+
+### Go Web profile 후보
+
+경량 HTTP/Web Module과 Official Web Shell에 우선 검토합니다.
+
+권장 후보:
+
+- Go single executable
+- standard library `net/http` 우선
+- `embed.FS` static assets
+- runtime-configurable port
+- non-root runtime user
+- Docker HEALTHCHECK
+- minimal runtime image
+- `manafield.module.json`
+- Protocol Health Operation
+- DB가 필요하지 않으면 DB dependency 없음
+
+더 복잡한 router/framework는 실제 필요가 생길 때 추가합니다. React/Vite 같은 frontend build tool을 사용하더라도 production runtime은 Go binary 하나로 유지할 수 있습니다.
 
 ### TypeScript / React Web profile 후보
 
@@ -369,7 +389,8 @@ Echo v2 private Repository를 만들기 전에 다음을 먼저 만족시키는 
 ```text
 Module Template Contract
 ├─ Capability / Resource dependency 경계 설명 가능
-├─ stateless Web Module 설계 가능
+├─ stateless Go Web Module 설계 가능
+├─ Official Go Web Shell 설계 가능
 ├─ Java / Spring Web Module 설계 가능
 └─ database.postgresql을 요구하는 stateful Module 설계 가능
 ```
@@ -379,6 +400,7 @@ Module Template Contract
 필요하다면 구현 Profile별 Template Repository를 분리할 수 있습니다.
 
 ```text
+manafield-module-template-go-web
 manafield-module-template-ts-react
 manafield-module-template-java-spring
 ```
