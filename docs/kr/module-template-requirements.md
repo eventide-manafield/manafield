@@ -1,0 +1,254 @@
+# Module Template Requirements v0
+
+> 이 문서는 현재 `manafield-reference` 구현에서 추출한 **초기 Module Template 요구사항**입니다.
+>
+> Module Protocol 자체의 규격과 특정 언어/Framework Template의 편의 규칙을 구분합니다.
+> 아직 pre-alpha이므로 실제 두 번째/세 번째 Module 구현을 거치며 조정될 수 있습니다.
+
+## 1. 목적
+
+Module Template은 새 Module이 Manafield Core 전체를 clone하거나 내부 구현에 의존하지 않고 시작할 수 있는 최소 골격을 제공합니다.
+
+Template은 다음을 목표로 합니다.
+
+- Protocol contract를 빠르게 만족
+- 빌드/실행 가능한 기본 구조 제공
+- Health 확인 가능
+- Core와 구현 언어를 분리
+- 특정 Reference Module의 기능을 불필요하게 복제하지 않음
+
+> **The protocol is the contract.**
+
+Template은 Manafield Core SDK를 필수 의존성으로 만들지 않습니다.
+
+## 2. 모든 Module에 필요한 계약
+
+### 필수
+
+현재 Module discovery 기준으로 Module Repository에는 다음 Descriptor를 제공해야 합니다.
+
+```text
+manafield.module.json
+```
+
+Descriptor는 최소한 다음 정보를 포함합니다.
+
+- `id`
+- `name`
+- `version`
+- `operations`
+
+각 Operation은 현재 지원되는 Binding과 Codec 규칙을 따라야 합니다.
+
+HTTP Binding의 현재 검증 규칙:
+
+- path는 `/`로 시작
+- 지원 method는 현재 Core 구현 범위에 맞아야 함
+- 최소 하나 이상의 Codec 선언
+- Input / Output은 Manafield `DataSchema`로 표현
+
+### Health Operation
+
+`healthOperation`은 Protocol상 선택 사항이지만, 일반 실행형 Module Template에는 기본 제공을 권장합니다.
+
+권장 초기 형태:
+
+```text
+GET /manafield/health
+```
+
+단, 이 경로 자체가 Protocol의 강제 규칙은 아닙니다. 실제 계약은 Descriptor의 Operation Binding입니다.
+
+Health Operation을 선언할 경우:
+
+- 실제 `operations` 안에 존재해야 함
+- `input`은 `null`이어야 함
+
+## 3. Build Contract
+
+초기 CI/CD는 Repository root의 Dockerfile 또는 Instance Definition에서 명시한 Dockerfile을 Module build contract로 사용합니다.
+
+따라서 Container 기반 Template은 다음을 만족해야 합니다.
+
+- CI가 source repository만으로 image를 build 가능
+- runtime image가 Module 자체 실행에 필요한 파일을 포함
+- 실행 port를 Instance/Runtime에서 지정 가능
+- 가능한 경우 non-root user 사용
+- application-level Health endpoint 제공
+
+Dockerfile은 Manafield Core source를 필요로 하지 않아야 합니다.
+
+## 4. Runtime Configuration
+
+다음은 **Protocol 필수 항목이 아니라 초기 Container Template convention**입니다.
+
+### `PORT`
+
+HTTP server를 실행하는 Template에서는 `PORT` 환경변수로 listen port를 override할 수 있도록 권장합니다.
+
+예:
+
+```text
+PORT=8080
+```
+
+### `MANAFIELD_CORE_URL`
+
+Core API를 직접 사용할 필요가 있는 Module에만 선택적으로 사용합니다.
+
+```text
+MANAFIELD_CORE_URL=http://core:8080
+```
+
+모든 Module이 Core URL을 알아야 하는 것은 아닙니다.
+
+장기적으로 Core 호출 방식이 Runtime/Service Discovery 모델로 발전할 수 있으므로 Template 필수 환경변수로 고정하지 않습니다.
+
+## 5. Web Exposure는 Template 계약이 아님
+
+Module Template은 public hostname 또는 public path를 하드코딩하지 않습니다.
+
+다음 정보는 Module Repository가 아니라 private Instance Definition에서 결정합니다.
+
+```yaml
+exposure:
+  type: host
+  host: example.manafield.studio
+  targetPort: 8080
+```
+
+따라서 Template에는 다음을 넣지 않습니다.
+
+- 특정 `*.manafield.studio` hostname
+- Traefik / nginx 전용 route
+- Instance-specific TLS 설정
+- Cloudflare Tunnel 설정
+
+Module은 자신의 HTTP server가 내부 port에서 정상 동작하도록만 구성합니다.
+
+자세한 경계는 ADR-0009를 참고합니다.
+
+## 6. TypeScript / React Template v0 후보
+
+현재 `manafield-reference`에서 재사용 가치가 있는 기본 골격:
+
+```text
+manafield.module.json
+Dockerfile
+package.json
+package-lock.json
+
+server/
+  index.ts
+
+src/
+  main.tsx
+  App.tsx
+
+index.html
+vite.config.ts
+tsconfig.app.json
+tsconfig.server.json
+```
+
+권장 scripts:
+
+```text
+npm run check
+npm run build
+npm start
+```
+
+현재 기준:
+
+- Node.js 22
+- TypeScript strict mode
+- React
+- Vite
+- Node/Express server
+
+이 기술 조합은 **TS/React Template의 구현 선택**이며 Module Protocol 요구사항이 아닙니다.
+
+## 7. Reference에서 Template으로 가져가지 않을 것
+
+현재 `manafield-reference`의 다음 요소는 Reference 기능이며 일반 Template 기본값으로 만들지 않습니다.
+
+### Registry Observer UI
+
+```text
+Registry Observer
+ModuleCard
+Operation 목록 렌더링
+```
+
+Reference의 목적 자체이므로 일반 Template과 무관합니다.
+
+### Core Registry Proxy
+
+```text
+GET /api/core/modules
+```
+
+이 endpoint와 `MANAFIELD_CORE_URL` 사용은 Core Registry를 관찰하기 위한 Reference 기능입니다.
+
+일반 Module이 Core Registry를 proxy할 필요는 없습니다.
+
+### Manafield TypeScript 타입 복제
+
+현재 Reference의:
+
+```text
+src/types/manafield.ts
+```
+
+는 Registry 응답을 사용하기 위한 로컬 타입입니다.
+
+초기 Template 필수 구성으로 넣지 않습니다.
+
+장기적으로 TypeScript SDK 또는 generated contract가 필요해지면 별도 패키지/도구로 제공하는 방향을 검토합니다.
+
+### Vite `/api` dev proxy
+
+현재 local development 편의를 위한 Reference-specific 설정입니다.
+
+Web API를 가진 TS/React Template 예제로는 사용할 수 있지만 Protocol requirement는 아닙니다.
+
+## 8. Reference에서 확인된 좋은 기본값
+
+현재 구현에서 Template에도 적용할 가치가 있는 기본값:
+
+- runtime container에서 non-root user 사용
+- Docker HEALTHCHECK 제공
+- production dependency만 runtime stage에 설치
+- TypeScript strict mode
+- frontend / server type-check 모두 CI 전에 수행
+- production build와 development server 분리
+- application Health endpoint와 Docker Healthcheck 연결
+
+Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm install`보다 `npm ci`를 기본으로 권장합니다.
+
+## 9. 아직 Template에 고정하지 않을 것
+
+다음은 실제 Module 사례가 더 쌓이기 전까지 공통 요구사항으로 고정하지 않습니다.
+
+- Settings endpoint
+- Permission / Capability declaration
+- Storage convention
+- Dependency declaration
+- Runtime requirement schema
+- WebSocket / Event convention
+- Core SDK 의존성
+- 특정 Web framework
+- 특정 HTTP server framework
+
+## 10. 다음 검증
+
+TS/React Template Repository를 즉시 규격으로 고정하기보다, **두 번째 실제 Module을 하나 더 구현한 뒤** 이 문서와 비교해 공통 부분만 Template으로 추출합니다.
+
+그 시점에 후보 Repository:
+
+```text
+manafield-module-template-ts-react
+```
+
+Template은 Reference 기능을 제거한 최소 실행 예제를 제공해야 합니다.
