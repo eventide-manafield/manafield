@@ -123,6 +123,9 @@ flowchart TB
 - [Architecture](docs/kr/architecture.md)
 - [Module Protocol](docs/kr/module-protocol.md)
 - [Operation](docs/kr/operation.md)
+- [Capability Contract](docs/kr/capability.md)
+- [Web Surface](docs/kr/web-surface.md)
+- [Official Web Shell](docs/kr/web-shell.md)
 - [Roadmap](docs/kr/roadmap.md)
 - [Architecture Decision Records](docs/kr/adr/README.md)
 
@@ -194,6 +197,9 @@ This will validate real-world lifecycle management involving an application runt
 - [Architecture](docs/en/architecture.md)
 - [Module Protocol](docs/en/module-protocol.md)
 - [Operation](docs/en/operation.md)
+- [Capability Contract](docs/en/capability.md)
+- [Web Surface](docs/en/web-surface.md)
+- [Official Web Shell](docs/en/web-shell.md)
 - [Roadmap](docs/en/roadmap.md)
 - [Architecture Decision Records](docs/en/adr/README.md)
 
