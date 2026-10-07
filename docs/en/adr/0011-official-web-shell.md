@@ -121,6 +121,35 @@ Examples:
 
 Dynamic loading of Module frontend bundles into the Shell process is deferred until a real need appears.
 
+#### Web Surface kind
+
+Public Web intent distinguishes at least `page` from `api`.
+
+```text
+page
+→ user-facing surface
+→ eligible for Web Shell navigation
+
+api
+→ public HTTP API
+→ no navigation entry
+```
+
+HTTP endpoints, Operations, and public API surfaces are not automatically treated as the same concept.
+
+#### Prefix preservation
+
+Same-origin prefix routing preserves the prefix by default.
+
+```text
+public  /echo/foo
+→ module /echo/foo
+```
+
+The Instance-assigned base path must be available to the Module through runtime configuration, and the Module uses the same base path for assets, redirects, cookie paths, and browser-side API paths.
+
+See [Web Surface v0](../web-surface.md) for the metadata design.
+
 ### 6. Keep independent subdomain exposure
 
 Same-origin composition is an option for an integrated Manafield UX, not a mandatory rule for every Web service.
