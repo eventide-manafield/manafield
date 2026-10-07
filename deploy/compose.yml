@@ -61,7 +61,7 @@ services:
       POSTGRES_USER: ${MANAFIELD_EXAMPLE_POSTGRES_USER:-manafield}
       POSTGRES_PASSWORD: ${MANAFIELD_EXAMPLE_POSTGRES_PASSWORD:-manafield}
     volumes:
-      - example-postgres-data:/var/lib/postgresql/data
+      - example-postgres-data:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL
