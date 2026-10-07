@@ -47,9 +47,9 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Core Registry read integration
 - [x] Dockerfile
 - [x] Core + Manafield Reference Compose environment
-- [ ] Register the Manafield Reference in the live Core Registry
-- [ ] Observe the Manafield Reference from its own UI
-- [ ] Extract Module Template requirements from the reference implementation
+- [x] Register the Manafield Reference in the live Core Registry
+- [x] Observe the Manafield Reference from its own UI
+- [x] Extract Module Template requirements from the reference implementation → [Module Template Requirements v0](module-template-requirements.md)
 
 ## Phase 1 — Runtime Provider Boundary
 
