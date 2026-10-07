@@ -340,25 +340,23 @@ Core는 기본적으로 `manafield-modules`에만 연결합니다. 외부 Web su
 
 `manafield-edge`는 개별 Manafield Compose가 소유하지 않는 external Docker network로 취급합니다. 자세한 결정 배경은 [ADR-0008](adr/0008-network-planes.md)을 참고합니다.
 
-## 8. Web Contribution
+## 8. Web Contribution / Exposure
 
 Module은 Web UI를 제공하지 않아도 됩니다.
 
-초기에는 다음과 같은 방식을 고려합니다.
+Module이 Web surface를 제공하는 사실과 **어떤 public hostname/path로 노출할지**는 분리합니다. 실제 public exposure는 private Instance Definition과 Ingress Provider가 결정합니다.
 
-### none
+현재 Web Exposure 모델은 다음 방향을 사용합니다.
 
-Web UI가 없습니다.
+- `none` — 외부 Web 노출 없음
+- `host` — 전용 hostname으로 노출
+- `prefix` — 특정 path prefix 아래에 노출
+- `routes` — 명시적인 root-level route claim
+- `external` — Manafield 밖의 외부 URL 사용
 
-### proxy
+Operation ID나 Binding path에서 public URL을 자동으로 파생하지 않습니다.
 
-Module이 자체 Web Application을 실행하고 Manafield가 이를 연결하거나 노출합니다.
-
-### external
-
-Module이 외부 URL을 제공합니다.
-
-더 밀접한 Remote UI 또는 Web Component 방식은 초기 범위에 포함하지 않습니다.
+자세한 결정은 [ADR-0009](adr/0009-operation-web-exposure.md)을 참고합니다.
 
 ## 9. Isolation
 
