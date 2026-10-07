@@ -84,10 +84,11 @@ PUT /manafield/settings
 {
   "id": "example",
   "name": "Example Module",
+  "description": "사람이 검색 결과와 목록에서 확인할 수 있는 선택적인 설명",
   "version": "0.1.0",
   "apiVersion": "v1",
-  "capabilities": [
-    "example.read"
+  "tags": [
+    "example"
   ]
 }
 ```
@@ -95,9 +96,11 @@ PUT /manafield/settings
 Info endpoint는 다음과 같은 정보를 제공할 수 있습니다.
 
 - identity
+- 사람이 읽을 수 있는 optional description
 - Module version
 - 지원하는 Manafield Protocol version
-- capabilities
+- 검색/분류용 tags
+- 제공하는 Capability Contract metadata
 - 선택적인 Web contribution metadata
 
 ## 5. Operation 자동 인식
@@ -407,7 +410,62 @@ Existing Modules continue to work
 
 이는 현재의 architecture goal이며 아직 호환성을 보장하는 정책은 아닙니다.
 
-## 8. Module Template
+## 8. Capability와 Dependency
+
+Module ID는 concrete implementation의 identity이며 일반 dependency contract로 사용하지 않는 것을 기본 원칙으로 합니다.
+
+Module이 다른 Module의 기능을 필요로 할 때는 특정 Module 이름보다 **Capability Contract**를 요구합니다.
+
+개념 예:
+
+```yaml
+requires:
+  capabilities:
+    identity:
+      id: manafield.identity
+      version: 1
+```
+
+Capability를 제공하는 Module은 구현체 ID와 독립적으로 같은 contract를 선언할 수 있습니다.
+
+```yaml
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: 1
+      description: 사용자 identity와 session 기능
+```
+
+`description`은 nullable/optional human-readable metadata입니다. 검색 결과와 관리 UI에서 설명을 표시하기 위한 것이며 dependency resolution에는 사용하지 않습니다.
+
+`tags` 역시 검색과 분류에 사용하지만 compatibility contract가 아니므로 dependency를 만족시키는 근거로 사용하지 않습니다.
+
+```text
+Operation
+→ 호출 가능한 한 기능
+
+Capability
+→ 여러 Operation과 의미 규칙을 묶는 호환성 계약
+
+Tag
+→ 검색 / 분류용 비구속 metadata
+```
+
+Database, Cache, Object Storage 같은 기반 자원은 Capability dependency와 별도 Resource Requirement로 표현합니다.
+
+```yaml
+requires:
+  resources:
+    state:
+      id: database.postgresql
+      version: 1
+```
+
+Resource는 일반 Module이 아니라 해당 자원을 공급하는 Provider가 만족합니다. PostgreSQL Provider가 connection 정보를 준비하더라도 실제 SQL query는 Module의 JDBC, `pg`, `psycopg` 같은 native client가 Database에 직접 수행합니다.
+
+정확한 Descriptor schema, version range, binding syntax, cycle 처리 정책은 아직 확정하지 않았습니다. 장기 경계는 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 따릅니다.
+
+## 9. Module Template
 
 Core와 Module Template은 별도 Repository로 관리할 예정입니다.
 
@@ -425,17 +483,19 @@ manafield-module-template-python
 
 단일 Reference 구현만 보고 Template을 너무 빨리 고정하지 않고, 두 번째 실제 Module을 구현한 뒤 공통 부분을 다시 검증합니다.
 
-## 9. 보안 방향
+## 10. 보안 방향
 
-Protocol은 권한과 capability를 명시적으로 표현할 수 있어야 합니다.
+Protocol은 **권한 요청**과 **dependency Capability**를 서로 다른 개념으로 명시적으로 표현할 수 있어야 합니다. Capability는 권한 이름이나 단순 tag가 아니라 호환성 계약입니다.
 
 향후 Module Package는 다음과 같은 정보를 선언할 수 있습니다.
 
 - 요청 권한
+- 제공/요구 Capability
+- Resource requirement
 - Runtime 요구사항
 - 노출 Port
 - Storage 요구사항
-- Dependency
+- Dependency binding metadata
 - Web contribution
 
 정확한 Security Model은 기본 Protocol과 Docker Runtime이 동작한 뒤 설계합니다.
