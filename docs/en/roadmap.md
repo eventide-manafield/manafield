@@ -183,6 +183,15 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Secret injection through CI credential storage
 - [ ] Validate Build Plan portability beyond Jenkins
 
+### Ingress Adapters
+
+- [ ] Stabilize common Ingress Provider input / lifecycle
+- [x] Traefik Ingress Adapter v0 — host exposure
+- [x] Build Plan hostname conflict detection
+- [ ] Render Traefik prefix / root route claims
+- [ ] Nginx Ingress Adapter
+- [ ] Ingress rollback / stale-route cleanup
+
 ## Long-term
 
 - [ ] Module package format
