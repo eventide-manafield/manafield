@@ -270,6 +270,22 @@ flowchart TB
 
 The detailed Runtime Protocol and capability model are still being designed. See [ADR-0004](adr/0004-runtime-provider-boundary.md) and [ADR-0005](adr/0005-docker-provider-isolation.md) for rationale.
 
+### Network Planes
+
+Docker deployments separate internal Module communication from externally facing edge traffic.
+
+```text
+manafield-modules
+→ internal Core ↔ Module communication
+
+manafield-edge
+→ shared edge network for Traefik / Cloudflared / externally exposed Modules
+```
+
+Core connects only to `manafield-modules` by default. Modules that need an external Web surface may additionally join `manafield-edge`.
+
+`manafield-edge` is treated as an external Docker network owned by host infrastructure rather than by an individual Manafield Compose deployment. See [ADR-0008](adr/0008-network-planes.md) for rationale.
+
 ## 8. Web Contributions
 
 A Module does not need to provide a UI.
