@@ -1,3 +1,6 @@
+# Copy this file to a private instance.yaml and customize it.
+# Do not commit secrets here. Inject them through CI/runtime secret mechanisms.
+
 version: 0
 
 instance:
@@ -22,17 +25,29 @@ modules:
       type: docker
       context: .
       dockerfile: Dockerfile
+
+    # Optional external Web exposure.
     exposure:
       type: host
       host: reference.example.test
       targetPort: 8080
 
 deployment:
+  # Internal Core <-> Module network.
   modulesNetwork: manafield-modules
+
+  # Shared network used by externally exposed Modules and ingress infrastructure.
   edgeNetwork: manafield-edge
+
+  # Optional ingress integration.
   ingress:
     provider: traefik
-    output: ./dynamic/manafield.yml
+
+    # Generated dynamic configuration file.
+    # Use a host path visible and writable by the CI executor.
+    output: /path/to/traefik/dynamic/manafield.yml
+
+    # Explicit bootstrap target. Manafield never auto-discovers a Traefik instance.
     bootstrap:
-      composeFile: ./infra/traefik/docker-compose.yml
+      composeFile: /path/to/traefik/docker-compose.yml
       service: traefik
