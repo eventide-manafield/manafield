@@ -122,15 +122,28 @@ Tag
 → 검색 / 분류용 non-binding metadata
 ```
 
-Module, Capability, Resource 같은 검색 가능한 항목은 사람이 목록을 이해하기 위한 optional `description` metadata를 가질 수 있습니다. Description은 표시/검색 보조용이며 dependency resolution이나 compatibility 판정에는 사용하지 않습니다.
+Capability compatibility에 사용하는 핵심 표면은 `id + version`입니다. Description과 tags는 검색/관리 UI용 metadata이며 matching에는 사용하지 않습니다.
 
-예를 들어 Echo가 계정 기능을 필요로 한다면 `manafield-account`라는 특정 Module ID보다 `manafield.identity v1` Capability를 요구하는 방향을 사용합니다. Fork 또는 대체 구현도 같은 Capability Contract를 만족하면 dependency 후보가 될 수 있습니다.
+Module Instance와 Resource Instance는 같은 방식으로 Capability metadata를 등록할 수 있습니다. 이를 위해 동일 언어의 공통 `CapabilityProvider` 구현 인터페이스를 강제하지 않습니다.
 
-실제 concrete Module 선택은 Instance binding에서 해결합니다. 후보가 여러 개인 경우 Core가 임의로 하나를 선택하지 않는 방향을 사용합니다.
+예를 들어 Echo는 특정 `manafield-account` Module보다 `manafield.identity ^1` Capability를 요구할 수 있고, `database.postgresql ^1`도 같은 `requires.capabilities` 문법으로 요구합니다.
 
-Database, Cache, Storage 같은 기반 자원 요구도 별도 requirement 문법을 만들지 않고 **Capability**로 표현합니다. 예를 들어 Echo는 `database.postgresql ^1` Capability를 요구하고, Instance는 그 Capability를 제공하는 `main-postgres` 같은 concrete Resource를 binding할 수 있습니다.
+Concrete 연결은 consumer Instance의 Requirement slot에서 target Instance ID를 명시하는 Binding으로 표현합니다.
 
-Resource는 일반 Module이 아니라 Resource Provider가 준비하거나 등록할 수 있으며 application data path를 Core가 중계하지 않습니다. PostgreSQL Provider가 database/schema/account/connection secret을 준비하더라도 Echo의 실제 SQL query는 Echo의 JDBC driver가 PostgreSQL에 직접 수행합니다.
+```text
+echo-prod.identity → identity-core
+echo-prod.state    → main-postgres
+```
+
+Module/Resource Instance ID는 하나의 Manafield Instance 안에서 unique하며 중복 등록은 conflict로 거부합니다.
+
+Binding되지 않은 Requirement는 호환 후보가 몇 개 존재하든 계속 UNBOUND입니다. Capability Discovery는 compatible 조회, 이름 일치 기반 advanced 조회, 전체 조회를 제공할 수 있지만 Binding을 자동 생성하지 않습니다.
+
+Binding된 target의 Capability version이 요구 range와 다르면 `CAPABILITY_VERSION_MISMATCH` warning과 diagnostic log를 남기되 version mismatch 하나만으로 실행을 강제 중단하지 않습니다.
+
+Endpoint, concrete config value, connection metadata와 secret reference는 concrete Instance/Instance configuration에 두고, config schema는 Module/Resource Definition에 둡니다. Capability Contract에는 이런 runtime/configuration 정보를 넣지 않습니다.
+
+Resource를 준비/등록/관리하는 system-side component는 별도 boundary로 둘 수 있지만, Capability binding target은 관리 컴포넌트가 아니라 concrete Resource Instance입니다. 실제 application data path도 Core를 통과하지 않습니다.
 
 자세한 계약 모델은 [Capability Contract v0](capability.md)와 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 참고합니다.
 
