@@ -419,58 +419,63 @@ This is an architectural goal, not a compatibility guarantee yet.
 
 A Module ID identifies a concrete implementation and is not the default dependency contract.
 
-When a Module needs functionality from another Module, it should normally require a **Capability Contract** instead of a concrete Module name.
-
-Conceptual example:
+Modules express ordinary needs as **Capability Contracts**.
 
 ```yaml
 requires:
   capabilities:
     identity:
       id: manafield.identity
-      version: 1
-```
+      version: "^1.0.0"
 
-Modules can provide the same contract independently of their implementation IDs.
-
-```yaml
-provides:
-  capabilities:
-    - id: manafield.identity
-      version: 1
-      description: User identity and session functionality
-```
-
-`description` is nullable/optional human-readable metadata for search results and management UI. It does not participate in dependency resolution.
-
-`tags` are also useful for discovery and classification, but they are not compatibility contracts and do not satisfy dependencies.
-
-```text
-Operation
-→ one callable functionality contract
-
-Capability
-→ compatibility contract composed from Operations and semantic rules
-
-Tag
-→ descriptive / non-binding metadata
-```
-
-Infrastructure needs such as databases, caches, and object storage use the same Capability model.
-
-```yaml
-requires:
-  capabilities:
     state:
       id: database.postgresql
       version: "^1.0.0"
 ```
 
-`database.postgresql` is a Capability Contract, not a separate Resource Requirement type.
+A concrete Capability may be provided by a Module Instance or a Resource Instance.
 
-The Instance may bind this Capability to a concrete Resource such as `main-postgres`. A PostgreSQL Provider may prepare connection information, while application SQL still goes directly from the Module through its native JDBC, `pg`, `psycopg`, or equivalent client.
+```yaml
+id: identity-core
+kind: module
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: "1.2.0"
+```
 
-Capability versions are **SemVer contract versions** independent from Module release versions. Providers declare exact versions and consumers declare SemVer ranges. The Resolver does not infer compatibility from Operation subsets.
+```yaml
+id: main-postgres
+kind: resource
+provides:
+  capabilities:
+    - id: database.postgresql
+      version: "1.3.0"
+```
+
+Capability matching uses `id + version`. `description` and `tags` are search/display metadata and do not determine dependency compatibility.
+
+Capability versions are **SemVer contract versions** independent from Module release versions. `provides` declares an exact version and `requires` declares a SemVer range. Compatibility is not inferred from Operation subsets.
+
+Concrete Binding maps a consumer Instance's Requirement slot to a target Instance ID.
+
+```yaml
+bindings:
+  identity: identity-core
+  state: main-postgres
+```
+
+Binding has only `UNBOUND` and `BOUND` states. BOUND does not imply valid; target validation is a separate concern.
+
+Capability Discovery may expose compatible, advanced same-ID, and full listing modes, but it **never binds automatically**. Even a single candidate does not change an UNBOUND Requirement.
+
+When an explicitly bound target provides the same Capability ID with a version outside the requested range, Core records a `CAPABILITY_VERSION_MISMATCH` warning and continues execution.
+
+Endpoints, concrete config values, connection metadata, and secret references belong to Instances, while config schemas belong to Module/Resource Definitions. These details are not part of Capability Contracts.
+
+Module/Resource Instance IDs must be unique within one Manafield Instance; duplicate registration is a conflict.
+
+Infrastructure such as databases, caches, and object storage uses the same Capability model rather than a separate Resource Requirement type. Even when a system component prepares a Resource, application data traffic still flows directly from the Module's native client to the Resource.
 
 See [Capability Contract](capability.md) for the v0 model. The long-lived boundary follows [ADR-0010](adr/0010-capability-dependency-resolution.md).
 
