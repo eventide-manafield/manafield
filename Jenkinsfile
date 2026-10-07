@@ -17,14 +17,6 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: "20"))
     }
 
-    parameters {
-        string(
-            name: "INSTANCE_ROOT",
-            defaultValue: "/var/lib/manafield-instance",
-            description: "Private Manafield instance directory visible to the Jenkins container"
-        )
-    }
-
     environment {
         DOCKER_BUILDKIT = "1"
         COMPOSE_DOCKER_CLI_BUILD = "1"
@@ -48,10 +40,18 @@ pipeline {
 
         stage("Resolve Build Plan") {
             steps {
+                script {
+                    if (!params.INSTANCE_ROOT?.trim()) {
+                        error("Jenkins Job must define a non-empty String parameter named INSTANCE_ROOT")
+                    }
+
+                    env.INSTANCE_ROOT = params.INSTANCE_ROOT.trim()
+                }
+
                 sh """
                     set -eu
 
-                    test -f "${params.INSTANCE_ROOT}/instance.yaml"
+                    test -f "${env.INSTANCE_ROOT}/instance.yaml"
 
                     docker build \
                       --target build-plan-runtime \
@@ -67,7 +67,7 @@ pipeline {
 
                     chmod +x ./manafield-build-plan
                     ./manafield-build-plan \
-                      "${params.INSTANCE_ROOT}/instance.yaml" \
+                      "${env.INSTANCE_ROOT}/instance.yaml" \
                       build-plan.json
                 """
 
@@ -199,7 +199,7 @@ pipeline {
         stage("Stage Release") {
             steps {
                 script {
-                    env.RELEASE_DIR = "${params.INSTANCE_ROOT}/releases/${env.BUILD_NUMBER}"
+                    env.RELEASE_DIR = "${env.INSTANCE_ROOT}/releases/${env.BUILD_NUMBER}"
                     def referenceImage = moduleBuilds["reference-web"].image
                     def network = buildPlan.deployment.network
 
