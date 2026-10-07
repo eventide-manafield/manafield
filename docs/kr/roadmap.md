@@ -52,6 +52,7 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Reference 구현에서 Module Template 요구사항 추출 → [Module Template Requirements v0](module-template-requirements.md)
 - [x] 기존 Echo 서비스와 Template 경계 비교 검토 → [Echo Module Migration Review](echo-module-migration-review.md)
 - [ ] 공통 Module Template Contract 정리
+- [ ] Go Web implementation profile 정리
 - [ ] TS / React Web implementation profile 정리
 - [ ] Java / Spring Web implementation profile 정리
 - [ ] `database.postgresql` Resource를 요구하는 stateful Web Module 설계 가능 상태 검증
@@ -141,11 +142,11 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider 상태 UI
 - [ ] Module Health UI
-- [ ] Module Web Contribution metadata v0
+- [x] Web Surface metadata v0 (`page / api`) → [Web Surface v0](web-surface.md)
 - [ ] Web Exposure 모델 (`none / host / prefix / routes / external`)
-- [ ] Build Plan same-host prefix / route normalization
+- [ ] Build Plan same-host prefix / route normalization (prefix preserve)
 - [ ] Build Plan route conflict / precedence validation
-- [ ] Traefik same-host path composition 렌더링
+- [ ] Traefik same-host path composition 렌더링 (no prefix strip)
 - [ ] Manafield reserved root path 정책
 - [ ] resolved Build Plan 기반 ingress 설정 생성 / 적용
 - [ ] login / session entry UX
