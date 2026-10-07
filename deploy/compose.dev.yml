@@ -9,3 +9,5 @@ services:
     build:
       context: ${MANAFIELD_REFERENCE_CONTEXT:-../../manafield-module-reference}
       dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${MANAFIELD_REFERENCE_PORT:-18081}:8080"
