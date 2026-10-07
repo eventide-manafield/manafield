@@ -1,4 +1,3 @@
-import groovy.json.JsonOutput
 import groovy.json.JsonSlurperClassic
 
 def buildPlan = null
@@ -12,6 +11,7 @@ pipeline {
     agent any
 
     options {
+        skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: "20"))
@@ -182,15 +182,19 @@ pipeline {
                         }
                     }
 
+                    def resolvedImages = [
+                        "core.image=${env.CORE_IMAGE}",
+                        "core.revision=${env.CORE_SHA}"
+                    ]
+
+                    moduleBuilds.each { moduleId, built ->
+                        resolvedImages << "module.${moduleId}.image=${built.image}"
+                        resolvedImages << "module.${moduleId}.revision=${built.revision}"
+                    }
+
                     writeFile(
-                        file: "resolved-images.json",
-                        text: JsonOutput.prettyPrint(JsonOutput.toJson([
-                            core: [
-                                image: env.CORE_IMAGE,
-                                revision: env.CORE_SHA
-                            ],
-                            modules: moduleBuilds
-                        ])) + "\n"
+                        file: "resolved-images.env",
+                        text: resolvedImages.join("\n") + "\n"
                     )
                 }
             }
@@ -214,7 +218,7 @@ pipeline {
 
                             cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
                             cp build-plan.json "$RELEASE_DIR/build-plan.json"
-                            cp resolved-images.json "$RELEASE_DIR/resolved-images.json"
+                            cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
 
                             printf '%s\n' \
                               "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
@@ -322,7 +326,7 @@ pipeline {
     post {
         always {
             archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.json",
+                artifacts: "build-plan.json,resolved-images.env",
                 allowEmptyArchive: true
             )
         }
