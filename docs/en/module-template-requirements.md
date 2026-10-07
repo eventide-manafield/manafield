@@ -131,6 +131,7 @@ The common Module Template does not make one framework the platform standard.
 
 ```text
 Module Template Contract
+├─ Go Web profile
 ├─ TS / React Web profile
 ├─ Java / Spring Web profile
 └─ future implementation profiles
@@ -139,6 +140,25 @@ Module Template Contract
 The common Contract covers Protocol requirements, build/runtime boundaries, Health, optional description metadata, and dependency/resource declaration rules.
 
 Each implementation Profile only provides a convenient skeleton for satisfying the same Contract in a particular stack.
+
+### Go Web profile candidate
+
+Prefer this profile for lightweight HTTP/Web Modules and the Official Web Shell.
+
+Candidate defaults:
+
+- Go single executable
+- prefer standard-library `net/http`
+- static assets through `embed.FS`
+- runtime-configurable port
+- non-root runtime user
+- Docker HEALTHCHECK
+- minimal runtime image
+- `manafield.module.json`
+- Protocol Health Operation
+- no database dependency unless the Module actually needs one
+
+Add a richer router/framework only when a concrete need appears. React/Vite may still be used at build time while keeping the production runtime as a single Go binary.
 
 ### TypeScript / React Web profile candidate
 
@@ -341,7 +361,8 @@ Before creating the private Echo v2 repository, first make the Template Contract
 ```text
 Module Template Contract
 ├─ Capability / Resource dependency boundaries
-├─ stateless Web Modules
+├─ stateless Go Web Modules
+├─ Official Go Web Shell
 ├─ Java / Spring Web Modules
 └─ stateful Modules requiring database.postgresql
 ```
@@ -351,6 +372,7 @@ Then implement Echo v2 as the second real Module and use it to revalidate the Te
 Implementation-specific template repositories may then be split when useful:
 
 ```text
+manafield-module-template-go-web
 manafield-module-template-ts-react
 manafield-module-template-java-spring
 ```
