@@ -62,7 +62,7 @@ Capability version
 
 Capability versions use SemVer.
 
-Providers declare exact versions:
+Instances providing a Capability declare exact versions:
 
 ```yaml
 version: "2.3.1"
