@@ -263,7 +263,9 @@ This allows Core and Web/CLI clients to discover, without knowing the Module's i
 - codecs supported by that Binding
 - future permission/capability requirements
 
-Initially Operation information is **discovery and validation metadata**. Automatic proxy/route wiring can be added after the Registry model stabilizes.
+Operation information is the **discovery and validation contract for callable functionality**.
+
+Web exposure is not derived automatically from Operation IDs or Binding paths. Public hostnames and paths are instance-level policy in the private Instance Definition. Current host exposure can be resolved through the Build Plan and an Ingress Adapter. See [ADR-0009](adr/0009-operation-web-exposure.md) for this boundary.
 
 The current Core Module discovery response experimentally supports HTTP content negotiation. JSON is the default response, while `Accept: application/msgpack` returns MessagePack binary data.
 
@@ -307,15 +309,26 @@ operations:
       codecs:
         - json
 
-web:
-  mode: proxy
-  route: /example
-
 permissions:
   - example.read
 ```
 
 The manifest schema is not finalized.
+
+Public hostname/path exposure is intentionally not part of this Manifest example. A Module may provide a Web surface, while the actual external location is selected by the Instance Definition.
+
+Example:
+
+```yaml
+modules:
+  - id: example
+    exposure:
+      type: host
+      host: example.manafield.studio
+      targetPort: 8080
+```
+
+This allows the same Module repository to be reused by different instances with different exposure policies.
 
 ### Current development-time Module discovery
 
@@ -398,15 +411,19 @@ This is an architectural goal, not a compatibility guarantee yet.
 
 Core and Module templates are expected to live in separate repositories.
 
+Initial requirements extracted from `manafield-reference` are documented in [Module Template Requirements v0](module-template-requirements.md).
+
 Possible templates:
 
 ```text
+manafield-module-template-ts-react
 manafield-module-template-go
 manafield-module-template-python
-manafield-module-template-node
 ```
 
 A developer should be able to start from a template repository and implement the protocol without cloning Manafield Core.
+
+Do not freeze a Template too early from a single Reference implementation; validate the shared pieces again after a second real Module is implemented.
 
 ## 9. Security Direction
 
