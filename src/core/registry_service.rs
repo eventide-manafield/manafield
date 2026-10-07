@@ -65,6 +65,7 @@ mod tests {
         ModuleDescriptor {
             id: id.to_owned(),
             name: format!("{id} Module"),
+            description: None,
             version: "0.0.1".to_owned(),
             health_operation: None,
             operations: vec![OperationContract {
