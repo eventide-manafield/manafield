@@ -5,6 +5,8 @@ use super::schema::DataSchema;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct OperationContract {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub input: Option<DataSchema>,
     pub output: Option<DataSchema>,
     pub binding: OperationBinding,
