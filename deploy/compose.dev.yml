@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       target: core-runtime
 
-  reference-web:
+  reference:
     build:
       context: ${MANAFIELD_REFERENCE_CONTEXT:-../../manafield-module-reference}
       dockerfile: Dockerfile
