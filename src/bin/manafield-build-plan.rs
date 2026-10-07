@@ -16,17 +16,27 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
     let input = args
         .next()
-        .ok_or("usage: manafield-build-plan <instance.yaml> [output.json]")?;
+        .ok_or(
+            "usage: manafield-build-plan <instance.yaml> [output.json] [ci-output-dir]",
+        )?;
     let output = args.next();
+    let ci_output_dir = args.next();
 
     if args.next().is_some() {
-        return Err("too many arguments".into());
+        return Err(
+            "usage: manafield-build-plan <instance.yaml> [output.json] [ci-output-dir]".into(),
+        );
     }
 
     let definition = read_definition(Path::new(&input))?;
     validate_definition(&definition)?;
 
     let plan = BuildPlan::from(definition);
+
+    if let Some(ci_output_dir) = ci_output_dir {
+        write_ci_plan(&plan, Path::new(&ci_output_dir))?;
+    }
+
     let json = serde_json::to_string_pretty(&plan)?;
 
     if let Some(output) = output {
@@ -34,6 +44,53 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("{json}");
     }
+
+    Ok(())
+}
+
+fn write_ci_plan(
+    plan: &BuildPlan,
+    directory: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(directory)?;
+
+    fs::write(
+        directory.join("instance-id.txt"),
+        format!("{}\n", plan.instance_id),
+    )?;
+    fs::write(
+        directory.join("network.txt"),
+        format!("{}\n", plan.deployment.network),
+    )?;
+
+    let runtime_providers = plan
+        .runtime_providers
+        .iter()
+        .map(|provider| provider.id.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(
+        directory.join("runtime-providers.txt"),
+        if runtime_providers.is_empty() {
+            String::new()
+        } else {
+            format!("{runtime_providers}\n")
+        },
+    )?;
+
+    let mut modules = String::new();
+    for module in &plan.modules {
+        modules.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\n",
+            module.id,
+            module.source.repository,
+            module.source.git_ref,
+            module.build.build_type.as_str(),
+            module.build.context,
+            module.build.dockerfile,
+        ));
+    }
+    fs::write(directory.join("modules.tsv"), modules)?;
 
     Ok(())
 }
@@ -161,6 +218,14 @@ struct ModuleBuildDefinition {
 #[serde(rename_all = "lowercase")]
 enum BuildType {
     Docker,
+}
+
+impl BuildType {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Docker => "docker",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
