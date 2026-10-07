@@ -64,7 +64,14 @@ Path 기반 노출이 필요한 Module에 명시적으로 사용합니다.
 /modules/example/...
 ```
 
-필요하면 prefix stripping 여부를 Instance 설정에서 지정할 수 있습니다.
+Prefix는 기본적으로 strip하지 않습니다.
+
+```text
+public  /echo/foo
+→ module /echo/foo
+```
+
+Instance가 할당한 prefix/base path는 Module runtime configuration으로 전달할 수 있어야 하며, Module은 해당 경로를 기준으로 asset, redirect, cookie, browser-side API path를 구성합니다.
 
 Prefix Proxy는 모든 Module의 기본 노출 방식으로 사용하지 않습니다.
 
