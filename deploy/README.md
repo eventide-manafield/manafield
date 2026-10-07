@@ -194,7 +194,7 @@ A Jenkins deployment directory is expected to look like:
 │  │  ├─ compose.yml
 │  │  ├─ release.env
 │  │  ├─ build-plan.json
-│  │  ├─ resolved-images.json
+│  │  ├─ resolved-images.env
 │  │  └─ modules/
 │  └─ ...
 └─ current -> releases/<successful build>
