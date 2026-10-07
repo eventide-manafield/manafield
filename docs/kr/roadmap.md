@@ -94,24 +94,24 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Docker socket 재노출 금지
 - [ ] Runtime logs
 
-## Phase 1.5 — Capability / Resource Dependency
+## Phase 1.5 — Capability Resolution / Provider Binding
 
 - [x] Module identity와 dependency contract 분리 원칙 확정
 - [x] Tag와 Capability 역할 분리
-- [x] 기능 Capability와 infrastructure Resource dependency 분리
+- [x] 모든 일반 requirement를 Capability Contract로 통일
 - [x] ADR-0010 — Capability 기반 Dependency Resolution
 - [x] Module / Operation optional `description` metadata
-- [ ] Capability Descriptor v0
-- [ ] `provides.capabilities` / `requires.capabilities` schema
+- [x] Capability Contract v0 설계 → [Capability Contract](capability.md)
+- [ ] `provides.capabilities` / `requires.capabilities` Core 모델 구현
 - [ ] Capability ↔ Operation contract validation
-- [ ] Capability version / constraint 정책
+- [x] Capability SemVer / range 정책
 - [ ] Instance concrete Capability binding
 - [ ] dependency graph / cycle validation
-- [ ] Resource Requirement Descriptor v0
+- [ ] Resource가 제공하는 Capability metadata 모델
 - [ ] Resource Provider boundary / protocol
 - [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource Provider v0
-- [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation
+- [ ] PostgreSQL Resource Provider v0 (`database.postgresql` Capability)
+- [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation / Capability binding
 
 ## Phase 2 — Module Lifecycle
 
