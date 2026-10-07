@@ -16,9 +16,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = env::args().skip(1);
     let input = args
         .next()
-        .ok_or(
-            "usage: manafield-build-plan <instance.yaml> [output.json] [ci-output-dir]",
-        )?;
+        .ok_or("usage: manafield-build-plan <instance.yaml> [output.json] [ci-output-dir]")?;
     let output = args.next();
     let ci_output_dir = args.next();
 
@@ -48,10 +46,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn write_ci_plan(
-    plan: &BuildPlan,
-    directory: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
 
     fs::write(
