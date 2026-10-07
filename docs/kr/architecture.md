@@ -237,7 +237,19 @@ Manafield 인스턴스에 직접적인 기능을 제공합니다.
 - Discord
 - External API
 
-이 분류는 역할과 실행 형태를 표현하기 위한 것이며, 가능한 한 공통 Module Protocol을 공유합니다.
+Module / Service / Integration 분류는 역할과 실행 형태를 표현하기 위한 것이며, 가능한 한 공통 Module Protocol을 공유합니다.
+
+### Provider
+
+Provider는 일반 Module이 아니라 **Manafield 시스템에 실행환경, 기반 자원, ingress 같은 infrastructure 기능을 연결하는 system-side component**입니다.
+
+예:
+
+- Docker Runtime Provider
+- PostgreSQL Resource Provider
+- Traefik Ingress Provider / Adapter
+
+Provider는 사용자 기능을 직접 제공하는 Module과 달리 더 강한 권한이나 host infrastructure 접근이 필요할 수 있으므로 별도 boundary를 가집니다.
 
 ## 7. Runtime 모델
 
