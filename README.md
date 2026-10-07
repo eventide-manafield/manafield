@@ -32,7 +32,9 @@
 
 Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, Go, Node.js, Java, Rust 등 **어떤 언어든 상관없이 API 계약만 지키면 연결**할 수 있는 구조를 목표로 합니다.
 
-Module이 외부에 제공하는 기능은 **Operation**이라는 공통 계약으로 표현합니다. Operation은 기능의 ID, Input/Output Schema, 호출 방식(Binding), Payload 형식(Codec)을 설명하며, Core는 이를 통해 Module의 구현 언어를 몰라도 어떤 기능을 어떻게 호출할 수 있는지 이해합니다.
+Module이 외부에 제공하는 호출 가능한 기능은 **Operation**이라는 공통 계약으로 표현합니다. Operation은 기능 ID, optional description, Input/Output Schema, 호출 방식(Binding), Payload 형식(Codec)을 설명하며, Core는 이를 통해 Module의 구현 언어를 몰라도 어떤 기능을 어떻게 호출할 수 있는지 이해합니다.
+
+Module 간 의존성은 구체적인 Module ID보다 **Capability Contract**를 기준으로 해결하는 방향을 사용합니다. Fork나 대체 구현도 같은 Capability를 구현하면 dependency 후보가 될 수 있습니다. Database/Cache/Storage 같은 기반 자원은 별도 **Resource Requirement**로 표현하고 Provider가 공급합니다.
 
 ```mermaid
 flowchart TB
@@ -81,6 +83,8 @@ flowchart TB
 - **Language-independent Modules** — 언어와 Framework에 종속되지 않습니다.
 - **API-first Protocol** — Core와 Module은 API 계약으로 연결됩니다.
 - **Runtime Provider** — Module 실행 환경은 Core와 분리된 Provider가 담당합니다.
+- **Capability-based dependencies** — Module identity와 기능 호환성 계약을 분리합니다.
+- **Resource Providers** — PostgreSQL 같은 공용 기반 자원을 Module과 분리해 공급할 수 있도록 설계합니다.
 - **Docker Provider first** — Docker는 첫 Runtime Provider 구현이며 Core의 필수 의존성은 아닙니다.
 - **Optional Web Views** — Module이 필요할 때만 Web UI를 제공합니다.
 - **Isolated Modules** — Core 프로세스와 Module 실행환경을 분리합니다.
@@ -145,7 +149,9 @@ Its guiding principle is:
 
 The Core is planned to be implemented in **Rust**, while Modules may use any language or framework as long as they implement the Manafield Module Protocol.
 
-Functionality exposed by a Module is described through a common **Operation** contract. An Operation describes the capability ID, Input/Output Schema, invocation Binding, and Payload Codec so Core can understand what a Module provides without knowing its implementation language.
+Callable functionality exposed by a Module is described through a common **Operation** contract. An Operation describes its ID, optional description, Input/Output Schema, invocation Binding, and Payload Codec so Core can understand what a Module provides without knowing its implementation language.
+
+Dependencies between Modules are designed around **Capability Contracts** rather than concrete Module IDs, allowing compatible forks or alternate implementations to satisfy the same requirement. Infrastructure such as databases, caches, and storage is modeled separately as **Resource Requirements** supplied by Providers.
 
 ## Development Toolchain
 
@@ -165,6 +171,8 @@ This is the current development baseline and does **not** yet define an official
 - **Language-independent Modules**
 - **API-first Module Protocol**
 - **Runtime Providers** separated from Core
+- **Capability-based dependencies** separated from concrete Module identity
+- **Resource Providers** for shared infrastructure such as PostgreSQL
 - **Docker Provider first**, without making Docker a Core dependency
 - **Optional Web Contributions**
 - **Isolated Module execution**
