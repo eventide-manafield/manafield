@@ -214,9 +214,9 @@ To support a greenfield Echo v2 or similar stateful Web Modules, useful candidat
 - environment-driven application port
 - `manafield.module.json`
 - Protocol Health Operation
-- a clean boundary for binding Resource Requirements into application configuration
+- a clean boundary for materializing Capability bindings into application configuration
 
-PostgreSQL/JPA is not a universal Java Web requirement. Only Modules that need it should declare a Resource Requirement such as `database.postgresql`.
+PostgreSQL/JPA is not a universal Java Web requirement. Only Modules that need it should require a Capability such as `database.postgresql`.
 
 ## 7. Do not copy these Reference-specific parts into a generic Template
 
@@ -266,9 +266,9 @@ Wait for additional real Module implementations before standardizing:
 
 - Settings endpoints
 - final Permission declaration schema
-- final Capability / Resource Descriptor JSON/YAML schema
+- final Capability Descriptor / provider-source JSON/YAML schema
 - Capability version-range / negotiation syntax
-- final Resource binding / Secret injection schema
+- final Capability binding / Secret injection schema
 - Runtime requirement schema
 - WebSocket / Event conventions
 - Core SDK dependency
@@ -304,7 +304,7 @@ If a Module repository includes Compose, prefer treating it as local-development
 
 Echo uses PostgreSQL/JPA, but that does not make a database universal.
 
-Database/Storage dependencies follow [ADR-0010](adr/0010-capability-dependency-resolution.md) as **Resource Requirements** separate from Module Capabilities. A Module that needs PostgreSQL conceptually requires `database.postgresql`, while the Instance selects the concrete Provider and connection binding.
+Database/Storage needs follow [ADR-0010](adr/0010-capability-dependency-resolution.md) through the same **Capability Requirement** model. A Module that needs PostgreSQL requires `database.postgresql ^1`, while the Instance selects a concrete Resource providing that Capability and the connection binding.
 
 ### Secrets are not fixed into source or Templates
 
@@ -360,11 +360,11 @@ Before creating the private Echo v2 repository, first make the Template Contract
 
 ```text
 Module Template Contract
-├─ Capability / Resource dependency boundaries
+├─ unified Capability requirement / provider-source boundaries
 ├─ stateless Go Web Modules
 ├─ Official Go Web Shell
 ├─ Java / Spring Web Modules
-└─ stateful Modules requiring database.postgresql
+└─ stateful Modules requiring the database.postgresql Capability
 ```
 
 Then implement Echo v2 as the second real Module and use it to revalidate the Template Contract.
