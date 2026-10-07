@@ -74,7 +74,7 @@ Capability version
 
 Capability version은 SemVer를 사용합니다.
 
-Provider는 정확한 version을 선언합니다.
+Capability를 제공하는 Instance는 정확한 version을 선언합니다.
 
 ```yaml
 version: "2.3.1"
