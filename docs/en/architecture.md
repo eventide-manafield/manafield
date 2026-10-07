@@ -69,7 +69,7 @@ This does not mean implementing every future feature up front. It means explicit
 - Core and Runtime Provider
 - ordinary Modules and privileged system components
 - Module identity and Capability Contracts
-- functional dependencies and infrastructure resource dependencies
+- the boundary that expresses ordinary requirements through Capability Contracts
 
 Major architecture decisions and their rationale are recorded in [ADRs](adr/README.md).
 
@@ -128,11 +128,11 @@ For example, Echo should depend on a `manafield.identity v1` Capability rather t
 
 The concrete Module is selected through Instance binding. When multiple candidates exist, Core should not silently choose one.
 
-Infrastructure such as databases, caches, and storage is modeled as a separate **Resource Requirement**. Resources are prepared or allocated by Resource Providers rather than ordinary Modules, and Core does not proxy the application data path.
+Infrastructure needs such as databases, caches, and storage use the same **Capability** requirement model instead of a separate dependency grammar. For example, Echo can require `database.postgresql ^1`, and the Instance can bind that requirement to a concrete Resource such as `main-postgres` that provides the Capability.
 
-For example, a PostgreSQL Provider may create a database/schema/account and prepare connection secrets, while Echo still sends SQL directly through its own JDBC driver.
+Resources may be prepared or registered by Resource Providers, while Core does not proxy application data traffic. A PostgreSQL Provider may prepare a database/schema/account and connection secrets, while Echo still sends SQL directly through its own JDBC driver.
 
-See [ADR-0010](adr/0010-capability-dependency-resolution.md) for the decision.
+See [Capability Contract v0](capability.md) and [ADR-0010](adr/0010-capability-dependency-resolution.md) for the design.
 
 ## 4. Headless Core
 
