@@ -1,18 +1,3 @@
-import com.cloudbees.groovy.cps.NonCPS
-import groovy.json.JsonSlurperClassic
-
-def buildPlan = null
-def moduleBuilds = [:]
-
-@NonCPS
-def parseJson(String text) {
-    return new JsonSlurperClassic().parseText(text)
-}
-
-def safeComponentId(String value) {
-    return value.toLowerCase().replaceAll(/[^a-z0-9_.-]+/, "-")
-}
-
 pipeline {
     agent any
 
@@ -54,155 +39,129 @@ pipeline {
                     env.INSTANCE_ROOT = params.INSTANCE_ROOT.trim()
                 }
 
-                sh """
+                sh '''
                     set -eu
 
-                    test -f "${env.INSTANCE_ROOT}/instance.yaml"
+                    test -f "$INSTANCE_ROOT/instance.yaml"
+                    rm -rf ci-plan build-plan.json manafield-build-plan
 
                     docker build \
                       --target build-plan-runtime \
-                      --tag "manafield-build-plan:${env.CORE_SHA}" \
+                      --tag "manafield-build-plan:$CORE_SHA" \
                       .
 
-                    resolver_container="\$(docker create "manafield-build-plan:${env.CORE_SHA}")"
-                    trap 'docker rm -f "\$resolver_container" >/dev/null 2>&1 || true' EXIT
+                    resolver_container="$(docker create "manafield-build-plan:$CORE_SHA")"
+                    trap 'docker rm -f "$resolver_container" >/dev/null 2>&1 || true' EXIT
 
                     docker cp \
-                      "\$resolver_container:/usr/local/bin/manafield-build-plan" \
+                      "$resolver_container:/usr/local/bin/manafield-build-plan" \
                       ./manafield-build-plan
 
                     chmod +x ./manafield-build-plan
                     ./manafield-build-plan \
-                      "${env.INSTANCE_ROOT}/instance.yaml" \
-                      build-plan.json
-                """
+                      "$INSTANCE_ROOT/instance.yaml" \
+                      build-plan.json \
+                      ci-plan
 
-                script {
-                    buildPlan = parseJson(readFile("build-plan.json"))
-
-                    if (buildPlan.version != 0) {
-                        error("Unsupported Build Plan version: ${buildPlan.version}")
-                    }
-
-                    if (!buildPlan.modules.any { it.id == "reference-web" }) {
-                        error("Bootstrap deployment currently requires the reference-web Module")
-                    }
-                }
+                    test -s ci-plan/modules.tsv
+                    grep -q '^reference-web	' ci-plan/modules.tsv
+                '''
             }
         }
 
         stage("Verify Core") {
             steps {
-                sh """
+                sh '''
                     set -eu
 
                     docker build \
                       --target verify \
-                      --tag "manafield-core-verify:${env.CORE_SHA}" \
+                      --tag "manafield-core-verify:$CORE_SHA" \
                       .
-                """
+                '''
             }
         }
 
         stage("Checkout Modules") {
             steps {
-                script {
-                    buildPlan.modules.each { module ->
-                        def safeId = safeComponentId(module.id as String)
-                        def relativeDir = "modules/${safeId}"
-                        def absoluteDir = "${pwd()}/${relativeDir}"
+                sh '''
+                    set -eu
 
-                        dir(relativeDir) {
-                            deleteDir()
-                        }
+                    rm -rf modules
+                    mkdir -p modules
+                    : > module-sources.tsv
 
-                        withEnv([
-                            "MODULE_SOURCE_URL=${module.source.repository}",
-                            "MODULE_SOURCE_REF=${module.source.ref}",
-                            "MODULE_SOURCE_DIR=${absoluteDir}"
-                        ]) {
-                            sh '''
-                                set -eu
+                    tab="$(printf '\t')"
 
-                                git clone --no-checkout "$MODULE_SOURCE_URL" "$MODULE_SOURCE_DIR"
-                                git -C "$MODULE_SOURCE_DIR" fetch --depth=1 origin "$MODULE_SOURCE_REF"
-                                git -C "$MODULE_SOURCE_DIR" checkout --detach FETCH_HEAD
-                            '''
-                        }
+                    while IFS="$tab" read -r module_id repository source_ref build_type build_context dockerfile; do
+                      [ -n "$module_id" ] || continue
 
-                        def revision = sh(
-                            script: "git -C '${absoluteDir}' rev-parse --short=12 HEAD",
-                            returnStdout: true
-                        ).trim()
+                      safe_id="$(
+                        printf '%s' "$module_id" \
+                          | tr '[:upper:]' '[:lower:]' \
+                          | sed 's/[^a-z0-9_.-]/-/g'
+                      )"
 
-                        moduleBuilds[module.id] = [
-                            id: module.id,
-                            safeId: safeId,
-                            dir: absoluteDir,
-                            revision: revision,
-                            image: "manafield-module-${safeId}:${revision}"
-                        ]
-                    }
-                }
+                      module_dir="$WORKSPACE/modules/$safe_id"
+
+                      git clone --no-checkout "$repository" "$module_dir"
+                      git -C "$module_dir" fetch --depth=1 origin "$source_ref"
+                      git -C "$module_dir" checkout --detach FETCH_HEAD
+
+                      revision="$(git -C "$module_dir" rev-parse --short=12 HEAD)"
+                      image="manafield-module-$safe_id:$revision"
+
+                      printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                        "$module_id" \
+                        "$safe_id" \
+                        "$module_dir" \
+                        "$revision" \
+                        "$image" \
+                        "$build_type" \
+                        "$build_context" \
+                        "$dockerfile" \
+                        >> module-sources.tsv
+                    done < ci-plan/modules.tsv
+                '''
             }
         }
 
         stage("Build Images") {
             steps {
-                sh """
+                sh '''
                     set -eu
 
                     docker build \
                       --target core-runtime \
-                      --label "org.opencontainers.image.revision=${env.CORE_SHA}" \
-                      --tag "${env.CORE_IMAGE}" \
+                      --label "org.opencontainers.image.revision=$CORE_SHA" \
+                      --tag "$CORE_IMAGE" \
                       .
-                """
 
-                script {
-                    buildPlan.modules.each { module ->
-                        def built = moduleBuilds[module.id]
+                    {
+                      printf 'core.image=%s\n' "$CORE_IMAGE"
+                      printf 'core.revision=%s\n' "$CORE_SHA"
+                    } > resolved-images.env
 
-                        if (module.build.type != "docker") {
-                            error("Unsupported Module build type: ${module.build.type}")
-                        }
+                    tab="$(printf '\t')"
 
-                        def contextPath = "${built.dir}/${module.build.context}"
-                        def dockerfilePath = "${built.dir}/${module.build.dockerfile}"
+                    while IFS="$tab" read -r module_id safe_id module_dir revision image build_type build_context dockerfile; do
+                      [ "$build_type" = "docker" ] || {
+                        echo "Unsupported Module build type: $build_type" >&2
+                        exit 1
+                      }
 
-                        withEnv([
-                            "MODULE_IMAGE=${built.image}",
-                            "MODULE_CONTEXT=${contextPath}",
-                            "MODULE_DOCKERFILE=${dockerfilePath}",
-                            "MODULE_REVISION=${built.revision}"
-                        ]) {
-                            sh '''
-                                set -eu
+                      docker build \
+                        --label "org.opencontainers.image.revision=$revision" \
+                        --tag "$image" \
+                        --file "$module_dir/$dockerfile" \
+                        "$module_dir/$build_context"
 
-                                docker build \
-                                  --label "org.opencontainers.image.revision=$MODULE_REVISION" \
-                                  --tag "$MODULE_IMAGE" \
-                                  --file "$MODULE_DOCKERFILE" \
-                                  "$MODULE_CONTEXT"
-                            '''
-                        }
-                    }
-
-                    def resolvedImages = [
-                        "core.image=${env.CORE_IMAGE}",
-                        "core.revision=${env.CORE_SHA}"
-                    ]
-
-                    moduleBuilds.each { moduleId, built ->
-                        resolvedImages << "module.${moduleId}.image=${built.image}"
-                        resolvedImages << "module.${moduleId}.revision=${built.revision}"
-                    }
-
-                    writeFile(
-                        file: "resolved-images.env",
-                        text: resolvedImages.join("\n") + "\n"
-                    )
-                }
+                      printf 'module.%s.image=%s\n' "$module_id" "$image" \
+                        >> resolved-images.env
+                      printf 'module.%s.revision=%s\n' "$module_id" "$revision" \
+                        >> resolved-images.env
+                    done < module-sources.tsv
+                '''
             }
         }
 
@@ -210,50 +169,42 @@ pipeline {
             steps {
                 script {
                     env.RELEASE_DIR = "${env.INSTANCE_ROOT}/releases/${env.BUILD_NUMBER}"
-                    def referenceImage = moduleBuilds["reference-web"].image
-                    def network = buildPlan.deployment.network
-
-                    withEnv([
-                        "REFERENCE_IMAGE=${referenceImage}",
-                        "MANAFIELD_NETWORK_VALUE=${network}"
-                    ]) {
-                        sh '''
-                            set -eu
-
-                            mkdir -p "$RELEASE_DIR/modules"
-
-                            cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
-                            cp build-plan.json "$RELEASE_DIR/build-plan.json"
-                            cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
-
-                            printf '%s\n' \
-                              "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
-                              "MANAFIELD_REFERENCE_IMAGE=$REFERENCE_IMAGE" \
-                              "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
-                              "MANAFIELD_NETWORK=$MANAFIELD_NETWORK_VALUE" \
-                              > "$RELEASE_DIR/release.env"
-                        '''
-                    }
-
-                    buildPlan.modules.each { module ->
-                        def built = moduleBuilds[module.id]
-                        def manifest = "${built.dir}/manafield.module.json"
-                        def destination = "${env.RELEASE_DIR}/modules/${built.safeId}"
-
-                        withEnv([
-                            "MODULE_MANIFEST=${manifest}",
-                            "MODULE_DESTINATION=${destination}"
-                        ]) {
-                            sh '''
-                                set -eu
-
-                                test -f "$MODULE_MANIFEST"
-                                mkdir -p "$MODULE_DESTINATION"
-                                cp "$MODULE_MANIFEST" "$MODULE_DESTINATION/manafield.module.json"
-                            '''
-                        }
-                    }
                 }
+
+                sh '''
+                    set -eu
+
+                    network="$(cat ci-plan/network.txt)"
+                    reference_image="$(
+                      awk -F '\t' '$1 == "reference-web" { print $5; exit }' module-sources.tsv
+                    )"
+
+                    test -n "$reference_image"
+
+                    mkdir -p "$RELEASE_DIR/modules"
+
+                    cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
+                    cp build-plan.json "$RELEASE_DIR/build-plan.json"
+                    cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
+
+                    printf '%s\n' \
+                      "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
+                      "MANAFIELD_REFERENCE_IMAGE=$reference_image" \
+                      "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
+                      "MANAFIELD_NETWORK=$network" \
+                      > "$RELEASE_DIR/release.env"
+
+                    tab="$(printf '\t')"
+
+                    while IFS="$tab" read -r module_id safe_id module_dir revision image build_type build_context dockerfile; do
+                      manifest="$module_dir/manafield.module.json"
+                      destination="$RELEASE_DIR/modules/$safe_id"
+
+                      test -f "$manifest"
+                      mkdir -p "$destination"
+                      cp "$manifest" "$destination/manafield.module.json"
+                    done < module-sources.tsv
+                '''
             }
         }
 
@@ -332,7 +283,7 @@ pipeline {
     post {
         always {
             archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.env",
+                artifacts: "build-plan.json,resolved-images.env,ci-plan/**",
                 allowEmptyArchive: true
             )
         }
