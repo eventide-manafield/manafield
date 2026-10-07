@@ -11,12 +11,12 @@ pipeline {
     parameters {
         string(
             name: "INSTANCE_ROOT",
-            defaultValue: "",
+            defaultValue: "/opt/manafield/instance",
             description: "Private Manafield instance root containing instance.yaml"
         )
         string(
             name: "LOCAL_MODULES_ROOT",
-            defaultValue: "",
+            defaultValue: "/opt/manafield/ai-workspace/local-modules",
             description: "Optional root containing local directory Modules"
         )
     }
@@ -42,17 +42,41 @@ pipeline {
             }
         }
 
-        stage("Resolve Build Plan") {
+        stage("Confirm Instance Paths") {
             steps {
                 script {
-                    if (!params.INSTANCE_ROOT?.trim()) {
-                        error("Jenkins Job must define a non-empty String parameter named INSTANCE_ROOT")
+                    def confirmed = input(
+                        message: "Use these Manafield paths? Change them if needed, then confirm.",
+                        ok: "Build with these paths",
+                        parameters: [
+                            string(
+                                name: "INSTANCE_ROOT",
+                                defaultValue: params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/instance",
+                                description: "Directory containing the private instance.yaml"
+                            ),
+                            string(
+                                name: "LOCAL_MODULES_ROOT",
+                                defaultValue: params.LOCAL_MODULES_ROOT?.trim() ?: "/opt/manafield/ai-workspace/local-modules",
+                                description: "Root scanned for local directory Modules"
+                            )
+                        ]
+                    )
+
+                    env.INSTANCE_ROOT = confirmed["INSTANCE_ROOT"]?.trim() ?: ""
+                    env.LOCAL_MODULES_ROOT = confirmed["LOCAL_MODULES_ROOT"]?.trim() ?: ""
+
+                    if (!env.INSTANCE_ROOT) {
+                        error("INSTANCE_ROOT must not be empty")
                     }
 
-                    env.INSTANCE_ROOT = params.INSTANCE_ROOT.trim()
-                    env.LOCAL_MODULES_ROOT = params.LOCAL_MODULES_ROOT?.trim() ?: ""
+                    echo "INSTANCE_ROOT=${env.INSTANCE_ROOT}"
+                    echo "LOCAL_MODULES_ROOT=${env.LOCAL_MODULES_ROOT ?: '(unused)'}"
                 }
+            }
+        }
 
+        stage("Resolve Build Plan") {
+            steps {
                 sh '''
                     set -eu
 
