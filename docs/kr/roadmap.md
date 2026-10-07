@@ -183,6 +183,15 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] CI credential store 기반 Secret 주입
 - [ ] Jenkins 외 executor에서도 Build Plan 재사용 가능한 구조 검증
 
+### Ingress Adapters
+
+- [ ] Ingress Provider 공통 입력 / lifecycle 안정화
+- [x] Traefik Ingress Adapter v0 — host exposure
+- [x] Build Plan 단계 hostname 충돌 검사
+- [ ] Traefik prefix / root route claim 렌더링
+- [ ] Nginx Ingress Adapter
+- [ ] Ingress 변경 rollback / stale route 정리
+
 ## Long-term
 
 - [ ] Module package format
