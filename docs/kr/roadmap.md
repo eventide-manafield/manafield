@@ -38,7 +38,7 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [ ] Module Protocol v0 문서 안정화
 - [ ] Registry update semantics 정의
 
-## Phase 0.5 — Reference Module
+## Phase 0.5 — Manafield Reference
 
 - [x] 독립 Repository 생성: `manafield-module-reference`
 - [x] Node.js / TypeScript Module server
@@ -46,8 +46,8 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] `/manafield/health` Operation
 - [x] Core Registry 조회 연결
 - [x] Dockerfile
-- [x] Core + Reference Module Compose 환경
-- [ ] Reference Module을 실제 Core Registry에 등록
+- [x] Core + Manafield Reference Compose 환경
+- [ ] Manafield Reference을 실제 Core Registry에 등록
 - [ ] Observer에서 자기 자신 관찰
 - [ ] Reference 구현에서 Module Template 요구사항 추출
 
