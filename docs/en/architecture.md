@@ -68,6 +68,8 @@ This does not mean implementing every future feature up front. It means explicit
 - Registry write model and read snapshot
 - Core and Runtime Provider
 - ordinary Modules and privileged system components
+- Module identity and Capability Contracts
+- functional dependencies and infrastructure resource dependencies
 
 Major architecture decisions and their rationale are recorded in [ADRs](adr/README.md).
 
@@ -77,7 +79,7 @@ In Manafield, an **Operation** is the common contract used to describe callable 
 
 Core does not need to understand the Module's internal functions, classes, or implementation language. Instead, Operation Contracts in the Module Descriptor tell Core:
 
-- which capabilities are available
+- which callable Operations are available
 - which Input / Output Schemas they use
 - which Binding is used to invoke them
 - which Codec is used for payloads
@@ -99,6 +101,38 @@ flowchart LR
 ```
 
 See [Operation](operation.md) for the detailed model.
+
+### Role of Capabilities and Dependencies
+
+An Operation represents one callable piece of functionality, while Module dependencies should not normally be pinned directly to a concrete implementation ID or route name.
+
+Manafield separates **Capability Contracts** from Module identity.
+
+```text
+Module ID
+→ concrete implementation identity
+
+Operation
+→ one callable contract
+
+Capability
+→ compatibility contract shared by interchangeable implementations
+
+Tag
+→ descriptive / non-binding metadata for search and classification
+```
+
+Searchable entries such as Modules, Capabilities, and Resources may carry an optional human-readable `description`. Description is display/search-assistance metadata and does not participate in dependency resolution or compatibility checks.
+
+For example, Echo should depend on a `manafield.identity v1` Capability rather than the concrete `manafield-account` Module ID. A compatible fork or alternate implementation can then satisfy the same requirement.
+
+The concrete Module is selected through Instance binding. When multiple candidates exist, Core should not silently choose one.
+
+Infrastructure such as databases, caches, and storage is modeled as a separate **Resource Requirement**. Resources are prepared or allocated by Resource Providers rather than ordinary Modules, and Core does not proxy the application data path.
+
+For example, a PostgreSQL Provider may create a database/schema/account and prepare connection secrets, while Echo still sends SQL directly through its own JDBC driver.
+
+See [ADR-0010](adr/0010-capability-dependency-resolution.md) for the decision.
 
 ## 4. Headless Core
 
@@ -270,6 +304,26 @@ flowchart TB
 
 The detailed Runtime Protocol and capability model are still being designed. See [ADR-0004](adr/0004-runtime-provider-boundary.md) and [ADR-0005](adr/0005-docker-provider-isolation.md) for rationale.
 
+### Provider Family
+
+In addition to Runtime Providers, Manafield may use **Resource Providers** to prepare infrastructure resources.
+
+For example:
+
+```text
+Provider
+├─ Runtime Provider
+│  └─ Docker
+├─ Resource Provider
+│  └─ PostgreSQL
+└─ Ingress Provider / Adapter
+   └─ Traefik
+```
+
+These share the broad property of adding system-side functionality without being ordinary Modules.
+
+Runtime, Resource, and Ingress Providers may have very different privileges and lifecycles, so Manafield does not prematurely force them into one universal Provider Protocol. Each Provider family can receive its own protocol and security boundary when needed.
+
 ### Network Planes
 
 Docker deployments separate internal Module communication from externally facing edge traffic.
@@ -332,4 +386,4 @@ Manafield does not aim to reimplement:
 - a reverse proxy
 - Kubernetes
 
-Manafield should orchestrate and compose existing technologies rather than replace them.
+Manafield should orchestrate and compose existing technologies through explicit Module and Provider contracts rather than replace them.
