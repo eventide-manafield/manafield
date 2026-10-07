@@ -119,8 +119,10 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Implement Capability Discovery API
 - [ ] Binding validation / diagnostic error model
 - [ ] Dependency graph / cycle validation
-- [ ] Resource Instance Capability metadata implementation
-- [ ] Resource management component boundary / protocol
+- [x] Resource Instance Capability metadata / generic Registry API v0
+- [x] Shared Instance ID namespace / duplicate conflict across Modules and Resources
+- [x] PostgreSQL Resource Provider registration/watch example
+- [ ] Resource management component lifecycle / protocol
 - [ ] Secret / connection metadata injection model
 - [ ] PostgreSQL Resource management v0 (`database.postgresql` Capability)
 - [ ] Per-Module database/schema/account allocation / Capability binding on a shared PostgreSQL instance

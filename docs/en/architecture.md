@@ -188,9 +188,10 @@ flowchart TB
 
 ### Registry Read Model
 
-The Module Registry separates the mutable write model from its read snapshot.
+The Instance Registry separates the mutable write model from its read snapshot.
 
-- `ModuleRegistry` is the source of truth for registration and mutation.
+- `InstanceRegistry` is the source of truth for Module Instance and Resource Instance registration and mutation.
+- Module and Resource Instance IDs share one unique namespace.
 - Writes are serialized through an `RwLock`.
 - After a successful mutation, Core builds a new immutable `RegistrySnapshot`.
 - The current snapshot is atomically replaced through `ArcSwap`.
@@ -200,7 +201,7 @@ The Module Registry separates the mutable write model from its read snapshot.
 ```mermaid
 flowchart LR
     Write["Register / Update / Remove"]
-    Registry["ModuleRegistry<br/>Source of Truth<br/>RwLock"]
+    Registry["InstanceRegistry<br/>Modules + Resources<br/>Source of Truth<br/>RwLock"]
     Build["Build new<br/>RegistrySnapshot"]
     Swap["ArcSwap<br/>atomic swap"]
     Snapshot["Current immutable<br/>RegistrySnapshot"]

@@ -119,8 +119,10 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Capability Discovery API 구현
 - [ ] Binding validation / diagnostic error model
 - [ ] dependency graph / cycle validation
-- [ ] Resource Instance Capability metadata 구현
-- [ ] Resource 관리 컴포넌트 boundary / protocol
+- [x] Resource Instance Capability metadata / generic Registry API v0
+- [x] Module / Resource 공통 Instance ID namespace / duplicate conflict
+- [x] PostgreSQL Resource Provider registration/watch 예제
+- [ ] Resource 관리 컴포넌트 lifecycle / protocol
 - [ ] Secret / connection metadata injection model
 - [ ] PostgreSQL Resource 관리 구현 v0 (`database.postgresql` Capability)
 - [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation / Capability binding

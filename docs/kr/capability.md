@@ -415,6 +415,22 @@ PostgreSQL resource manager/provider
 Echo ──JDBC/driver──> PostgreSQL
 ```
 
+Core는 Resource를 filesystem에서 직접 탐색하거나 PostgreSQL 같은 구체 구현을 해석하지 않습니다.
+
+초기 live registration 흐름은 다음처럼 둡니다.
+
+```text
+Resource Provider
+→ concrete Resource 확인/준비
+→ POST /resources
+→ generic Resource Instance metadata 등록
+→ RegistrySnapshot 갱신
+```
+
+현재 generic Resource registration metadata는 `id`, `name`, `type`, `description`, `provides.capabilities`를 다룹니다. `type`은 Core가 provider-specific 의미를 해석하지 않는 opaque metadata입니다.
+
+Module Instance와 Resource Instance는 같은 Instance ID namespace를 사용하며, 이미 사용 중인 ID 등록은 conflict로 거부합니다.
+
 이 관리 컴포넌트와 Resource Instance 자체를 Capability matching에서 같은 개념으로 취급하지 않습니다.
 
 ## 14. Feature subset
@@ -495,4 +511,3 @@ Config schema
 - dependency cycle policy
 - Resource 관리 컴포넌트별 lifecycle / protocol
 - Secret 전달의 최종 schema
-

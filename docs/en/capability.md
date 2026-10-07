@@ -391,6 +391,22 @@ Application data traffic still does not flow through Core or this management com
 Echo ──JDBC/driver──> PostgreSQL
 ```
 
+Core does not scan the filesystem for Resources or interpret concrete implementations such as PostgreSQL.
+
+The initial live-registration flow is:
+
+```text
+Resource Provider
+→ prepare/observe a concrete Resource
+→ POST /resources
+→ register generic Resource Instance metadata
+→ publish a new RegistrySnapshot
+```
+
+The current generic registration metadata covers `id`, `name`, `type`, `description`, and `provides.capabilities`. `type` is opaque provider-specific metadata that Core does not interpret.
+
+Module Instances and Resource Instances share the same Instance ID namespace, so duplicate IDs are rejected as conflicts.
+
 The management component and the concrete Resource Instance are not the same concept for Capability matching.
 
 ## 14. Feature subsets
@@ -471,4 +487,3 @@ Config schema
 - dependency-cycle policy
 - lifecycle/protocol of Resource management components
 - final secret materialization schema
-

@@ -188,9 +188,10 @@ flowchart TB
 
 ### Registry Read Model
 
-Module Registry는 쓰기 원본과 읽기 Snapshot을 분리합니다.
+Instance Registry는 쓰기 원본과 읽기 Snapshot을 분리합니다.
 
-- `ModuleRegistry`는 Module 등록/변경의 Source of Truth입니다.
+- `InstanceRegistry`는 Module Instance와 Resource Instance 등록/변경의 Source of Truth입니다.
+- Module/Resource Instance ID는 같은 namespace에서 unique합니다.
 - 쓰기 작업은 `RwLock`을 통해 직렬화합니다.
 - 변경이 완료되면 새로운 불변 `RegistrySnapshot`을 생성합니다.
 - 현재 Snapshot은 `ArcSwap`으로 원자적으로 교체합니다.
@@ -200,7 +201,7 @@ Module Registry는 쓰기 원본과 읽기 Snapshot을 분리합니다.
 ```mermaid
 flowchart LR
     Write["Register / Update / Remove"]
-    Registry["ModuleRegistry<br/>Source of Truth<br/>RwLock"]
+    Registry["InstanceRegistry<br/>Modules + Resources<br/>Source of Truth<br/>RwLock"]
     Build["Build new<br/>RegistrySnapshot"]
     Swap["ArcSwap<br/>atomic swap"]
     Snapshot["Current immutable<br/>RegistrySnapshot"]

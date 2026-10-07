@@ -13,7 +13,7 @@ use axum::{
 };
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::core::{ModuleDescriptor, RegistryError, RegistryService};
+use crate::core::{ModuleDescriptor, RegistryError, RegistryService, ResourceDescriptor};
 
 const JSON_MEDIA_TYPE: &str = "application/json";
 const MESSAGEPACK_MEDIA_TYPE: &str = "application/msgpack";
@@ -39,6 +39,8 @@ pub fn router(registry: RegistryService) -> Router {
         .route("/health", get(health))
         .route("/modules", get(list_modules).post(register_module))
         .route("/modules/{id}", get(get_module).delete(remove_module))
+        .route("/resources", get(list_resources).post(register_resource))
+        .route("/resources/{id}", get(get_resource).delete(remove_resource))
         .with_state(state)
 }
 
@@ -64,7 +66,7 @@ async fn get_module(
     headers: HeaderMap,
 ) -> Result<Response, StatusCode> {
     let snapshot = state.registry.snapshot();
-    let module = snapshot.get(&id).ok_or(StatusCode::NOT_FOUND)?;
+    let module = snapshot.get_module(&id).ok_or(StatusCode::NOT_FOUND)?;
 
     encode_response(&headers, module, StatusCode::OK)
 }
@@ -78,7 +80,7 @@ async fn register_module(
 
     state
         .registry
-        .register(module.clone())
+        .register_module(module.clone())
         .await
         .map_err(registry_error_status)?;
 
@@ -92,7 +94,56 @@ async fn remove_module(
 ) -> Result<Response, StatusCode> {
     let removed = state
         .registry
-        .remove(&id)
+        .remove_module(&id)
+        .await
+        .map_err(registry_error_status)?;
+
+    encode_response(&headers, &removed, StatusCode::OK)
+}
+
+async fn list_resources(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, StatusCode> {
+    let snapshot = state.registry.snapshot();
+    encode_response(&headers, snapshot.resources(), StatusCode::OK)
+}
+
+async fn get_resource(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, StatusCode> {
+    let snapshot = state.registry.snapshot();
+    let resource = snapshot.get_resource(&id).ok_or(StatusCode::NOT_FOUND)?;
+
+    encode_response(&headers, resource, StatusCode::OK)
+}
+
+async fn register_resource(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Result<Response, StatusCode> {
+    let resource: ResourceDescriptor = decode_request(&headers, &body)?;
+
+    state
+        .registry
+        .register_resource(resource.clone())
+        .await
+        .map_err(registry_error_status)?;
+
+    encode_response(&headers, &resource, StatusCode::CREATED)
+}
+
+async fn remove_resource(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, StatusCode> {
+    let removed = state
+        .registry
+        .remove_resource(&id)
         .await
         .map_err(registry_error_status)?;
 
@@ -119,9 +170,13 @@ where
 
 fn registry_error_status(error: RegistryError) -> StatusCode {
     match error {
-        RegistryError::DuplicateModule(_) => StatusCode::CONFLICT,
-        RegistryError::ModuleNotFound(_) => StatusCode::NOT_FOUND,
-        RegistryError::InvalidModule(_) => StatusCode::BAD_REQUEST,
+        RegistryError::DuplicateInstance(_) => StatusCode::CONFLICT,
+        RegistryError::ModuleNotFound(_) | RegistryError::ResourceNotFound(_) => {
+            StatusCode::NOT_FOUND
+        }
+        RegistryError::InvalidModule(_) | RegistryError::InvalidResource(_) => {
+            StatusCode::BAD_REQUEST
+        }
     }
 }
 
