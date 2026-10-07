@@ -104,9 +104,22 @@ See [build-plan.example.json](build-plan.example.json) for the current normalize
 
 ### First-run bootstrap
 
-If Jenkins can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not exist yet, the Pipeline copies `deploy/instance.bootstrap.yaml` into place before resolving the Build Plan.
+If Jenkins can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not exist yet, the Pipeline enters a one-time Bootstrap Wizard before resolving the Build Plan.
 
-The bootstrap definition is intentionally small and portable:
+The Wizard is intentionally shown **only when the Instance Definition does not exist**. Existing instances continue directly to normal builds.
+
+The planned bootstrap choices are:
+
+- PostgreSQL example Resource
+- Example Web Module
+- Example Account Module
+- initial administrator username / password, defaulting to `admin / admin`
+
+Selecting Example Account implies both PostgreSQL and Example Web.
+
+The corresponding example implementations are not available yet. Until they are implemented, selecting any of those example options stops before writing `instance.yaml` with a clear diagnostic. Leaving them unchecked creates the current minimal bootstrap definition from `deploy/instance.bootstrap.yaml`.
+
+The minimal bootstrap definition is intentionally small and portable:
 
 - no secrets
 - no host-specific paths
@@ -114,9 +127,7 @@ The bootstrap definition is intentionally small and portable:
 - Docker Runtime Provider declared
 - public `manafield-reference` Module as the first runnable example
 
-`deploy/instance.yaml.example` remains the richer configuration reference. The bootstrap file is the safe first-run default.
-
-Future bootstrap options are expected to grow around runnable examples such as PostgreSQL Resource, Example Web, and Example Account once the corresponding Resource / Binding runtime support exists.
+`deploy/instance.yaml.example` remains the richer configuration reference. `deploy/instance.bootstrap.yaml` is the safe first-run default and will gain selectable example composition as those implementations become runnable.
 
 The current v0 resolver:
 
