@@ -545,7 +545,8 @@ pipeline {
                         && grep -Fq '"id":"manafield-reference"' /tmp/manafield-modules.json \
                         && while IFS="$(printf '\t')" read -r module_id _; do
                              [ -n "$module_id" ] || continue
-                             grep -Fq "\"id\":\"$module_id\"" /tmp/manafield-modules.json
+                             module_pattern="$(printf '"id":"%s"' "$module_id")"
+                             grep -Fq "$module_pattern" /tmp/manafield-modules.json
                            done < module-sources.tsv \
                         && docker exec "$core_container" \
                            curl --fail --silent --show-error \
