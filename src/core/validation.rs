@@ -179,6 +179,7 @@ mod tests {
             health_operation: None,
             operations: vec![OperationContract {
                 id: "echo".to_owned(),
+                description: None,
                 input: Some(DataSchema::Object {
                     properties: BTreeMap::new(),
                     required: Vec::new(),
@@ -199,6 +200,7 @@ mod tests {
     fn health_operation() -> OperationContract {
         OperationContract {
             id: "health".to_owned(),
+            description: None,
             input: None,
             output: Some(DataSchema::Object {
                 properties: BTreeMap::new(),
