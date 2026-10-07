@@ -95,7 +95,7 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Docker socket 재노출 금지
 - [ ] Runtime logs
 
-## Phase 1.5 — Capability Resolution / Provider Binding
+## Phase 1.5 — Capability Resolution / Instance Binding
 
 - [x] Module identity와 dependency contract 분리 원칙 확정
 - [x] Tag와 Capability 역할 분리
