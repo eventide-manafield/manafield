@@ -84,10 +84,11 @@ Example:
 {
   "id": "example",
   "name": "Example Module",
+  "description": "Optional human-readable text for search results and listings",
   "version": "0.1.0",
   "apiVersion": "v1",
-  "capabilities": [
-    "example.read"
+  "tags": [
+    "example"
   ]
 }
 ```
@@ -95,9 +96,11 @@ Example:
 Possible responsibilities of the info endpoint:
 
 - identity
+- optional human-readable description
 - Module version
 - supported Manafield protocol version
-- capabilities
+- tags for search and classification
+- provided Capability Contract metadata
 - optional Web contribution metadata
 
 ## 5. Operation Discovery
@@ -407,7 +410,62 @@ Existing Modules continue to work
 
 This is an architectural goal, not a compatibility guarantee yet.
 
-## 8. Module Templates
+## 8. Capabilities and Dependencies
+
+A Module ID identifies a concrete implementation and is not the default dependency contract.
+
+When a Module needs functionality from another Module, it should normally require a **Capability Contract** instead of a concrete Module name.
+
+Conceptual example:
+
+```yaml
+requires:
+  capabilities:
+    identity:
+      id: manafield.identity
+      version: 1
+```
+
+Modules can provide the same contract independently of their implementation IDs.
+
+```yaml
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: 1
+      description: User identity and session functionality
+```
+
+`description` is nullable/optional human-readable metadata for search results and management UI. It does not participate in dependency resolution.
+
+`tags` are also useful for discovery and classification, but they are not compatibility contracts and do not satisfy dependencies.
+
+```text
+Operation
+→ one callable functionality contract
+
+Capability
+→ compatibility contract composed from Operations and semantic rules
+
+Tag
+→ descriptive / non-binding metadata
+```
+
+Infrastructure such as databases, caches, and object storage is expressed separately as a Resource Requirement.
+
+```yaml
+requires:
+  resources:
+    state:
+      id: database.postgresql
+      version: 1
+```
+
+A Provider, rather than an ordinary Module, satisfies a Resource Requirement. A PostgreSQL Provider may prepare connection information, while application SQL still goes directly from the Module through its native JDBC, `pg`, `psycopg`, or equivalent client.
+
+The final Descriptor schema, version ranges, binding syntax, and dependency-cycle policy are not yet fixed. The long-lived boundary follows [ADR-0010](adr/0010-capability-dependency-resolution.md).
+
+## 9. Module Templates
 
 Core and Module templates are expected to live in separate repositories.
 
@@ -425,17 +483,19 @@ A developer should be able to start from a template repository and implement the
 
 Do not freeze a Template too early from a single Reference implementation; validate the shared pieces again after a second real Module is implemented.
 
-## 9. Security Direction
+## 10. Security Direction
 
-The protocol should make permissions and capabilities explicit.
+The protocol should represent **permission requests** and **dependency Capabilities** as distinct concepts. A Capability is a compatibility contract, not a permission name or free-form tag.
 
 A Module package should eventually be able to declare:
 
 - requested permissions
+- provided / required Capabilities
+- Resource requirements
 - runtime requirements
 - exposed ports
 - storage requirements
-- dependencies
+- dependency binding metadata
 - Web contributions
 
 The exact security model will be designed after the basic protocol and Docker runtime are functional.
