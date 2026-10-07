@@ -24,10 +24,10 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - manafield
+      - modules
 
-  reference-web:
-    image: ${MANAFIELD_REFERENCE_IMAGE:-manafield-module-reference:local}
+  reference:
+    image: ${MANAFIELD_REFERENCE_IMAGE:-manafield-reference:local}
     restart: unless-stopped
     init: true
     environment:
@@ -44,8 +44,12 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - manafield
+      - modules
+      - edge
 
 networks:
-  manafield:
-    name: ${MANAFIELD_NETWORK:-manafield}
+  modules:
+    name: ${MANAFIELD_MODULES_NETWORK:-manafield-modules}
+  edge:
+    external: true
+    name: ${MANAFIELD_EDGE_NETWORK:-manafield-edge}
