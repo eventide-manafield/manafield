@@ -14,4 +14,6 @@ ADRs focus on **long-lived boundaries and responsibilities** rather than transie
 | [0006](0006-instance-build-plan.md) | Instance Build Plan / single Pipeline per instance | Accepted |
 | [0007](0007-public-platform-private-instance.md) | Public Platform / Private Instance Configuration | Accepted |
 
+| [0008](0008-network-planes.md) | Manafield Network Planes | Accepted |
+
 Add new ADRs sequentially as long-term decisions are made.
