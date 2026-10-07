@@ -80,6 +80,8 @@ Capability
 
 A Capability has at least a stable ID and version.
 
+Searchable/listable entries such as Modules, Operations, Capabilities, and Resources may carry an optional human-readable `description`. Descriptions are display metadata for humans; **Descriptions do not participate in contract resolution or compatibility checks**.
+
 Over time, a Capability Contract should be able to refer to one or more Operations plus semantic compatibility rules.
 
 Example:
