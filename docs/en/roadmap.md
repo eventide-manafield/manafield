@@ -107,7 +107,25 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Runtime Provider status UI
 - [ ] Module Health UI
 - [ ] Module Web Contribution
+- [ ] Web Exposure model (`none / host / prefix / routes / external`)
+- [ ] Build Plan public-route normalization / conflict detection
+- [ ] Manafield reserved root-path policy
+- [ ] Generate / apply ingress configuration from the resolved Build Plan
 - [ ] Settings UI
+
+### Module Manager Module
+
+Prefer an **official management Module** over embedding a management UI directly into Core.
+
+- [ ] Module list / status view
+- [ ] Attach / enable Modules
+- [ ] Disable / detach / remove Modules
+- [ ] Select Module source / version
+- [ ] Configure Web exposure (`host / prefix / routes`)
+- [ ] Preview route conflicts / impact before applying changes
+- [ ] Preview and confirm Instance configuration diffs
+- [ ] Apply lifecycle changes through Core / Runtime Provider APIs
+- [ ] Do not provide the management Module direct Docker socket access
 
 ## Phase 4 — Reference / Existing Services
 
@@ -144,6 +162,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0006 — Instance Build Plan / single Pipeline per instance
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [x] ADR-0008 — Manafield Network Planes
+- [x] ADR-0009 — Separate Operation Routing from Web Exposure
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
