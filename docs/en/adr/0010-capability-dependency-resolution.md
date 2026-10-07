@@ -58,7 +58,7 @@ manafield.identity
 → may be provided by a Module
 
 database.postgresql
-→ may be provided by a Provider-managed Resource
+→ may be provided by a Resource Instance
 ```
 
 ### 2. Separate Module identity from Capability contracts
@@ -135,7 +135,7 @@ PATCH
 → correction that preserves contract meaning
 ```
 
-Providers declare the **exact Capability version** they implement.
+Instances providing a Capability declare the **exact Capability version** they implement.
 
 ```yaml
 provides:
@@ -160,7 +160,7 @@ The exact parser/library is selected during implementation.
 
 ### 5. Do not perform feature-subset negotiation
 
-The Resolver does not infer that a provider is acceptable because it happens to implement only the subset of Operations used by one consumer.
+The Resolver does not infer that an implementation is compatible because it happens to implement only the subset of Operations used by one consumer.
 
 If Capability v3 adds an Operation and a fork based on v2 cherry-picks only that Operation, Manafield does not automatically classify that fork as v3-compatible.
 
