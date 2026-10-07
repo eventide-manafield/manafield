@@ -119,14 +119,31 @@ workspace/
 └─ manafield-module-reference/
 ```
 
+Stage the Reference Module descriptor for Core discovery:
+
+```bash
+mkdir -p deploy/modules/reference-web
+cp ../manafield-module-reference/manafield.module.json \
+  deploy/modules/reference-web/manafield.module.json
+```
+
 Then run from the Manafield repository:
 
 ```bash
-docker compose -f deploy/compose.yml build
-docker compose -f deploy/compose.yml up -d
+docker compose \
+  -f deploy/compose.yml \
+  -f deploy/compose.dev.yml \
+  build
+
+docker compose \
+  -f deploy/compose.yml \
+  -f deploy/compose.dev.yml \
+  up -d
 ```
 
-No `.env` file is required. The Compose file has local defaults.
+`compose.yml` is the runtime deployment definition. `compose.dev.yml` only adds local source build contexts.
+
+No committed `.env` file is required. The Compose file has local defaults.
 
 Optional environment variables can override image names, ports, paths, and logging:
 
@@ -150,6 +167,42 @@ Reference Web 127.0.0.1:18081
 The containers use a read-only root filesystem, drop Linux capabilities, and enable `no-new-privileges`. Core does not receive Docker socket access.
 
 A later Jenkins Pipeline can inject exact image tags directly as environment variables and run Compose with `--no-build`, so a committed deployment `.env` is not required.
+
+## Jenkins Pipeline
+
+The repository root contains a `Jenkinsfile` implementing the first Instance Build Plan pipeline.
+
+The pipeline:
+
+1. checks out Manafield Core
+2. resolves the private `instance.yaml` into `build-plan.json`
+3. runs Core verification in the Docker `verify` target
+4. checks out enabled Module sources
+5. builds Core and Module images tagged by Git revision
+6. creates an immutable-ish release directory
+7. stages Module descriptors for Core discovery
+8. deploys the release with Docker Compose
+9. verifies Core health, Registry state, Reference Module health, and Reference-to-Core connectivity
+
+A Jenkins deployment directory is expected to look like:
+
+```text
+<INSTANCE_ROOT>/
+├─ instance.yaml
+├─ releases/
+│  ├─ 1/
+│  │  ├─ compose.yml
+│  │  ├─ release.env
+│  │  ├─ build-plan.json
+│  │  ├─ resolved-images.json
+│  │  └─ modules/
+│  └─ ...
+└─ current -> releases/<successful build>
+```
+
+`release.env` contains resolved image names and deployment paths, not application secrets.
+
+The current bootstrap pipeline requires the `reference-web` Module because the Docker Runtime Provider has not been implemented yet.
 
 ## Module Build Contract
 
