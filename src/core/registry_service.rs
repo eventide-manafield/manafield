@@ -70,6 +70,7 @@ mod tests {
             health_operation: None,
             operations: vec![OperationContract {
                 id: "hello".to_owned(),
+                description: None,
                 input: None,
                 output: Some(DataSchema::Object {
                     properties: BTreeMap::new(),
