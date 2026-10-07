@@ -94,57 +94,125 @@ PATCH
 → correction preserving contract meaning
 ```
 
-## 4. Module-provided Capability
+## 4. Capability declarations
 
-A Module may declare Capabilities it fully implements.
+The matching surface of a Capability is intentionally small.
 
 ```yaml
 provides:
   capabilities:
     - id: manafield.identity
       version: "1.2.0"
-      description: User identity and session functionality
 ```
 
-`description` is optional human-readable metadata and is not used for matching.
+The core fields are:
 
-When a Capability Contract requires Operations, Core may validate mechanically checkable requirements against the actual Module Descriptor.
+```text
+id
+→ stable Capability Contract ID
 
-## 5. Resource-provided Capability
+version
+→ exact Capability Contract version
+```
 
-Infrastructure uses the same Capability matching model.
+Human-readable metadata such as `description` and `tags` may exist, but does not participate in matching.
 
-Example Resource registered in an Instance:
+Endpoints, connection details, concrete config values, secrets, and config schemas do not belong to the Capability contract.
+
+## 5. Instances that provide Capabilities
+
+Manafield does not require a shared language-level `CapabilityProvider` implementation interface.
+
+Instead, concrete instances expose common **registry metadata** that Manafield can understand.
+
+Two concrete kinds may currently provide a Capability:
+
+```text
+Module Instance
+Resource Instance
+```
+
+Example:
+
+```yaml
+id: identity-core
+kind: module
+
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: "1.2.0"
+```
 
 ```yaml
 id: main-postgres
-description: Manafield instance shared PostgreSQL
+kind: resource
 
 provides:
   capabilities:
     - id: database.postgresql
       version: "1.0.0"
-      description: PostgreSQL database connection capability
 ```
 
-`main-postgres` is a **concrete Resource ID**, not a Capability ID.
+The implementation may be Python, Java, Rust, Go, or another environment as long as the registry metadata follows the same contract.
+
+A system-side component may create, register, or manage Resources, but the concrete Capability binding target is the **Resource Instance**, not that management component.
+
+## 6. Definitions and Instances
+
+Modules and Resources distinguish their definitions from concrete instances.
 
 ```text
-database.postgresql
-→ contract
+Definition
+→ kind and declaration structure
+→ configuration schema
 
+Instance
+→ concrete installed/registered target
+→ concrete config values
+→ endpoint / connection metadata
+→ provided Capability metadata
+```
+
+Example:
+
+```text
+PostgreSQL Resource Definition
+  config schema
+    host: string
+    port: integer
+    database: string
+
+main-postgres Resource Instance
+  endpoint: postgres:5432
+  config values:
+    database: manafield
+  provides:
+    database.postgresql@1.2.0
+```
+
+Capabilities do not own these configuration structures.
+
+## 7. Instance IDs
+
+Module Instances and Resource Instances must have **unique Instance IDs** within one Manafield Instance.
+
+```text
 main-postgres
-→ concrete Resource providing that contract
+identity-core
+echo-prod
 ```
 
-A PostgreSQL Provider may discover, register, or create the Resource.
+If the ID is already registered, Core rejects the duplicate as a conflict rather than silently renaming it.
 
-## 6. Matching
+An installation UI may suggest another ID, but Registry semantics still require uniqueness.
 
-Basic Resolver matching is intentionally simple.
+## 8. Matching
+
+Default compatibility matching is:
 
 ```text
-required capability ID == provided capability ID
+required Capability ID == provided Capability ID
 AND
 provided exact SemVer satisfies required SemVer range
 ```
@@ -155,93 +223,177 @@ Example:
 Requirement
 database.postgresql ^1.0.0
 
-Candidates
-main-postgres  provides 1.2.0  ✅
-dev-postgres   provides 1.0.3  ✅
-old-postgres   provides 0.9.0  ❌
-redis-main     provides cache.redis 1.0.0 ❌
+main-postgres  provides 1.2.0  compatible
+dev-postgres   provides 1.0.3  compatible
+old-postgres   provides 0.9.0  version mismatch
+redis-main     provides cache.redis 1.0.0  different capability
 ```
 
-The Resolver does not infer Operation subsets or implementation ancestry.
+The Resolver does not infer compatibility from Operation subsets or implementation ancestry.
 
-## 7. Binding
+## 9. Capability Discovery
 
-Capability Requirements and concrete provider selection are separate.
+Discovery is a read-only concern separate from Binding.
 
-Conceptual example:
+### Default discovery
+
+Return only Instances whose Capability ID matches and whose exact provided version satisfies the requested range.
+
+### Advanced discovery
+
+Return Instances with the same Capability ID even when the version is outside the requested range, and expose compatibility metadata.
+
+```text
+main-postgres  1.2.0  compatible
+old-postgres   0.9.0  incompatible: version
+```
+
+### Full discovery
+
+Allow listing registered Instances and their provided Capability metadata without a Capability filter.
+
+Discovery **never creates a Binding automatically**.
+
+Whether there are zero, one, or many compatible candidates, an unbound Requirement remains UNBOUND until a target Instance ID is explicitly selected.
+
+## 10. Binding
+
+A Binding is a **Requirement slot → target Instance ID** relationship.
+
+Given a consumer Module Instance with:
+
+```yaml
+requires:
+  capabilities:
+    identity:
+      id: manafield.identity
+      version: "^1.0.0"
+
+    state:
+      id: database.postgresql
+      version: "^1.0.0"
+```
+
+its concrete bindings are conceptually:
 
 ```yaml
 bindings:
+  identity: identity-core
+  state: main-postgres
+```
+
+`identity` and `state` are Requirement slots/local aliases, not Capability IDs.
+
+`identity-core` and `main-postgres` are registered target Instance IDs.
+
+Binding has only two states:
+
+```text
+UNBOUND
+→ no target Instance ID is selected
+
+BOUND
+→ a target Instance ID is selected
+```
+
+BOUND does not imply valid. Binding records only whether a target was selected; validity is handled by a separate validation/diagnostic layer.
+
+## 11. Validation and version mismatch
+
+A bound target may be validated before or during execution:
+
+```text
+Does the target Instance exist?
+Does it provide the requested Capability ID?
+Does the declared Capability version satisfy the requested range?
+```
+
+A missing target or an entirely different Capability cannot serve as a normal valid binding.
+
+However, a **Capability version mismatch alone does not block execution**.
+
+```text
+CAPABILITY_VERSION_MISMATCH
+→ WARNING
+→ emit sufficient diagnostic logs
+→ continue execution
+```
+
+Example:
+
+```text
+WARN CAPABILITY_VERSION_MISMATCH
+consumer: echo-prod
+slot: state
+required: database.postgresql ^1.0.0
+bound: main-postgres
+provided: database.postgresql 2.0.0
+```
+
+The SemVer range expresses contract compatibility expectations. When the user explicitly bound a target, Core does not hard-block that target solely because its declared version is outside the range.
+
+## 12. Resource runtime information
+
+Endpoints, connection metadata, concrete config values, and secret references live on the concrete Resource Instance or Instance configuration.
+
+```yaml
+id: main-postgres
+kind: resource
+
+endpoint:
+  host: postgres
+  port: 5432
+
+config:
+  database: manafield
+  ssl: false
+
+provides:
   capabilities:
-    echo.identity:
-      module: better-account
-
-    echo.state:
-      resource: main-postgres
+    - id: database.postgresql
+      version: "1.2.0"
 ```
 
-Both are Capability bindings.
+The **config schema** describing which settings a Resource kind accepts belongs to the Resource Definition.
 
-The final binding schema will be stabilized with the Build Plan / Instance Definition design.
-
-## 8. Provider source
-
-Capability provider sources initially include:
+The same split may be used for Modules:
 
 ```text
-Capability Provider Source
-├─ Module
-└─ Resource
+Module Definition
+→ config schema
+
+Module Instance
+→ concrete config values
+→ bindings
+→ provided metadata
 ```
 
-### Module
+Capability contracts do not contain endpoint/config/schema/secret materialization details.
 
-Provides callable functionality through Operations.
+## 13. Resource management components
 
-Example:
+A system-side component may discover, register, provision, or manage a Resource such as PostgreSQL.
 
-```text
-manafield.identity
-→ Account Module
-```
-
-### Resource
-
-Provides infrastructure that must be materialized as connection/configuration data.
-
-Example:
+Example responsibilities:
 
 ```text
-database.postgresql
-→ main-postgres Resource
-→ managed by PostgreSQL Provider
-```
-
-The Capability matching model is shared even when binding materialization differs by provider source.
-
-## 9. Resource Provider
-
-A Resource Provider is not an ordinary Module.
-
-PostgreSQL Provider example:
-
-```text
-PostgreSQL Provider
+PostgreSQL resource manager/provider
 ├─ discover/register existing PostgreSQL
-├─ manage Resource metadata
-├─ allocate database/schema
+├─ allocate databases/schemas
 ├─ prepare accounts/permissions
 ├─ prepare connection metadata
 └─ prepare secret references
 ```
 
-Application SQL traffic does not pass through Core or the Provider.
+Application data traffic still does not flow through Core or this management component.
 
 ```text
 Echo ──JDBC/driver──> PostgreSQL
 ```
 
-## 10. Feature subsets
+The management component and the concrete Resource Instance are not the same concept for Capability matching.
+
+## 14. Feature subsets
 
 Capability compatibility is evaluated at whole-contract granularity.
 
@@ -251,32 +403,72 @@ Capability compatibility is evaluated at whole-contract granularity.
 "implements Capability v3"
 ```
 
-The Module/Provider author declares which Capability version is fully implemented.
+The implementation declares which Capability version it fully implements.
 
-Manafield does not reinterpret compatibility based on only the Operation subset used by a specific consumer.
+Manafield does not reinterpret compatibility from only the Operation subset used by one consumer.
 
-## 11. Description and tags
+## 15. Description and tags
 
-The following may carry optional `description` metadata:
+Optional `description` metadata may exist on:
 
 - Module
 - Operation
 - Capability
 - Resource
 
-Descriptions are for search and management UI.
+Descriptions and `tags` support search/management UI and do not participate in Capability matching.
 
-`tags` are also discovery/classification metadata.
+## 16. Current fixed principles
 
-Neither participates in Capability matching.
+```text
+Requirement
+→ Capability only
 
-## 12. Deferred details
+Capability matching surface
+→ id + version
+
+provides
+→ exact contract version
+
+requires
+→ SemVer range
+
+Capability source
+→ Module Instance or Resource Instance
+
+Instance ID
+→ unique within a Manafield Instance
+
+Binding
+→ Requirement slot → target Instance ID
+
+Binding state
+→ UNBOUND / BOUND
+
+Discovery
+→ compatible / advanced-name-match / all
+
+Automatic Binding
+→ never performed by discovery/resolver
+
+Version mismatch
+→ warning + log + continue
+
+Endpoint / config value
+→ concrete Instance
+
+Config schema
+→ Module/Resource Definition
+```
+
+## 17. Still open
 
 - storage/distribution of the Capability Contract Registry
 - final location/format of Capability definition files
 - SemVer parser/library
 - pre-release version policy
-- final representation for providing multiple versions of one Capability
-- automatic binding policy
+- final representation for one Module/Resource Instance providing multiple versions of the same Capability
 - dependency-cycle policy
-- provider-specific binding materialization schemas
+- lifecycle/protocol of Resource management components
+- final secret materialization schema
+
