@@ -72,39 +72,42 @@ case "$action" in
     echo
     echo "== Configure Traefik file provider =="
 
-    python3 - "$compose_file" "$dynamic_dir" <<'PY'
-from pathlib import Path
-import sys
+    if ! grep -Fq -- '--providers.file.directory=/etc/traefik/dynamic' "$compose_file"; then
+      grep -Fq -- '      - --providers.docker.exposedbydefault=false' "$compose_file" || {
+        echo "Traefik command insertion point not found" >&2
+        exit 1
+      }
 
-path = Path(sys.argv[1])
-dynamic_dir = sys.argv[2]
-text = path.read_text()
+      temporary="$(mktemp "$compose_file.tmp.XXXXXX")"
+      awk '
+        { print }
+        $0 == "      - --providers.docker.exposedbydefault=false" {
+          print "      - --providers.file.directory=/etc/traefik/dynamic"
+          print "      - --providers.file.watch=true"
+        }
+      ' "$compose_file" > "$temporary"
 
-command_anchor = "      - --providers.docker.exposedbydefault=false\n"
-if "--providers.file.directory=/etc/traefik/dynamic" not in text:
-    if command_anchor not in text:
-        raise SystemExit("Traefik command insertion point not found")
+      cat "$temporary" > "$compose_file"
+      rm -f "$temporary"
+    fi
 
-    text = text.replace(
-        command_anchor,
-        command_anchor
-        + "      - --providers.file.directory=/etc/traefik/dynamic\n"
-        + "      - --providers.file.watch=true\n",
-        1,
-    )
+    if ! grep -Fq -- ':/etc/traefik/dynamic' "$compose_file"; then
+      grep -Fq -- '      - ./letsencrypt:/letsencrypt' "$compose_file" || {
+        echo "Traefik volume insertion point not found" >&2
+        exit 1
+      }
 
-mount = f"      - {dynamic_dir}:/etc/traefik/dynamic:ro\n"
+      temporary="$(mktemp "$compose_file.tmp.XXXXXX")"
+      awk -v dynamic_dir="$dynamic_dir" '
+        { print }
+        $0 == "      - ./letsencrypt:/letsencrypt" {
+          print "      - " dynamic_dir ":/etc/traefik/dynamic:ro"
+        }
+      ' "$compose_file" > "$temporary"
 
-if ":/etc/traefik/dynamic" not in text:
-    volume_anchor = "      - ./letsencrypt:/letsencrypt\n"
-
-    if volume_anchor not in text:
-        raise SystemExit("Traefik volume insertion point not found")
-
-    text = text.replace(volume_anchor, volume_anchor + mount, 1)
-
-path.write_text(text)
-PY
+      cat "$temporary" > "$compose_file"
+      rm -f "$temporary"
+    fi
 
     echo
     echo "== Validate Compose =="
