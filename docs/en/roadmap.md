@@ -95,7 +95,7 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Prevent Docker socket re-exposure
 - [ ] Runtime logs
 
-## Phase 1.5 — Capability Resolution / Provider Binding
+## Phase 1.5 — Capability Resolution / Instance Binding
 
 - [x] Separate Module identity from dependency contracts
 - [x] Separate Tag and Capability semantics
