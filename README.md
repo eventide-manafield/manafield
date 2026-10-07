@@ -34,7 +34,7 @@ Manafield Core는 **Rust**로 작고 엄격하게 만들고, Module은 Python, G
 
 Module이 외부에 제공하는 호출 가능한 기능은 **Operation**이라는 공통 계약으로 표현합니다. Operation은 기능 ID, optional description, Input/Output Schema, 호출 방식(Binding), Payload 형식(Codec)을 설명하며, Core는 이를 통해 Module의 구현 언어를 몰라도 어떤 기능을 어떻게 호출할 수 있는지 이해합니다.
 
-Module 간 의존성은 구체적인 Module ID보다 **Capability Contract**를 기준으로 해결하는 방향을 사용합니다. Fork나 대체 구현도 같은 Capability를 구현하면 dependency 후보가 될 수 있습니다. Database/Cache/Storage 같은 기반 자원은 별도 **Resource Requirement**로 표현하고 Provider가 공급합니다.
+Module 간 의존성과 Database/Cache/Storage 같은 기반 자원 요구는 모두 **Capability Contract**로 표현합니다. Fork나 대체 구현, Provider가 관리하는 Resource도 같은 versioned Capability matching에 참여할 수 있습니다.
 
 ```mermaid
 flowchart TB
@@ -151,7 +151,7 @@ The Core is planned to be implemented in **Rust**, while Modules may use any lan
 
 Callable functionality exposed by a Module is described through a common **Operation** contract. An Operation describes its ID, optional description, Input/Output Schema, invocation Binding, and Payload Codec so Core can understand what a Module provides without knowing its implementation language.
 
-Dependencies between Modules are designed around **Capability Contracts** rather than concrete Module IDs, allowing compatible forks or alternate implementations to satisfy the same requirement. Infrastructure such as databases, caches, and storage is modeled separately as **Resource Requirements** supplied by Providers.
+Dependencies and infrastructure needs such as databases, caches, and storage are all expressed through **Capability Contracts**. Compatible forks, alternate Module implementations, and Provider-managed Resources can participate in the same versioned matching model.
 
 ## Development Toolchain
 
