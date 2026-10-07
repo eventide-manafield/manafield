@@ -1,6 +1,7 @@
 {
   "id": "sample",
   "name": "Sample Module",
+  "description": "Minimal sample Module used to validate the Manafield Module Protocol.",
   "version": "0.0.1",
   "healthOperation": "health",
   "operations": [
