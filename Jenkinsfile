@@ -80,7 +80,14 @@ pipeline {
                 sh '''
                     set -eu
 
-                    test -f "$INSTANCE_ROOT/instance.yaml"
+                    if [ ! -f "$INSTANCE_ROOT/instance.yaml" ]; then
+                      echo "Manafield Instance Definition is not visible to Jenkins:" >&2
+                      echo "  $INSTANCE_ROOT/instance.yaml" >&2
+                      echo >&2
+                      echo "If Jenkins runs in a container, bind-mount INSTANCE_ROOT into the container at the same path." >&2
+                      exit 1
+                    fi
+
                     rm -rf ci-plan build-plan.json manafield-build-plan
 
                     docker build \
@@ -124,7 +131,14 @@ pipeline {
                       exit 1
                     fi
 
-                    test -d "$LOCAL_MODULES_ROOT"
+                    if [ ! -d "$LOCAL_MODULES_ROOT" ]; then
+                      echo "Local Module root is not visible to Jenkins:" >&2
+                      echo "  $LOCAL_MODULES_ROOT" >&2
+                      echo >&2
+                      echo "If Jenkins runs in a container, bind-mount LOCAL_MODULES_ROOT into the container at the same path." >&2
+                      exit 1
+                    fi
+
                     local_root="$(cd "$LOCAL_MODULES_ROOT" && pwd -P)"
 
                     for module_dir in "$local_root"/*; do
