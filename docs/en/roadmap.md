@@ -50,6 +50,8 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Register the Manafield Reference in the live Core Registry
 - [x] Observe the Manafield Reference from its own UI
 - [x] Extract Module Template requirements from the reference implementation → [Module Template Requirements v0](module-template-requirements.md)
+- [ ] Revalidate Template requirements with a second real Module
+- [ ] Extract minimal `manafield-module-template-ts-react`
 
 ## Phase 1 — Runtime Provider Boundary
 
