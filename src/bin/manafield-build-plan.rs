@@ -153,20 +153,20 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
             &module.build.dockerfile,
         )?;
 
-        if module.enabled {
-            if let Some(exposure) = &module.exposure {
-                has_exposure = true;
+        if module.enabled
+            && let Some(exposure) = &module.exposure
+        {
+            has_exposure = true;
 
-                match exposure {
-                    ExposureDefinition::Host { host, .. } => {
-                        require_non_empty(&format!("modules[{}].exposure.host", module.id), host)?;
+            match exposure {
+                ExposureDefinition::Host { host, .. } => {
+                    require_non_empty(&format!("modules[{}].exposure.host", module.id), host)?;
 
-                        if !exposure_hosts.insert(host.as_str()) {
-                            return Err(format!(
-                                "duplicate host exposure '{}' in enabled Modules",
-                                host
-                            ));
-                        }
+                    if !exposure_hosts.insert(host.as_str()) {
+                        return Err(format!(
+                            "duplicate host exposure '{}' in enabled Modules",
+                            host
+                        ));
                     }
                 }
             }
