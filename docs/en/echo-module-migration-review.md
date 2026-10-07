@@ -85,7 +85,7 @@ Database-backed Modules are valid, but databases are not universal.
 
 Do not standardize PostgreSQL, JPA, DB network names, or Echo-specific DB environment variables in the generic Template.
 
-Database/Storage dependencies follow [ADR-0010](adr/0010-capability-dependency-resolution.md) as **Resource Requirements** separate from Module Capabilities. Echo v2 requires PostgreSQL and can become the first real `database.postgresql` consumer.
+Database/Storage needs follow [ADR-0010](adr/0010-capability-dependency-resolution.md) through the same **Capability Requirement** model. Echo v2 requires `database.postgresql ^1` and can become the first real resource-backed Capability consumer.
 
 ### Authentication coupling
 
@@ -154,7 +154,7 @@ Before creating the private Echo v2 repository, the common Template Contract and
 
 ### Resource
 
-- a `database.postgresql` Resource Requirement
+- a `database.postgresql ^1` Capability Requirement
 - Instance-selected PostgreSQL Provider/allocation
 - database credentials delivered through Secret injection
 - direct application access through Echo's JDBC/PostgreSQL driver
@@ -218,7 +218,7 @@ Echo strengthens these boundaries:
 
 The existing Echo analysis is complete, but **the second real Module validation is not yet considered complete**.
 
-First stabilize the Template Contract enough to cover Capability/Resource dependencies and a Java/Spring Web profile. Then create the new private Echo v2 repository and run it through the current Core Registry before marking:
+First stabilize the Template Contract enough to cover unified Capability requirements and a Java/Spring Web profile. Then create the new private Echo v2 repository and run it through the current Core Registry before marking:
 
 ```text
 Revalidate Template requirements with a second real Module
