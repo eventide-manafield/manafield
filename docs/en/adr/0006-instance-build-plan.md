@@ -58,11 +58,11 @@ The Pipeline may identify the changed source and selectively Verify / Build / De
 Example:
 
 ```text
-reference-web push
+manafield-reference push
         ↓
 Manafield Instance Pipeline
         ↓
-reference-web only
+manafield-reference only
         ↓
 Deploy
         ↓
