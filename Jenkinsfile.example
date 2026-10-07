@@ -1,0 +1,39 @@
+/*
+ * Manafield Jenkins path configuration example.
+ *
+ * The canonical deployment pipeline is ./Jenkinsfile.
+ * This file is a copy/reference for the instance-specific values that are
+ * commonly customized; it is not a second deployment pipeline.
+ *
+ * Recommended convention:
+ *
+ *   Jenkins container:
+ *     /opt/manafield/instance
+ *     /opt/manafield/local-modules
+ *
+ *   Host:
+ *     may use any paths, mapped to the container paths above with bind mounts.
+ *
+ * Example Docker Compose mounts:
+ *
+ *   volumes:
+ *     - ${MANAFIELD_INSTANCE_HOST_PATH:-/srv/manafield/instance}:/opt/manafield/instance
+ *     - ${MANAFIELD_LOCAL_MODULES_HOST_PATH:-/srv/manafield/local-modules}:/opt/manafield/local-modules:ro
+ *
+ * The canonical Jenkinsfile exposes the following Build with Parameters fields.
+ * Normally the defaults do not need to be changed when the bind mounts use the
+ * recommended container paths.
+ */
+
+parameters {
+    string(
+        name: "INSTANCE_ROOT",
+        defaultValue: "/opt/manafield/instance",
+        description: "Private Manafield instance root containing instance.yaml"
+    )
+    string(
+        name: "LOCAL_MODULES_ROOT",
+        defaultValue: "/opt/manafield/local-modules",
+        description: "Optional root containing local directory Modules"
+    )
+}
