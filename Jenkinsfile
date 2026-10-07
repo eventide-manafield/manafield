@@ -42,7 +42,7 @@ pipeline {
             }
         }
 
-        stage("Resolve Build Plan") {
+        stage("Prepare Instance") {
             steps {
                 script {
                     env.INSTANCE_ROOT = params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/instance"
@@ -55,13 +55,30 @@ pipeline {
                 sh '''
                     set -eu
 
-                    if [ ! -f "$INSTANCE_ROOT/instance.yaml" ]; then
-                      echo "Manafield Instance Definition is not visible to Jenkins:" >&2
-                      echo "  $INSTANCE_ROOT/instance.yaml" >&2
+                    if [ ! -d "$INSTANCE_ROOT" ]; then
+                      echo "Manafield Instance root is not visible to Jenkins:" >&2
+                      echo "  $INSTANCE_ROOT" >&2
                       echo >&2
                       echo "If Jenkins runs in a container, bind-mount INSTANCE_ROOT into the container at the same path." >&2
                       exit 1
                     fi
+
+                    if [ ! -f "$INSTANCE_ROOT/instance.yaml" ]; then
+                      cp deploy/instance.bootstrap.yaml "$INSTANCE_ROOT/instance.yaml"
+                      echo "Created bootstrap Instance Definition:"
+                      echo "  $INSTANCE_ROOT/instance.yaml"
+                    else
+                      echo "Using existing Instance Definition:"
+                      echo "  $INSTANCE_ROOT/instance.yaml"
+                    fi
+                '''
+            }
+        }
+
+        stage("Resolve Build Plan") {
+            steps {
+                sh '''
+                    set -eu
 
                     rm -rf ci-plan build-plan.json manafield-build-plan
 
