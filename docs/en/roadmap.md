@@ -155,7 +155,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Instance Definition v0
 - [x] Separate public platform code from private Instance Configuration
 - [x] Build Plan Resolver v0
-- [ ] Single Jenkins Pipeline skeleton
+- [x] Single Jenkins Pipeline skeleton
 - [ ] Connect GitHub webhooks to the same Instance Pipeline
 - [ ] Selective build based on changed source
 - [ ] Core / Runtime Provider / Module image tagging
