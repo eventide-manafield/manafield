@@ -140,6 +140,8 @@ The Build Plan Resolver rejects duplicate host claims among enabled Modules befo
 
 Traefik requires a one-time host bootstrap so its file provider watches the configured dynamic directory. Routine Module exposure changes should not require editing the Traefik Compose definition again.
 
+The Jenkins Pipeline performs a read-only ingress provider preflight. If the configured Traefik provider is not bootstrapped yet, the build pauses and asks for explicit approval in Jenkins before modifying the Traefik Compose deployment. After bootstrap, normal builds only render and publish dynamic ingress configuration.
+
 The adapter boundary is intentionally provider-specific: future implementations such as `manafield-ingress-nginx` can consume the same resolved Build Plan without changing Module contracts.
 
 ## Compose deployment
