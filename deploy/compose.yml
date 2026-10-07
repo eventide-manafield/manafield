@@ -44,8 +44,12 @@ services:
     security_opt:
       - no-new-privileges:true
     networks:
-      - modules
-      - edge
+      modules:
+        aliases:
+          - manafield-reference
+      edge:
+        aliases:
+          - manafield-reference
 
 networks:
   modules:
