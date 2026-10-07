@@ -51,9 +51,14 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Observer에서 자기 자신 관찰
 - [x] Reference 구현에서 Module Template 요구사항 추출 → [Module Template Requirements v0](module-template-requirements.md)
 - [x] 기존 Echo 서비스와 Template 경계 비교 검토 → [Echo Module Migration Review](echo-module-migration-review.md)
-- [ ] Echo를 현재 Module Protocol에 실제 적응
-- [ ] 두 번째 실제 Module에서 Template 요구사항 재검증
-- [ ] `manafield-module-template-ts-react` 최소 Template 추출
+- [ ] 공통 Module Template Contract 정리
+- [ ] TS / React Web implementation profile 정리
+- [ ] Java / Spring Web implementation profile 정리
+- [ ] `database.postgresql` Resource를 요구하는 stateful Web Module 설계 가능 상태 검증
+- [ ] 새 private Echo v2 Repository 생성 / 구현
+- [ ] Echo v2를 실제 Core Registry에 등록
+- [ ] 두 번째 실제 Module에서 Template Contract 재검증
+- [ ] 필요 시 구현 Profile별 Template Repository 추출
 
 ## Phase 1 — Runtime Provider Boundary
 
@@ -89,10 +94,29 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Docker socket 재노출 금지
 - [ ] Runtime logs
 
+## Phase 1.5 — Capability / Resource Dependency
+
+- [x] Module identity와 dependency contract 분리 원칙 확정
+- [x] Tag와 Capability 역할 분리
+- [x] 기능 Capability와 infrastructure Resource dependency 분리
+- [x] ADR-0010 — Capability 기반 Dependency Resolution
+- [x] Module / Operation optional `description` metadata
+- [ ] Capability Descriptor v0
+- [ ] `provides.capabilities` / `requires.capabilities` schema
+- [ ] Capability ↔ Operation contract validation
+- [ ] Capability version / constraint 정책
+- [ ] Instance concrete Capability binding
+- [ ] dependency graph / cycle validation
+- [ ] Resource Requirement Descriptor v0
+- [ ] Resource Provider boundary / protocol
+- [ ] Secret / connection metadata injection model
+- [ ] PostgreSQL Resource Provider v0
+- [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation
+
 ## Phase 2 — Module Lifecycle
 
 - [ ] Module install model
-- [ ] Runtime requirement / capability 선언
+- [ ] Runtime requirement 선언
 - [ ] Runtime Provider 선택
 - [ ] Module create
 - [ ] Start / Stop / Restart
@@ -167,6 +191,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [x] ADR-0008 — Manafield Network Planes
 - [x] ADR-0009 — Operation Routing / Web Exposure 분리
+- [x] ADR-0010 — Capability 기반 Dependency Resolution
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
@@ -202,7 +227,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Module install / update / remove
 - [ ] Drag & Drop Module installation
 - [ ] Permission review
-- [ ] Dependency management
+- [ ] Distributed / advanced dependency management
 - [ ] Module Registry distribution / discovery
 - [ ] Compatibility Test Kit
 - [ ] Third-party Module isolation
