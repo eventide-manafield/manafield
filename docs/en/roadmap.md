@@ -129,16 +129,26 @@ The initial direction is to keep Docker Provider code in the same repository whi
 
 ## Phase 3 — Official Web View
 
-- [ ] Manafield Web
-- [ ] Dynamic Module navigation
+- [x] Separate the Official Web Shell from Core
+- [x] Select same-origin path composition
+- [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
+- [ ] Create independent `manafield-web` repository
+- [ ] Bootstrap Go single-binary Web Shell
+- [ ] `/manafield/health` Operation
+- [ ] Core Registry reads
+- [ ] Instance home / navigation
+- [ ] Registry-driven dynamic Module navigation
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider status UI
 - [ ] Module Health UI
-- [ ] Module Web Contribution
+- [ ] Module Web Contribution metadata v0
 - [ ] Web Exposure model (`none / host / prefix / routes / external`)
-- [ ] Build Plan public-route normalization / conflict detection
+- [ ] Build Plan same-host prefix / route normalization
+- [ ] Build Plan route conflict / precedence validation
+- [ ] Render Traefik same-host path composition
 - [ ] Manafield reserved root-path policy
 - [ ] Generate / apply ingress configuration from the resolved Build Plan
+- [ ] login / session entry UX
 - [ ] Settings UI
 
 ### Module Manager Module
@@ -192,6 +202,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0008 — Manafield Network Planes
 - [x] ADR-0009 — Separate Operation Routing from Web Exposure
 - [x] ADR-0010 — Capability-Based Dependency Resolution
+- [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
