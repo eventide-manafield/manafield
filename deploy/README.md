@@ -28,7 +28,6 @@ The files in this directory describe the public deployment contract and examples
 
 `instance.yaml.example` is the copy-ready example intended to be duplicated as `instance.yaml` and customized for an instance. It is intentionally safe to publish.
 
-`instance.example.yaml` is currently kept as a compatibility copy during the pre-alpha naming transition.
 
 A real production `instance.yaml` is **private by default** and should be managed outside the public Core repository. The repository ignores `deploy/instance.yaml` to reduce the chance of accidentally committing a real instance definition.
 
