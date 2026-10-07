@@ -50,6 +50,8 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Manafield Reference를 실제 Core Registry에 등록
 - [x] Observer에서 자기 자신 관찰
 - [x] Reference 구현에서 Module Template 요구사항 추출 → [Module Template Requirements v0](module-template-requirements.md)
+- [x] 기존 Echo 서비스와 Template 경계 비교 검토 → [Echo Module Migration Review](echo-module-migration-review.md)
+- [ ] Echo를 현재 Module Protocol에 실제 적응
 - [ ] 두 번째 실제 Module에서 Template 요구사항 재검증
 - [ ] `manafield-module-template-ts-react` 최소 Template 추출
 
