@@ -38,6 +38,13 @@ Descriptor는 최소한 다음 정보를 포함합니다.
 - `version`
 - `operations`
 
+검색/목록 UI를 위해 다음 표시용 metadata를 선택적으로 둘 수 있습니다.
+
+- Module `description`
+- Operation `description`
+
+Description은 nullable/optional이며 dependency 또는 compatibility 판정에는 사용하지 않습니다.
+
 각 Operation은 현재 지원되는 Binding과 Codec 규칙을 따라야 합니다.
 
 HTTP Binding의 현재 검증 규칙:
@@ -128,7 +135,22 @@ Module은 자신의 HTTP server가 내부 port에서 정상 동작하도록만 �
 
 자세한 경계는 ADR-0009를 참고합니다.
 
-## 6. TypeScript / React Template v0 후보
+## 6. Template 계층과 구현 Profile
+
+공통 Module Template은 특정 Framework 하나를 표준으로 강제하지 않습니다.
+
+```text
+Module Template Contract
+├─ TS / React Web profile
+├─ Java / Spring Web profile
+└─ future implementation profiles
+```
+
+공통 Contract는 Protocol, build/runtime boundary, Health, optional description metadata, dependency/resource declaration 규칙을 정의합니다.
+
+각 구현 Profile은 같은 Contract를 해당 언어/Framework에서 빠르게 만족하기 위한 골격만 제공합니다.
+
+### TypeScript / React Web profile 후보
 
 현재 `manafield-reference`에서 재사용 가치가 있는 기본 골격:
 
@@ -168,6 +190,23 @@ npm start
 - Node/Express server
 
 이 기술 조합은 **TS/React Template의 구현 선택**이며 Module Protocol 요구사항이 아닙니다.
+
+### Java / Spring Web profile 후보
+
+Echo v2 같은 stateful Web Module을 새로 설계할 수 있도록 다음 기본값을 후보로 둡니다.
+
+- Java toolchain 고정
+- Gradle Wrapper
+- Spring Boot Web
+- JDK build / JRE runtime multi-stage image
+- non-root runtime user
+- Docker HEALTHCHECK
+- environment-driven application port
+- `manafield.module.json`
+- Protocol Health Operation
+- Resource Requirement를 application configuration으로 binding할 수 있는 경계
+
+PostgreSQL/JPA 자체는 모든 Java Web Module의 필수 기능으로 고정하지 않습니다. DB가 필요한 Module만 `database.postgresql` 같은 Resource Requirement를 선언합니다.
 
 ## 7. Reference에서 Template으로 가져가지 않을 것
 
@@ -232,9 +271,10 @@ Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm i
 다음은 실제 Module 사례가 더 쌓이기 전까지 공통 요구사항으로 고정하지 않습니다.
 
 - Settings endpoint
-- Permission / Capability declaration
-- Storage convention
-- Dependency declaration
+- Permission declaration의 최종 schema
+- Capability / Resource Descriptor의 최종 JSON/YAML schema
+- Capability version range / negotiation 문법
+- Resource binding / Secret injection의 최종 schema
 - Runtime requirement schema
 - WebSocket / Event convention
 - Core SDK 의존성
@@ -270,7 +310,7 @@ Module Repository의 Compose가 필요하다면 local development 용도로 제�
 
 Echo가 PostgreSQL/JPA를 사용한다고 해서 Database를 Module Template 필수 요소로 만들지 않습니다.
 
-DB/Storage dependency는 향후 Runtime requirement / package metadata가 구체화될 때 별도 선언 모델로 다룹니다.
+DB/Storage dependency는 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 Module Capability와 분리된 **Resource Requirement**로 다룹니다. PostgreSQL이 필요한 Module은 개념적으로 `database.postgresql` Resource를 요구하고, concrete Provider/connection binding은 Instance가 결정합니다.
 
 ### Secret은 source 또는 Template에 고정하지 않음
 
@@ -297,7 +337,7 @@ Echo는 다수의 REST endpoint를 이미 제공하지만, 이를 전부 자동�
 
 Operation은 Manafield가 discover/call할 **공용 기능 계약**입니다.
 
-따라서 실제 Echo migration에서 다음을 검증해야 합니다.
+따라서 새 Echo v2 설계에서 다음을 검증해야 합니다.
 
 - Framework endpoint 중 어떤 것을 Operation으로 공개할지
 - UI 내부 API와 Operation을 어떻게 구분할지
@@ -322,12 +362,25 @@ Annotation/code generation은 후보이지만 아직 Template 요구사항으로
 
 ## 11. 다음 검증
 
-TS/React Template Repository를 즉시 규격으로 고정하기보다, **두 번째 실제 Module을 하나 더 구현한 뒤** 이 문서와 비교해 공통 부분만 Template으로 추출합니다.
+Echo의 기존 backend/deployment 구조를 그대로 migration하지 않습니다. 기존 private Echo에서는 재사용 가치가 높은 CSS/JS/정적 FE 자산만 선별하고, Echo v2 backend와 Module wiring은 현재 Architecture 기준으로 새로 설계합니다.
 
-그 시점에 후보 Repository:
+Echo v2 private Repository를 만들기 전에 다음을 먼저 만족시키는 것을 목표로 합니다.
+
+```text
+Module Template Contract
+├─ Capability / Resource dependency 경계 설명 가능
+├─ stateless Web Module 설계 가능
+├─ Java / Spring Web Module 설계 가능
+└─ database.postgresql을 요구하는 stateful Module 설계 가능
+```
+
+그 뒤 실제 Echo v2를 두 번째 Module로 구현하여 Template Contract를 재검증합니다.
+
+필요하다면 구현 Profile별 Template Repository를 분리할 수 있습니다.
 
 ```text
 manafield-module-template-ts-react
+manafield-module-template-java-spring
 ```
 
-Template은 Reference 기능을 제거한 최소 실행 예제를 제공해야 합니다.
+어떤 Template도 Manafield Protocol을 대체하거나 특정 구현 언어를 필수화하지 않습니다.
