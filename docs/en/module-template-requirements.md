@@ -267,7 +267,7 @@ Wait for additional real Module implementations before standardizing:
 - Settings endpoints
 - final Permission declaration schema
 - final Capability Descriptor and Module/Resource Instance registry metadata schema
-- Capability version-range / negotiation syntax
+- Capability SemVer parser / pre-release range details
 - final Capability binding / Secret injection schema
 - Runtime requirement schema
 - WebSocket / Event conventions
