@@ -107,7 +107,25 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Runtime Provider 상태 UI
 - [ ] Module Health UI
 - [ ] Module Web Contribution
+- [ ] Web Exposure 모델 (`none / host / prefix / routes / external`)
+- [ ] Build Plan public route normalization / conflict detection
+- [ ] Manafield reserved root path 정책
+- [ ] resolved Build Plan 기반 ingress 설정 생성 / 적용
 - [ ] Settings UI
+
+### Module Manager Module
+
+Module을 관리하는 기능도 Core에 UI를 내장하기보다 **공식 관리 Module**로 제공하는 방향을 우선합니다.
+
+- [ ] Module 목록 / 상태 조회
+- [ ] Module 탑재 / 활성화
+- [ ] Module 비활성화 / 분리 / 제거
+- [ ] Module source / version 선택
+- [ ] Web exposure (`host / prefix / routes`) 설정
+- [ ] 변경 전 route conflict / 영향 미리보기
+- [ ] Instance configuration 변경 diff / 확인
+- [ ] Core / Runtime Provider API를 통한 lifecycle 적용
+- [ ] Docker socket을 관리 Module에 직접 제공하지 않음
 
 ## Phase 4 — Reference / Existing Services
 
@@ -144,6 +162,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0006 — Instance Build Plan / 인스턴스별 단일 Pipeline
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [x] ADR-0008 — Manafield Network Planes
+- [x] ADR-0009 — Operation Routing / Web Exposure 분리
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
