@@ -80,6 +80,8 @@ Capability
 
 Capability는 최소한 안정적인 ID와 version을 가집니다.
 
+Module, Operation, Capability, Resource처럼 검색/목록에 노출되는 항목은 optional `description` metadata를 가질 수 있습니다. Description은 사람이 검색 결과와 관리 UI에서 의미를 이해하기 위한 표시 정보이며, **Description은 계약 판정에 사용하지 않는다**는 원칙을 둡니다.
+
 장기적으로 Capability Contract는 하나 이상의 Operation과 의미 규칙을 연결할 수 있어야 합니다.
 
 예:
