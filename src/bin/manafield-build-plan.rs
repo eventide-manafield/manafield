@@ -159,10 +159,7 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
 
                 match exposure {
                     ExposureDefinition::Host { host, .. } => {
-                        require_non_empty(
-                            &format!("modules[{}].exposure.host", module.id),
-                            host,
-                        )?;
+                        require_non_empty(&format!("modules[{}].exposure.host", module.id), host)?;
 
                         if !exposure_hosts.insert(host.as_str()) {
                             return Err(format!(
