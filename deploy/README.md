@@ -65,7 +65,7 @@ runtimeProviders:
     enabled: true
 
 modules:
-  - id: reference-web
+  - id: manafield-reference
     enabled: true
     source:
       repository: ...
@@ -107,7 +107,7 @@ The current Compose stack is [compose.yml](compose.yml).
 It starts:
 
 - Manafield Core
-- Manafield Reference Module
+- Manafield Manafield Reference
 
 The Docker Runtime Provider is not included yet because its binary and Runtime Protocol have not been implemented.
 
@@ -119,12 +119,12 @@ workspace/
 └─ manafield-module-reference/
 ```
 
-Stage the Reference Module descriptor for Core discovery:
+Stage the Manafield Reference descriptor for Core discovery:
 
 ```bash
-mkdir -p deploy/modules/reference-web
+mkdir -p deploy/modules/manafield-reference
 cp ../manafield-module-reference/manafield.module.json \
-  deploy/modules/reference-web/manafield.module.json
+  deploy/modules/manafield-reference/manafield.module.json
 ```
 
 Then run from the Manafield repository:
@@ -153,8 +153,16 @@ MANAFIELD_REFERENCE_IMAGE
 MANAFIELD_REFERENCE_CONTEXT
 MANAFIELD_CORE_PORT
 MANAFIELD_REFERENCE_PORT
-MANAFIELD_NETWORK
+MANAFIELD_MODULES_NETWORK
+MANAFIELD_EDGE_NETWORK
 MANAFIELD_LOG
+```
+
+The runtime Compose uses two named Docker networks:
+
+```text
+manafield-modules  internal Core ↔ Module communication
+manafield-edge     external-facing edge shared with ingress infrastructure
 ```
 
 The runtime Compose publishes only the Core loopback port:
@@ -166,7 +174,7 @@ Core 127.0.0.1:18080
 The development override additionally publishes:
 
 ```text
-Reference Web 127.0.0.1:18081
+Manafield Reference 127.0.0.1:18081
 ```
 
 The containers use a read-only root filesystem, drop Linux capabilities, and enable `no-new-privileges`. Core does not receive Docker socket access.
@@ -187,7 +195,7 @@ The pipeline:
 6. creates an immutable-ish release directory
 7. stages Module descriptors for Core discovery
 8. deploys the release with Docker Compose
-9. verifies Core health, Registry state, Reference Module health, and Reference-to-Core connectivity
+9. verifies Core health, Registry state, Manafield Reference health, and Reference-to-Core connectivity
 
 A Jenkins deployment directory is expected to look like:
 
@@ -207,7 +215,7 @@ A Jenkins deployment directory is expected to look like:
 
 `release.env` contains resolved image names and deployment paths, not application secrets.
 
-The current bootstrap pipeline requires the `reference-web` Module because the Docker Runtime Provider has not been implemented yet.
+The current bootstrap pipeline requires the `manafield-reference` Module because the Docker Runtime Provider has not been implemented yet.
 
 ## Module Build Contract
 
