@@ -10,7 +10,9 @@
       "input": null,
       "output": {
         "type": "object",
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "properties": {
           "status": {
             "type": "string"
@@ -25,14 +27,17 @@
           "json",
           "messagepack"
         ]
-      }
+      },
+      "description": "Reports whether the sample Module is healthy."
     },
     {
       "id": "hello",
       "input": null,
       "output": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -47,13 +52,16 @@
           "json",
           "messagepack"
         ]
-      }
+      },
+      "description": "Returns a minimal greeting payload."
     },
     {
       "id": "echo",
       "input": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -62,7 +70,9 @@
       },
       "output": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -77,7 +87,8 @@
           "json",
           "messagepack"
         ]
-      }
+      },
+      "description": "Returns the supplied message for protocol testing."
     }
   ]
 }
