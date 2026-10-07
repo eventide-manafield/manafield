@@ -370,6 +370,26 @@ Operation ID나 Binding path에서 public URL을 자동으로 파생하지 않�
 
 자세한 결정은 [ADR-0009](adr/0009-operation-web-exposure.md)을 참고합니다.
 
+### Official Web Shell
+
+공식 Web View는 Core에 내장하지 않고 별도 `manafield-web` Module로 둡니다.
+
+통합형 Instance는 하나의 public origin 아래 여러 Module Web surface를 path routing으로 조립할 수 있습니다.
+
+```text
+manafield.studio/           → manafield-web
+manafield.studio/account/*  → Account Module
+manafield.studio/echo/*     → Echo Module
+```
+
+`manafield-web`은 home, navigation, Registry discovery, session 진입 UX 같은 presentation 책임을 맡을 수 있지만 모든 Module API의 mandatory reverse proxy가 되지는 않습니다. 일반 traffic은 Ingress가 해당 Module로 직접 전달하는 방향을 우선합니다.
+
+초기 Official Web Shell 구현은 Go 기반 single-binary Web Module로 시작합니다. Core와 일반 Module은 Web Shell 없이도 동작해야 하며, 일반 Module은 Web Shell에 의존하지 않습니다.
+
+초기 composition은 full-page/path surface를 사용하고 dynamic micro-frontend loading은 실제 필요가 생길 때까지 미룹니다.
+
+자세한 결정은 [ADR-0011](adr/0011-official-web-shell.md)을 참고합니다.
+
 ## 9. Isolation
 
 기본 아키텍처에서는 임의의 Module 코드를 Core 프로세스 내부에 직접 로드하지 않습니다.
