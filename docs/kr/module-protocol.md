@@ -269,7 +269,7 @@ sequenceDiagram
 - 어떤 Binding으로 호출되는지
 - HTTP Binding이라면 Method와 Path
 - 해당 Binding이 지원하는 Codec
-- 향후 필요한 Permission / Capability
+- 향후 Permission 요구사항과 Capability membership metadata
 
 Operation 정보는 **호출 가능한 기능의 탐색 및 검증용 계약**으로 사용합니다.
 
