@@ -50,6 +50,8 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Register the Manafield Reference in the live Core Registry
 - [x] Observe the Manafield Reference from its own UI
 - [x] Extract Module Template requirements from the reference implementation → [Module Template Requirements v0](module-template-requirements.md)
+- [x] Compare existing Echo service against Template boundaries → [Echo Module Migration Review](echo-module-migration-review.md)
+- [ ] Adapt Echo to the current Module Protocol
 - [ ] Revalidate Template requirements with a second real Module
 - [ ] Extract minimal `manafield-module-template-ts-react`
 
