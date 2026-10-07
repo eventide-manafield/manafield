@@ -103,15 +103,26 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [x] ADR-0010 — Capability-Based Dependency Resolution
 - [x] Optional Module / Operation `description` metadata
 - [x] Capability Contract v0 design → [Capability Contract](capability.md)
+- [x] Keep the Capability matching surface to `id + version`
+- [x] Shared Capability registry metadata for Module Instances / Resource Instances
+- [x] Unique Instance IDs / duplicate conflict policy
+- [x] Binding = Requirement slot → target Instance ID
+- [x] Binding state = `UNBOUND` / `BOUND`
+- [x] No automatic Binding by Resolver/Discovery
+- [x] Three Discovery levels: compatible / advanced same-ID / full
+- [x] Capability version mismatch = warning + log + continue
+- [x] endpoint/config values on Instances; config schema on Definitions
 - [ ] Implement `provides.capabilities` / `requires.capabilities` in Core models
 - [ ] Capability ↔ Operation contract validation
 - [x] Capability SemVer / range policy
-- [ ] Instance concrete Capability binding
+- [ ] Implement concrete Binding persistence/query
+- [ ] Implement Capability Discovery API
+- [ ] Binding validation / diagnostic error model
 - [ ] Dependency graph / cycle validation
-- [ ] Capability metadata model for Resources
-- [ ] Resource Provider boundary / protocol
+- [ ] Resource Instance Capability metadata implementation
+- [ ] Resource management component boundary / protocol
 - [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource Provider v0 (`database.postgresql` Capability)
+- [ ] PostgreSQL Resource management v0 (`database.postgresql` Capability)
 - [ ] Per-Module database/schema/account allocation / Capability binding on a shared PostgreSQL instance
 
 ## Phase 2 — Module Lifecycle
