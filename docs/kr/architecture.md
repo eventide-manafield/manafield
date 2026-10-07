@@ -270,6 +270,22 @@ flowchart TB
 
 Runtime Provider의 상세 Protocol과 capability 모델은 아직 설계 중입니다. 결정 배경은 [ADR-0004](adr/0004-runtime-provider-boundary.md)와 [ADR-0005](adr/0005-docker-provider-isolation.md)를 참고합니다.
 
+### Network Planes
+
+Manafield의 Docker 배포는 내부 Module 통신과 외부 공개 경계를 별도 네트워크로 분리합니다.
+
+```text
+manafield-modules
+→ Core ↔ Module 내부 통신
+
+manafield-edge
+→ Traefik / Cloudflared / 외부 공개 Module이 만나는 edge network
+```
+
+Core는 기본적으로 `manafield-modules`에만 연결합니다. 외부 Web surface를 제공해야 하는 Module만 필요에 따라 `manafield-edge`에도 함께 연결합니다.
+
+`manafield-edge`는 개별 Manafield Compose가 소유하지 않는 external Docker network로 취급합니다. 자세한 결정 배경은 [ADR-0008](adr/0008-network-planes.md)을 참고합니다.
+
 ## 8. Web Contribution
 
 Module은 Web UI를 제공하지 않아도 됩니다.
