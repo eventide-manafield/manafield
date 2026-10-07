@@ -71,6 +71,17 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
             directory.join("ingress-output.txt"),
             format!("{}\n", ingress.output),
         )?;
+
+        if let Some(bootstrap) = &ingress.bootstrap {
+            fs::write(
+                directory.join("ingress-bootstrap-compose.txt"),
+                format!("{}\n", bootstrap.compose_file),
+            )?;
+            fs::write(
+                directory.join("ingress-bootstrap-service.txt"),
+                format!("{}\n", bootstrap.service),
+            )?;
+        }
     }
 
     let runtime_providers = plan
@@ -185,6 +196,17 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
     if let Some(ingress) = &definition.deployment.ingress {
         require_non_empty("deployment.ingress.provider", &ingress.provider)?;
         require_non_empty("deployment.ingress.output", &ingress.output)?;
+
+        if let Some(bootstrap) = &ingress.bootstrap {
+            require_non_empty(
+                "deployment.ingress.bootstrap.composeFile",
+                &bootstrap.compose_file,
+            )?;
+            require_non_empty(
+                "deployment.ingress.bootstrap.service",
+                &bootstrap.service,
+            )?;
+        }
     } else if has_exposure {
         return Err("enabled Module exposure requires deployment.ingress".into());
     }
@@ -299,6 +321,15 @@ struct DeploymentDefinition {
 struct IngressDefinition {
     provider: String,
     output: String,
+    #[serde(default)]
+    bootstrap: Option<IngressBootstrapDefinition>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IngressBootstrapDefinition {
+    compose_file: String,
+    service: String,
 }
 
 fn default_true() -> bool {
