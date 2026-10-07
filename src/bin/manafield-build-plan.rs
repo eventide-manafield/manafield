@@ -202,10 +202,7 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
                 "deployment.ingress.bootstrap.composeFile",
                 &bootstrap.compose_file,
             )?;
-            require_non_empty(
-                "deployment.ingress.bootstrap.service",
-                &bootstrap.service,
-            )?;
+            require_non_empty("deployment.ingress.bootstrap.service", &bootstrap.service)?;
         }
     } else if has_exposure {
         return Err("enabled Module exposure requires deployment.ingress".into());
