@@ -117,6 +117,15 @@ modules:
 
 The final schema belongs to the Build Plan prefix/routes design.
 
+Prefixes are not stripped.
+
+```text
+/echo/foo
+→ Echo also receives /echo/foo
+```
+
+The Instance-assigned base path may initially be injected with a container convention such as `MANAFIELD_WEB_BASE_PATH=/echo`. Modules use it consistently for assets, redirects, cookie paths, and browser-side API URLs.
+
 ## 6. Navigation metadata
 
 v0 primarily uses Registry metadata:
@@ -128,18 +137,28 @@ v0 primarily uses Registry metadata:
 
 Additional Web navigation metadata remains separate from functional dependency contracts.
 
-Future Web Contribution candidates:
+Web Surface metadata first distinguishes `page` from `api`.
+
+```text
+page
+→ navigable user-facing surface
+
+api
+→ public HTTP API, no navigation entry
+```
+
+Candidate page metadata:
 
 ```text
 title
 description
 icon
 navigation order/group
-preferred path hint
-web surface presence
 ```
 
-Public paths remain Instance-owned, so a Module path hint is never authoritative.
+Public paths remain Instance-owned; Module metadata does not own an authoritative public path.
+
+See [Web Surface v0](web-surface.md) for the detailed design.
 
 ## 7. Authentication
 
