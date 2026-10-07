@@ -155,7 +155,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] Instance Definition v0
 - [x] 공개 플랫폼과 Private Instance Configuration 분리 원칙
 - [x] Build Plan Resolver v0
-- [ ] Jenkins 단일 Pipeline skeleton
+- [x] Jenkins 단일 Pipeline skeleton
 - [ ] GitHub webhook → 동일 Instance Pipeline 연결
 - [ ] 변경 source 기반 selective build
 - [ ] Core / Runtime Provider / Module image tagging
