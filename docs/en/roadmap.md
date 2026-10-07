@@ -143,6 +143,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
 - [x] ADR-0006 — Instance Build Plan / single Pipeline per instance
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
+- [x] ADR-0008 — Manafield Network Planes
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
