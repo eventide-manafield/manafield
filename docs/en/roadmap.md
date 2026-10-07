@@ -55,7 +55,7 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [ ] Define a Go Web implementation profile
 - [ ] Define a TS / React Web implementation profile
 - [ ] Define a Java / Spring Web implementation profile
-- [ ] Verify the Template can describe a stateful Web Module requiring `database.postgresql`
+- [ ] Verify the Template can describe a stateful Web Module requiring the `database.postgresql` Capability
 - [ ] Create / implement the new private Echo v2 repository
 - [ ] Register Echo v2 in the live Core Registry
 - [ ] Revalidate the Template Contract with a second real Module
