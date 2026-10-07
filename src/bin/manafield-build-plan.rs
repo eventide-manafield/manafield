@@ -62,6 +62,17 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
         format!("{}\n", plan.deployment.edge_network),
     )?;
 
+    if let Some(ingress) = &plan.deployment.ingress {
+        fs::write(
+            directory.join("ingress-provider.txt"),
+            format!("{}\n", ingress.provider),
+        )?;
+        fs::write(
+            directory.join("ingress-output.txt"),
+            format!("{}\n", ingress.output),
+        )?;
+    }
+
     let runtime_providers = plan
         .runtime_providers
         .iter()
@@ -120,6 +131,9 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
     }
 
     let mut module_ids = HashSet::new();
+    let mut exposure_hosts = HashSet::new();
+    let mut has_exposure = false;
+
     for module in &definition.modules {
         require_non_empty("modules[].id", &module.id)?;
 
@@ -138,6 +152,28 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
             &format!("modules[{}].build.dockerfile", module.id),
             &module.build.dockerfile,
         )?;
+
+        if module.enabled {
+            if let Some(exposure) = &module.exposure {
+                has_exposure = true;
+
+                match exposure {
+                    ExposureDefinition::Host { host, .. } => {
+                        require_non_empty(
+                            &format!("modules[{}].exposure.host", module.id),
+                            host,
+                        )?;
+
+                        if !exposure_hosts.insert(host.as_str()) {
+                            return Err(format!(
+                                "duplicate host exposure '{}' in enabled Modules",
+                                host
+                            ));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     require_non_empty(
@@ -148,6 +184,13 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         "deployment.edgeNetwork",
         &definition.deployment.edge_network,
     )?;
+
+    if let Some(ingress) = &definition.deployment.ingress {
+        require_non_empty("deployment.ingress.provider", &ingress.provider)?;
+        require_non_empty("deployment.ingress.output", &ingress.output)?;
+    } else if has_exposure {
+        return Err("enabled Module exposure requires deployment.ingress".into());
+    }
 
     Ok(())
 }
@@ -210,6 +253,8 @@ struct ModuleDefinition {
     enabled: bool,
     source: SourceDefinition,
     build: ModuleBuildDefinition,
+    #[serde(default)]
+    exposure: Option<ExposureDefinition>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -218,6 +263,16 @@ struct ModuleBuildDefinition {
     build_type: BuildType,
     context: String,
     dockerfile: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+enum ExposureDefinition {
+    Host {
+        host: String,
+        #[serde(rename = "targetPort")]
+        target_port: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -239,6 +294,14 @@ impl BuildType {
 struct DeploymentDefinition {
     modules_network: String,
     edge_network: String,
+    #[serde(default)]
+    ingress: Option<IngressDefinition>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct IngressDefinition {
+    provider: String,
+    output: String,
 }
 
 fn default_true() -> bool {
@@ -282,6 +345,7 @@ impl From<InstanceDefinition> for BuildPlan {
                         context: module.build.context,
                         dockerfile: module.build.dockerfile,
                     },
+                    exposure: module.exposure,
                 })
                 .collect(),
             deployment: definition.deployment,
@@ -304,6 +368,8 @@ struct ModulePlan {
     id: String,
     source: SourceDefinition,
     build: ModuleBuildPlan,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    exposure: Option<ExposureDefinition>,
 }
 
 #[derive(Debug, Serialize)]
