@@ -237,7 +237,19 @@ Examples:
 - Discord
 - external APIs
 
-These categories describe execution characteristics and responsibility while sharing as much of the common Module Protocol as practical.
+The Module / Service / Integration categories describe execution characteristics and responsibility while sharing as much of the common Module Protocol as practical.
+
+### Provider
+
+A Provider is not an ordinary Module. It is a **system-side component that connects Manafield to execution environments, infrastructure resources, or ingress functionality**.
+
+Examples:
+
+- Docker Runtime Provider
+- PostgreSQL Resource Provider
+- Traefik Ingress Provider / Adapter
+
+Providers may require stronger privileges or host-infrastructure access than ordinary Modules, so they have separate boundaries.
 
 ## 7. Runtime Model
 
