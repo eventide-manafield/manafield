@@ -210,6 +210,48 @@ pipeline {
             }
         }
 
+        stage("Render Ingress") {
+            steps {
+                sh '''
+                    set -eu
+
+                    if [ ! -s ci-plan/ingress-provider.txt ]; then
+                      echo "No ingress provider configured."
+                      exit 0
+                    fi
+
+                    provider="$(cat ci-plan/ingress-provider.txt)"
+
+                    case "$provider" in
+                      traefik)
+                        docker build \
+                          --target ingress-traefik-runtime \
+                          --tag "manafield-ingress-traefik:$CORE_SHA" \
+                          .
+
+                        adapter_container="$(docker create "manafield-ingress-traefik:$CORE_SHA")"
+                        trap 'docker rm -f "$adapter_container" >/dev/null 2>&1 || true' EXIT
+
+                        docker cp \
+                          "$adapter_container:/usr/local/bin/manafield-ingress-traefik" \
+                          ./manafield-ingress-traefik
+
+                        chmod +x ./manafield-ingress-traefik
+                        ./manafield-ingress-traefik \
+                          build-plan.json \
+                          "$RELEASE_DIR/ingress-traefik.yml"
+
+                        cp "$RELEASE_DIR/ingress-traefik.yml" ingress-traefik.yml
+                        ;;
+                      *)
+                        echo "Unsupported ingress provider: $provider" >&2
+                        exit 1
+                        ;;
+                    esac
+                '''
+            }
+        }
+
         stage("Deploy") {
             steps {
                 sh '''
@@ -224,6 +266,41 @@ pipeline {
                       --env-file "$RELEASE_DIR/release.env" \
                       --file "$RELEASE_DIR/compose.yml" \
                       ps
+                '''
+            }
+        }
+
+        stage("Publish Ingress") {
+            steps {
+                sh '''
+                    set -eu
+
+                    if [ ! -s ci-plan/ingress-provider.txt ]; then
+                      echo "No ingress provider configured."
+                      exit 0
+                    fi
+
+                    provider="$(cat ci-plan/ingress-provider.txt)"
+                    output="$(cat ci-plan/ingress-output.txt)"
+
+                    case "$provider" in
+                      traefik)
+                        test -s "$RELEASE_DIR/ingress-traefik.yml"
+
+                        mkdir -p "$(dirname "$output")"
+                        temporary="$output.tmp.$BUILD_NUMBER"
+
+                        cp "$RELEASE_DIR/ingress-traefik.yml" "$temporary"
+                        chmod 0644 "$temporary"
+                        mv -f "$temporary" "$output"
+
+                        echo "Published Traefik ingress config: $output"
+                        ;;
+                      *)
+                        echo "Unsupported ingress provider: $provider" >&2
+                        exit 1
+                        ;;
+                    esac
                 '''
             }
         }
@@ -285,7 +362,7 @@ pipeline {
     post {
         always {
             archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.env,ci-plan/**",
+                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,ci-plan/**",
                 allowEmptyArchive: true
             )
         }
