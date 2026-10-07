@@ -90,7 +90,7 @@ DB가 필요한 Module은 존재할 수 있지만 모든 Module에 DB가 필요�
 - DB network name
 - DB credential variable names
 
-Database/Storage dependency는 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 Module Capability와 분리된 **Resource Requirement**로 표현합니다. Echo v2는 PostgreSQL을 전제로 하므로 `database.postgresql` Resource를 요구하는 첫 실제 사례가 될 수 있습니다.
+Database/Storage 요구도 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 같은 **Capability Requirement**로 표현합니다. Echo v2는 PostgreSQL을 전제로 하므로 `database.postgresql ^1` Capability를 요구하는 첫 실제 resource-backed Capability 사례가 될 수 있습니다.
 
 ### Authentication coupling
 
@@ -161,7 +161,7 @@ Echo v2 private Repository를 만들기 전에 공통 Template Contract와 Java/
 
 ### Resource
 
-- `database.postgresql` Resource Requirement
+- `database.postgresql ^1` Capability Requirement
 - concrete PostgreSQL Provider / allocation은 Instance가 선택
 - DB credential은 Secret injection으로 전달
 - Echo는 JDBC/PostgreSQL driver로 DB에 직접 연결
@@ -227,7 +227,7 @@ Echo 검토로 다음 경계가 강화되었습니다.
 
 기존 Echo 분석 자체는 완료했지만, **두 번째 실제 Module 검증은 아직 완료로 처리하지 않습니다.**
 
-먼저 Capability/Resource dependency와 Java/Spring Web profile을 포함한 Template Contract를 정리합니다. 그 뒤 새 private Echo v2 Repository를 만들고 실제 Core Registry에서 동작시키는 단계까지 완료한 뒤:
+먼저 통합 Capability requirement와 Java/Spring Web profile을 포함한 Template Contract를 정리합니다. 그 뒤 새 private Echo v2 Repository를 만들고 실제 Core Registry에서 동작시키는 단계까지 완료한 뒤:
 
 ```text
 두 번째 실제 Module에서 Template 요구사항 재검증
