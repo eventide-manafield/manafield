@@ -1,7 +1,13 @@
+import com.cloudbees.groovy.cps.NonCPS
 import groovy.json.JsonSlurperClassic
 
 def buildPlan = null
 def moduleBuilds = [:]
+
+@NonCPS
+def parseJson(String text) {
+    return new JsonSlurperClassic().parseText(text)
+}
 
 def safeComponentId(String value) {
     return value.toLowerCase().replaceAll(/[^a-z0-9_.-]+/, "-")
@@ -72,7 +78,7 @@ pipeline {
                 """
 
                 script {
-                    buildPlan = new JsonSlurperClassic().parseText(readFile("build-plan.json"))
+                    buildPlan = parseJson(readFile("build-plan.json"))
 
                     if (buildPlan.version != 0) {
                         error("Unsupported Build Plan version: ${buildPlan.version}")
