@@ -293,7 +293,7 @@ Node Template에서는 lockfile을 사용한 reproducible build를 위해 `npm i
 - Settings endpoint
 - Permission declaration의 최종 schema
 - Capability Descriptor와 Module/Resource Instance 등록 metadata의 최종 JSON/YAML schema
-- Capability version range / negotiation 문법
+- Capability SemVer parser / pre-release range 세부 정책
 - Capability binding / Secret injection의 최종 schema
 - Runtime requirement schema
 - WebSocket / Event convention
