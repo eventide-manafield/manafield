@@ -36,7 +36,11 @@
     "edgeNetwork": "manafield-edge",
     "ingress": {
       "provider": "traefik",
-      "output": "./dynamic/manafield.yml"
+      "output": "./dynamic/manafield.yml",
+      "bootstrap": {
+        "composeFile": "./infra/traefik/docker-compose.yml",
+        "service": "traefik"
+      }
     }
   }
 }
