@@ -14,7 +14,7 @@
   ],
   "modules": [
     {
-      "id": "reference-web",
+      "id": "manafield-reference",
       "source": {
         "repository": "https://github.com/eventide-manafield/manafield-module-reference.git",
         "ref": "main"
@@ -27,6 +27,7 @@
     }
   ],
   "deployment": {
-    "network": "manafield"
+    "modulesNetwork": "manafield-modules",
+    "edgeNetwork": "manafield-edge"
   }
 }
