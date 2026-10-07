@@ -20,7 +20,7 @@ dynamic_dir="$4"
 
 compose_dir="$(cd "$(dirname "$compose_file")" && pwd)"
 compose_file="$(cd "$(dirname "$compose_file")" && pwd)/$(basename "$compose_file")"
-dynamic_dir="$(mkdir -p "$dynamic_dir" && cd "$dynamic_dir" && pwd)"
+dynamic_dir="$(readlink -m "$dynamic_dir")"
 
 check_provider() {
   rendered="$(cd "$compose_dir" && docker compose -f "$compose_file" config)"
@@ -60,6 +60,8 @@ case "$action" in
     ;;
 
   apply)
+    mkdir -p "$dynamic_dir"
+
     stamp="$(date +%Y%m%d-%H%M%S)"
     backup="$compose_file.bak.$stamp"
 
