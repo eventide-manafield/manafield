@@ -2,7 +2,7 @@
 
 > Manafield Web Shell과 Module Web Exposure를 연결하기 위한 초기 Web Surface 설계입니다.
 >
-> Public URL ownership은 ADR-0009, Official Web Shell 구조는 ADR-0011을 따릅니다.
+> Public URL ownership은 ADR-0009, Official Web Shell 구조는 ADR-0011과 ADR-0012를 따릅니다.
 
 ## 1. 목적
 
@@ -125,19 +125,22 @@ Module은 base path를 기준으로:
 
 을 일관되게 구성해야 합니다.
 
-## 7. Root Shell
+## 7. Homepage와 Shell
 
-통합 Web Instance의 기본 shape:
+통합 Web Instance의 기본 shape는 Homepage와 Shell을 분리할 수 있습니다.
 
 ```text
-/              → manafield-web
-/account/*     → Account page/api surfaces
-/echo/*        → Echo page/api surfaces
+/                 → Homepage Module
+/_manafield/*     → manafield-web
+/account/*        → Account page/api surfaces
+/echo/*           → Echo page/api surfaces
 ```
 
-`manafield-web`은 Module route를 대신 proxy하지 않습니다.
+Homepage Module은 교체하거나 제거할 수 있습니다.
 
-Ingress가 same-origin route를 해당 Module에 직접 전달합니다.
+`manafield-web`은 Homepage나 다른 Module route를 대신 proxy하지 않습니다.
+
+Ingress가 same-origin route를 해당 Module에 직접 전달합니다. 동일 hostname에서 `/`와 더 구체적인 prefix가 함께 존재할 때는 더 구체적인 prefix가 우선합니다.
 
 ## 8. Navigation
 

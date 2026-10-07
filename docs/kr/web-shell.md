@@ -1,6 +1,6 @@
 # Official Web Shell v0 Design
 
-> 이 문서는 ADR-0011을 실제 첫 구현으로 옮기기 위한 초기 설계 메모입니다.
+> 이 문서는 ADR-0011과 ADR-0012를 실제 구현으로 옮기기 위한 초기 설계 메모입니다.
 >
 > 아직 구현 전 단계이며, `manafield-web` Repository bootstrap 시 세부 구조가 바뀔 수 있습니다.
 
@@ -10,12 +10,14 @@
 
 v0 책임:
 
-- `/` Instance home
 - Core Registry 조회
 - Module 목록 / 설명 / version 표시
 - Web surface navigation
 - 기본 layout / visual shell
+- Instance가 배정한 base path 아래의 Shell surface
 - `/manafield/health` Operation
+
+public root `/`의 Homepage 콘텐츠는 별도 Homepage Module이 소유할 수 있으며, 공식 예제는 `manafield-home`입니다.
 
 v0에서 하지 않는 것:
 
@@ -77,9 +79,10 @@ UI에서 Core unavailable 상태를 표시할 수 있어야 합니다.
 ```text
 Host: manafield.studio
 
-/             → manafield-web
-/account/*    → account Module
-/echo/*       → echo Module
+/                 → manafield-home
+/_manafield/*     → manafield-web
+/account/*        → account Module
+/echo/*           → echo Module
 ```
 
 Shell process가 `/account/*`, `/echo/*`를 proxy하지 않습니다.
@@ -90,16 +93,18 @@ Traefik Adapter가 resolved Build Plan을 기반으로 같은 hostname의 route�
 
 ## 5. Route ownership
 
-Web Shell은 root `/`와 Shell에 예약된 최소 namespace만 소유합니다.
+Web Shell은 public root `/`를 필수로 소유하지 않습니다.
 
-후보:
+Homepage는 별도 Module이 `/`를 claim할 수 있고, Shell은 Instance가 배정한 별도 prefix에서 동작할 수 있습니다.
+
+현재 통합 예시:
 
 ```text
-/
-/_manafield/*
+/              → manafield-home
+/_manafield/*  → manafield-web
 ```
 
-`/_manafield/*`의 최종 예약 여부는 아직 결정하지 않습니다.
+`/_manafield/*`의 최종 reserved namespace 여부는 아직 후속 정책 대상입니다.
 
 Module route는 Instance Definition에서 명시적으로 binding합니다.
 
@@ -185,8 +190,8 @@ Web Shell이 존재하지 않는 Headless Instance에서도 Identity Module과 �
 
 ```text
 manafield-web down
-→ Shell/home unavailable
-→ Module APIs may remain reachable
+→ Shell unavailable
+→ Homepage와 다른 Module surface는 계속 reachable할 수 있음
 
 Echo down
 → /echo unavailable
@@ -226,24 +231,22 @@ manafield-web/
 
 ## 10. First implementation milestone
 
-첫 milestone은 다음만 성공하면 됩니다.
+현재 milestone은 다음을 검증합니다.
 
 ```text
 manafield-web starts
 → /manafield/health = OK
 → Core Registry read succeeds
-→ / renders Instance home
-→ registered Modules are listed
-→ description/version visible
+→ Instance-assigned base path에서 Shell page가 동작
+→ MANAFIELD_WEB_BASE_PATH를 asset/handler path에 반영
 → no DB
 → no Docker privilege
 ```
 
-그 다음 Build Plan에 same-host prefix routing을 추가해:
+Homepage는 별도 `manafield-home` Module로 두고, Build Plan / Ingress가 다음 composition을 구성합니다.
 
 ```text
-manafield.studio/
-manafield.studio/echo/
+manafield.studio/             → manafield-home
+manafield.studio/_manafield/  → manafield-web
+manafield.studio/echo/        → Echo
 ```
-
-를 동시에 구성하는 것을 다음 milestone으로 둡니다.

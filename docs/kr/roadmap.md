@@ -148,20 +148,23 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [x] Official Web Shell을 Core와 분리하는 원칙 확정
 - [x] Same-Origin path composition 방향 확정
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
-- [ ] 독립 Repository 생성: `manafield-web`
-- [ ] Go single-binary Web Shell bootstrap
-- [ ] `/manafield/health` Operation
-- [ ] Core Registry 조회
-- [ ] Instance home / navigation
+- [x] ADR-0012 — 교체 가능한 Homepage Module / Web Shell 분리
+- [x] 독립 Repository 생성: `manafield-web`
+- [x] Go single-binary Web Shell bootstrap
+- [x] `/manafield/health` Operation
+- [x] Core Registry 조회
+- [x] Web Shell runtime base path (`MANAFIELD_WEB_BASE_PATH`)
+- [x] 교체 가능한 Homepage Module 경계 / `manafield-home` local prototype
 - [ ] Registry 기반 Dynamic Module navigation
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider 상태 UI
 - [ ] Module Health UI
 - [x] Web Surface metadata v0 (`page / api`) → [Web Surface v0](web-surface.md)
 - [ ] Web Exposure 모델 (`none / host / prefix / routes / external`)
-- [ ] Build Plan same-host prefix / route normalization (prefix preserve)
-- [ ] Build Plan route conflict / precedence validation
-- [ ] Traefik same-host path composition 렌더링 (no prefix strip)
+- [x] Build Plan same-host prefix validation / prefix preserve
+- [x] Prefix duplicate conflict / specificity precedence
+- [ ] `routes` exposure normalization / exact-route conflict validation
+- [x] Traefik same-host prefix composition 렌더링 (no prefix strip)
 - [ ] Manafield reserved root path 정책
 - [ ] resolved Build Plan 기반 ingress 설정 생성 / 적용
 - [ ] login / session entry UX
@@ -219,6 +222,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0009 — Operation Routing / Web Exposure 분리
 - [x] ADR-0010 — Capability 기반 Dependency Resolution
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
+- [x] ADR-0012 — 교체 가능한 Homepage Module / Web Shell 분리
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
@@ -234,6 +238,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] 공개 플랫폼과 Private Instance Configuration 분리 원칙
 - [x] Build Plan Resolver v0
 - [x] Jenkins 단일 Pipeline skeleton
+- [x] resolved Build Plan 기반 동적 Module Compose service 생성
 - [x] `instance.yaml` 부재 시 `instance.bootstrap.yaml` 기반 first-run bootstrap
 - [x] 최초 1회 Bootstrap Wizard 골격 / Account → PostgreSQL + Example Web 의존성 규칙
 - [x] Bootstrap 선택형 PostgreSQL Resource example 실제 배포 연결
@@ -251,7 +256,8 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Ingress Provider 공통 입력 / lifecycle 안정화
 - [x] Traefik Ingress Adapter v0 — host exposure
 - [x] Build Plan 단계 hostname 충돌 검사
-- [ ] Traefik prefix / root route claim 렌더링
+- [x] Traefik prefix 렌더링 / nested-prefix priority
+- [ ] Traefik exact root route claim 렌더링
 - [ ] Nginx Ingress Adapter
 - [ ] Ingress 변경 rollback / stale route 정리
 

@@ -2,7 +2,7 @@
 
 > Initial Web Surface design connecting Module Web Exposure with the Manafield Web Shell.
 >
-> Public URL ownership follows ADR-0009 and the Official Web Shell architecture follows ADR-0011.
+> Public URL ownership follows ADR-0009, while the Official Web Shell architecture follows ADR-0011 and ADR-0012.
 
 ## 1. Purpose
 
@@ -123,19 +123,22 @@ Modules use the base path consistently for:
 - cookie Path
 - browser-side API URLs
 
-## 7. Root Shell
+## 7. Homepage and Shell
 
-Integrated Web Instance shape:
+An integrated Web Instance may separate Homepage content from the Shell.
 
 ```text
-/              → manafield-web
-/account/*     → Account page/api surfaces
-/echo/*        → Echo page/api surfaces
+/                 → Homepage Module
+/_manafield/*     → manafield-web
+/account/*        → Account page/api surfaces
+/echo/*           → Echo page/api surfaces
 ```
 
-`manafield-web` does not proxy Module routes.
+The Homepage Module may be replaced or omitted.
 
-Ingress sends same-origin routes directly to the owning Module.
+`manafield-web` does not proxy Homepage or other Module routes.
+
+Ingress sends same-origin routes directly to the owning Module. When `/` and a more specific prefix share the same hostname, the more specific prefix wins.
 
 ## 8. Navigation
 

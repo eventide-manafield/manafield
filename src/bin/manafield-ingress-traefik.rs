@@ -53,6 +53,12 @@ enum ExposurePlan {
         #[serde(rename = "targetPort")]
         target_port: u16,
     },
+    Prefix {
+        host: String,
+        prefix: String,
+        #[serde(rename = "targetPort")]
+        target_port: u16,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -72,6 +78,7 @@ struct Router {
     rule: String,
     entry_points: Vec<String>,
     service: String,
+    priority: u32,
     tls: BTreeMap<String, String>,
 }
 
@@ -101,33 +108,50 @@ impl TraefikConfig {
                 continue;
             };
 
-            match exposure {
+            let component = safe_component_id(&module.id);
+            let name = format!("manafield-{component}");
+
+            let (rule, target_port, priority) = match exposure {
                 ExposurePlan::Host { host, target_port } => {
-                    let component = safe_component_id(&module.id);
-                    let name = format!("manafield-{component}");
-
-                    routers.insert(
-                        name.clone(),
-                        Router {
-                            rule: format!("Host(`{host}`)"),
-                            entry_points: vec!["websecure".to_string()],
-                            service: name.clone(),
-                            tls: BTreeMap::new(),
-                        },
-                    );
-
-                    services.insert(
-                        name,
-                        Service {
-                            load_balancer: LoadBalancer {
-                                servers: vec![Server {
-                                    url: format!("http://{}:{target_port}", module.id),
-                                }],
-                            },
-                        },
-                    );
+                    (format!("Host(`{host}`)"), target_port, 1)
                 }
-            }
+                ExposurePlan::Prefix {
+                    host,
+                    prefix,
+                    target_port,
+                } => {
+                    let rule = if prefix == "/" {
+                        format!("Host(`{host}`) && PathPrefix(`/`)")
+                    } else {
+                        format!("Host(`{host}`) && (Path(`{prefix}`) || PathPrefix(`{prefix}/`))")
+                    };
+
+                    let priority = 1000 + u32::try_from(prefix.len()).unwrap_or(u32::MAX - 1000);
+                    (rule, target_port, priority)
+                }
+            };
+
+            routers.insert(
+                name.clone(),
+                Router {
+                    rule,
+                    entry_points: vec!["websecure".to_string()],
+                    service: name.clone(),
+                    priority,
+                    tls: BTreeMap::new(),
+                },
+            );
+
+            services.insert(
+                name,
+                Service {
+                    load_balancer: LoadBalancer {
+                        servers: vec![Server {
+                            url: format!("http://module-{component}:{target_port}"),
+                        }],
+                    },
+                },
+            );
         }
 
         Self {
@@ -152,4 +176,46 @@ fn safe_component_id(value: &str) -> String {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_nested_prefixes_with_specificity_priority() {
+        let plan: BuildPlan = serde_json::from_str(
+            r#"{
+                "modules": [
+                    {
+                        "id": "manafield-home",
+                        "exposure": {
+                            "type": "prefix",
+                            "host": "manafield.studio",
+                            "prefix": "/",
+                            "targetPort": 8080
+                        }
+                    },
+                    {
+                        "id": "manafield-web",
+                        "exposure": {
+                            "type": "prefix",
+                            "host": "manafield.studio",
+                            "prefix": "/_manafield",
+                            "targetPort": 8080
+                        }
+                    }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let config = TraefikConfig::from_plan(plan);
+        let home = config.http.routers.get("manafield-manafield-home").unwrap();
+        let shell = config.http.routers.get("manafield-manafield-web").unwrap();
+
+        assert!(home.rule.contains("PathPrefix(`/`)"));
+        assert!(shell.rule.contains("Path(`/_manafield`)"));
+        assert!(shell.priority > home.priority);
+    }
 }

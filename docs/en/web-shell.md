@@ -1,6 +1,6 @@
 # Official Web Shell v0 Design
 
-> Initial implementation notes for turning ADR-0011 into the first real Web Shell.
+> Initial implementation notes for turning ADR-0011 and ADR-0012 into the real Web Shell.
 >
 > This is still pre-implementation design and may change when the `manafield-web` repository is bootstrapped.
 
@@ -10,12 +10,14 @@
 
 v0 responsibilities:
 
-- `/` instance home
 - Core Registry reads
 - Module listing with description/version
 - navigation into Module Web surfaces
 - common layout / visual shell
+- a Shell surface below the Instance-assigned base path
 - `/manafield/health` Operation
+
+Homepage content at public root `/` may be owned by a separate Homepage Module. The initial official example is `manafield-home`.
 
 v0 does not:
 
@@ -77,9 +79,10 @@ Integrated Instance example:
 ```text
 Host: manafield.studio
 
-/             → manafield-web
-/account/*    → account Module
-/echo/*       → echo Module
+/                 → manafield-home
+/_manafield/*     → manafield-web
+/account/*        → account Module
+/echo/*           → echo Module
 ```
 
 The Shell process does not proxy `/account/*` or `/echo/*`.
@@ -90,16 +93,18 @@ Shell deployment and Module-route deployment therefore remain separate.
 
 ## 5. Route ownership
 
-The Shell owns root `/` plus a minimal reserved namespace.
+The Shell does not need to own public root `/`.
 
-Candidate:
+A separate Homepage Module may claim `/`, while the Shell runs under an Instance-assigned prefix.
+
+Current composition example:
 
 ```text
-/
-/_manafield/*
+/              → manafield-home
+/_manafield/*  → manafield-web
 ```
 
-The final reservation of `/_manafield/*` is not decided yet.
+Whether `/_manafield/*` becomes the final reserved namespace remains a later policy decision.
 
 Module routes are explicitly bound in the Instance Definition.
 
@@ -185,8 +190,8 @@ Failures remain separated.
 
 ```text
 manafield-web down
-→ Shell/home unavailable
-→ Module APIs may remain reachable
+→ Shell unavailable
+→ Homepage and other Module surfaces may remain reachable
 
 Echo down
 → /echo unavailable
@@ -226,24 +231,22 @@ Avoid premature package splitting; keep only the directories justified by real c
 
 ## 10. First implementation milestone
 
-The first milestone only needs:
+The current milestone validates:
 
 ```text
 manafield-web starts
 → /manafield/health = OK
 → Core Registry read succeeds
-→ / renders Instance home
-→ registered Modules are listed
-→ description/version visible
+→ Shell page works below the Instance-assigned base path
+→ MANAFIELD_WEB_BASE_PATH is reflected in handlers/assets
 → no DB
 → no Docker privilege
 ```
 
-The next milestone adds same-host prefix routing so both:
+Homepage content lives in a separate `manafield-home` Module and Build Plan / Ingress compose routes such as:
 
 ```text
-manafield.studio/
-manafield.studio/echo/
+manafield.studio/             → manafield-home
+manafield.studio/_manafield/  → manafield-web
+manafield.studio/echo/        → Echo
 ```
-
-can coexist.

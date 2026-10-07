@@ -104,10 +104,12 @@ Build Plan Resolver는 배포 전에 public route claim 충돌을 검사합니�
 
 최소한 다음은 충돌로 처리합니다.
 
-- 동일 hostname의 중복 소유
+- 동일 hostname의 중복 `host` catch-all 소유
 - 동일 exact path의 중복 claim
-- prefix claim이 다른 exact / prefix route를 가리는 경우
+- 동일 hostname에서 동일 normalized prefix의 중복 claim
 - Manafield가 예약한 root path와의 충돌
+
+서로 다른 prefix의 중첩은 자동 충돌이 아닙니다. 예를 들어 `/` Homepage와 `/social` Module은 함께 존재할 수 있으며, Ingress Adapter가 더 구체적인 prefix를 우선하도록 deterministic priority를 생성합니다.
 
 충돌이 발견되면 배포를 계속하지 않고 Build Plan 생성을 실패시킵니다.
 

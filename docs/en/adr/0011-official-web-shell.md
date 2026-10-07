@@ -2,6 +2,7 @@
 
 - Status: **Accepted**
 - Date: 2026-10-07
+- Amendment: ADR-0012 separates public-root Homepage ownership into a replaceable Module
 
 ## Context
 
@@ -30,7 +31,7 @@ It is not embedded in Core.
 
 It may provide user-facing shell responsibilities such as:
 
-- instance home
+- Shell-owned navigation / status surfaces
 - global navigation
 - Registry-driven Module discovery
 - common layout / visual shell
@@ -48,10 +49,11 @@ An Instance may compose Web surfaces under one hostname using path routing.
 Example:
 
 ```text
-manafield.studio/           → manafield-web
-manafield.studio/account/*  → Account Module
-manafield.studio/echo/*     → Echo Module
-manafield.studio/...        → other Module
+manafield.studio/                 → Homepage Module
+manafield.studio/_manafield/*     → manafield-web
+manafield.studio/account/*        → Account Module
+manafield.studio/echo/*           → Echo Module
+manafield.studio/...              → other Module
 ```
 
 The browser sees one Website, while the actual backends remain independent Modules.
@@ -70,7 +72,8 @@ Where practical, Ingress routes public requests directly to the owning Module.
 Browser
    ↓
 Ingress
-   ├─ /              → manafield-web
+   ├─ /              → Homepage Module
+   ├─ /_manafield/*  → manafield-web
    ├─ /echo/*        → Echo
    ├─ /account/*     → Account
    └─ ...
@@ -106,10 +109,10 @@ The v0 composition unit is:
 
 ```text
 Web Shell
-→ root/home/navigation
+→ provides navigation / common surfaces in its Instance-assigned shell namespace
 
 Module Web Surface
-→ owns its Instance-assigned path namespace
+→ owns its Instance-assigned path namespace, including an optional Homepage
 ```
 
 Examples:
@@ -195,8 +198,8 @@ Conceptual example:
 ```text
 Host: manafield.studio
 
-/                 → manafield-web
-/_manafield/*     → manafield-web internal surface (candidate)
+/                 → Homepage Module
+/_manafield/*     → manafield-web (candidate Shell namespace)
 /account/*        → Account Web surface
 /echo/*           → Echo Web surface
 ```

@@ -501,11 +501,6 @@ EOF
 
                     modules_network="$(cat ci-plan/modules-network.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
-                    reference_image="$(
-                      awk -F '\t' '$1 == "manafield-reference" { print $5; exit }' module-sources.tsv
-                    )"
-
-                    test -n "$reference_image"
 
                     postgres_count="$(
                       awk -F '\t' '$2 == "postgresql" { count += 1 } END { print count + 0 }' \
@@ -542,7 +537,6 @@ EOF
 
                     printf '%s\n' \
                       "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
-                      "MANAFIELD_REFERENCE_IMAGE=$reference_image" \
                       "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
                       "MANAFIELD_MODULES_NETWORK=$modules_network" \
                       "MANAFIELD_EDGE_NETWORK=$edge_network" \
@@ -553,6 +547,10 @@ EOF
 
                     printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"
 
+                    cat > "$RELEASE_DIR/modules.compose.yml" <<'EOF'
+services:
+EOF
+
                     tab="$(printf '\t')"
 
                     while IFS="$tab" read -r module_id safe_id module_dir revision image build_type build_context dockerfile; do
@@ -562,6 +560,58 @@ EOF
                       test -f "$manifest"
                       mkdir -p "$destination"
                       cp "$manifest" "$destination/manafield.module.json"
+
+                      exposure_type="$(
+                        awk -F '\t' -v id="$module_id" '$1 == id { print $2; exit }' \
+                          ci-plan/module-exposures.tsv
+                      )"
+                      exposure_prefix="$(
+                        awk -F '\t' -v id="$module_id" '$1 == id { print $4; exit }' \
+                          ci-plan/module-exposures.tsv
+                      )"
+                      target_port="$(
+                        awk -F '\t' -v id="$module_id" '$1 == id { print $5; exit }' \
+                          ci-plan/module-exposures.tsv
+                      )"
+
+                      [ -n "$target_port" ] || target_port="8080"
+
+                      base_path="/"
+                      if [ "$exposure_type" = "prefix" ]; then
+                        base_path="$exposure_prefix"
+                      fi
+
+                      service_id="module-$safe_id"
+
+                      cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+  $service_id:
+    image: $image
+    restart: unless-stopped
+    init: true
+    environment:
+      PORT: "$target_port"
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_MODULE_ID: "$module_id"
+      MANAFIELD_WEB_BASE_PATH: "$base_path"
+    depends_on:
+      core:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      modules: {}
+EOF
+
+                      if [ -n "$exposure_type" ]; then
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+      edge: {}
+EOF
+                      fi
                     done < module-sources.tsv
                 '''
             }
@@ -624,11 +674,13 @@ EOF
                     docker compose \
                       --env-file "$RELEASE_DIR/release.env" \
                       --file "$RELEASE_DIR/compose.yml" \
+                      --file "$RELEASE_DIR/modules.compose.yml" \
                       up -d --no-build --remove-orphans
 
                     docker compose \
                       --env-file "$RELEASE_DIR/release.env" \
                       --file "$RELEASE_DIR/compose.yml" \
+                      --file "$RELEASE_DIR/modules.compose.yml" \
                       ps
                 '''
             }
@@ -681,14 +733,37 @@ EOF
                       unset COMPOSE_PROFILES || true
                     fi
 
-                    core_container="$(
+                    compose() {
                       docker compose \
                         --env-file "$RELEASE_DIR/release.env" \
                         --file "$RELEASE_DIR/compose.yml" \
-                        ps -q core
-                    )"
+                        --file "$RELEASE_DIR/modules.compose.yml" \
+                        "$@"
+                    }
 
+                    core_container="$(compose ps -q core)"
                     test -n "$core_container"
+
+                    verify_expected_modules() {
+                      docker exec "$core_container" \
+                        curl --fail --silent --show-error \
+                        http://127.0.0.1:8080/modules >/tmp/manafield-modules.json \
+                        || return 1
+
+                      tab="$(printf '\t')"
+
+                      while IFS="$tab" read -r module_id safe_id _; do
+                        [ -n "$module_id" ] || continue
+
+                        module_pattern="$(printf '"id":"%s"' "$module_id")"
+                        grep -Fq "$module_pattern" /tmp/manafield-modules.json || return 1
+
+                        module_container="$(compose ps -q "module-$safe_id")"
+                        [ -n "$module_container" ] || return 1
+                        [ "$(docker inspect -f '{{.State.Running}}' "$module_container")" = "true" ] \
+                          || return 1
+                      done < module-sources.tsv
+                    }
 
                     verify_expected_resources() {
                       if [ ! -s ci-plan/resources.tsv ]; then
@@ -712,27 +787,12 @@ EOF
                       if docker exec "$core_container" \
                            curl --fail --silent --show-error \
                            http://127.0.0.1:8080/health >/tmp/manafield-core-health.json \
-                        && docker exec "$core_container" \
-                           curl --fail --silent --show-error \
-                           http://127.0.0.1:8080/modules >/tmp/manafield-modules.json \
-                        && grep -Fq '"id":"manafield-reference"' /tmp/manafield-modules.json \
-                        && while IFS="$(printf '\t')" read -r module_id _; do
-                             [ -n "$module_id" ] || continue
-                             module_pattern="$(printf '"id":"%s"' "$module_id")"
-                             grep -Fq "$module_pattern" /tmp/manafield-modules.json
-                           done < module-sources.tsv \
-                        && verify_expected_resources \
-                        && docker exec "$core_container" \
-                           curl --fail --silent --show-error \
-                           http://reference:8080/manafield/health >/tmp/manafield-reference-health.json \
-                        && docker exec "$core_container" \
-                           curl --fail --silent --show-error \
-                           http://reference:8080/api/core/modules >/tmp/manafield-reference-modules.json \
-                        && grep -Fq '"id":"manafield-reference"' /tmp/manafield-reference-modules.json
+                        && verify_expected_modules \
+                        && verify_expected_resources
                       then
                         cat /tmp/manafield-core-health.json
                         echo
-                        cat /tmp/manafield-reference-health.json
+                        cat /tmp/manafield-modules.json
                         echo
                         if [ -f /tmp/manafield-resources.json ]; then
                           cat /tmp/manafield-resources.json
@@ -775,9 +835,13 @@ EOF
                     fi
                   fi
 
-                  docker compose \
-                    --env-file "$RELEASE_DIR/release.env" \
-                    --file "$RELEASE_DIR/compose.yml" \
+                  compose_args="--env-file $RELEASE_DIR/release.env --file $RELEASE_DIR/compose.yml"
+
+                  if [ -f "$RELEASE_DIR/modules.compose.yml" ]; then
+                    compose_args="$compose_args --file $RELEASE_DIR/modules.compose.yml"
+                  fi
+
+                  docker compose $compose_args \
                     logs --tail=100 --no-color || true
                 fi
             '''

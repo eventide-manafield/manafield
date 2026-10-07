@@ -104,10 +104,12 @@ The Build Plan Resolver checks public route claims before deployment.
 
 At minimum, the following are conflicts:
 
-- duplicate ownership of the same hostname
+- duplicate `host` catch-all ownership of the same hostname
 - duplicate exact-path claims
-- a prefix claim shadowing another exact or prefix route
+- duplicate normalized prefix claims on the same hostname
 - collisions with Manafield-reserved root paths
+
+Nested but distinct prefixes are not automatically conflicts. For example, a `/` Homepage and a `/social` Module may coexist when the Ingress Adapter assigns deterministic priority to the more specific prefix.
 
 A conflict fails Build Plan generation instead of continuing deployment.
 

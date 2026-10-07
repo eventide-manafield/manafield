@@ -26,31 +26,6 @@ services:
     networks:
       - modules
 
-  reference:
-    image: ${MANAFIELD_REFERENCE_IMAGE:-manafield-reference:local}
-    restart: unless-stopped
-    init: true
-    environment:
-      PORT: 8080
-      MANAFIELD_CORE_URL: http://core:8080
-    depends_on:
-      core:
-        condition: service_healthy
-    read_only: true
-    tmpfs:
-      - /tmp
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      modules:
-        aliases:
-          - manafield-reference
-      edge:
-        aliases:
-          - manafield-reference
-
   example-postgres:
     profiles:
       - example-postgresql

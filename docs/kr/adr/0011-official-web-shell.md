@@ -2,6 +2,7 @@
 
 - 상태: **Accepted**
 - 날짜: 2026-10-07
+- 수정: ADR-0012가 public root Homepage ownership을 별도 Module로 분리
 
 ## Context
 
@@ -30,7 +31,7 @@ info.manafield.studio
 
 일반 Module이며 다음과 같은 사용자-facing shell 책임을 가질 수 있습니다.
 
-- Instance home
+- Shell-owned navigation / status surface
 - global navigation
 - Registry 기반 Module discovery
 - 공통 layout / visual shell
@@ -48,10 +49,11 @@ Core와 다른 Module은 `manafield-web`이 없어도 동작할 수 있어야 �
 예:
 
 ```text
-manafield.studio/           → manafield-web
-manafield.studio/account/*  → Account Module
-manafield.studio/echo/*     → Echo Module
-manafield.studio/...        → other Module
+manafield.studio/                 → Homepage Module
+manafield.studio/_manafield/*     → manafield-web
+manafield.studio/account/*        → Account Module
+manafield.studio/echo/*           → Echo Module
+manafield.studio/...              → other Module
 ```
 
 외부에서는 하나의 Website처럼 보이지만 각 route의 실제 backend는 독립 Module일 수 있습니다.
@@ -70,7 +72,8 @@ ADR-0009에 따라 Instance Definition과 Ingress Provider가 concrete route bin
 Browser
    ↓
 Ingress
-   ├─ /              → manafield-web
+   ├─ /              → Homepage Module
+   ├─ /_manafield/*  → manafield-web
    ├─ /echo/*        → Echo
    ├─ /account/*     → Account
    └─ ...
@@ -110,10 +113,10 @@ v0의 기본 단위는 다음입니다.
 
 ```text
 Web Shell
-→ root/home/navigation
+→ Instance가 할당한 shell namespace에서 navigation / 공통 surface 제공
 
 Module Web Surface
-→ Instance가 할당한 path namespace에서 자체 page/API 제공
+→ Homepage를 포함해 Instance가 할당한 path namespace에서 자체 page/API 제공
 ```
 
 예:
@@ -199,8 +202,8 @@ React/Node runtime을 production 필수 요소로 만들지 않습니다.
 ```text
 Host: manafield.studio
 
-/                 → manafield-web
-/_manafield/*     → manafield-web internal surface (candidate)
+/                 → Homepage Module
+/_manafield/*     → manafield-web (candidate Shell namespace)
 /account/*        → Account Web surface
 /echo/*           → Echo Web surface
 ```

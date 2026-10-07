@@ -122,6 +122,33 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
     }
     fs::write(directory.join("modules.tsv"), modules)?;
 
+    let mut module_exposures = String::new();
+    for module in &plan.modules {
+        let Some(exposure) = &module.exposure else {
+            continue;
+        };
+
+        match exposure {
+            ExposureDefinition::Host { host, target_port } => {
+                module_exposures.push_str(&format!(
+                    "{}\thost\t{}\t-\t{}\n",
+                    module.id, host, target_port
+                ));
+            }
+            ExposureDefinition::Prefix {
+                host,
+                prefix,
+                target_port,
+            } => {
+                module_exposures.push_str(&format!(
+                    "{}\tprefix\t{}\t{}\t{}\n",
+                    module.id, host, prefix, target_port
+                ));
+            }
+        }
+    }
+    fs::write(directory.join("module-exposures.tsv"), module_exposures)?;
+
     let mut resources = String::new();
     for resource in &plan.resources {
         resources.push_str(&format!("{}\t{}\n", resource.id, resource.provider,));
@@ -157,7 +184,8 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
     }
 
     let mut instance_ids = HashSet::new();
-    let mut exposure_hosts = HashSet::new();
+    let mut host_exposures = HashSet::new();
+    let mut prefix_exposures = HashSet::new();
     let mut has_exposure = false;
 
     for module in &definition.modules {
@@ -185,13 +213,30 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
             has_exposure = true;
 
             match exposure {
-                ExposureDefinition::Host { host, .. } => {
+                ExposureDefinition::Host { host, target_port } => {
                     require_non_empty(&format!("modules[{}].exposure.host", module.id), host)?;
+                    validate_target_port(&module.id, *target_port)?;
 
-                    if !exposure_hosts.insert(host.as_str()) {
+                    if !host_exposures.insert(host.as_str()) {
                         return Err(format!(
                             "duplicate host exposure '{}' in enabled Modules",
                             host
+                        ));
+                    }
+                }
+                ExposureDefinition::Prefix {
+                    host,
+                    prefix,
+                    target_port,
+                } => {
+                    require_non_empty(&format!("modules[{}].exposure.host", module.id), host)?;
+                    validate_prefix(&module.id, prefix)?;
+                    validate_target_port(&module.id, *target_port)?;
+
+                    if !prefix_exposures.insert((host.as_str(), prefix.as_str())) {
+                        return Err(format!(
+                            "duplicate prefix exposure '{}{}' in enabled Modules",
+                            host, prefix
                         ));
                     }
                 }
@@ -265,6 +310,38 @@ fn require_non_empty(label: &str, value: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn validate_target_port(module_id: &str, target_port: u16) -> Result<(), String> {
+    if target_port == 0 {
+        Err(format!(
+            "modules[{module_id}].exposure.targetPort must be greater than 0"
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_prefix(module_id: &str, prefix: &str) -> Result<(), String> {
+    if !prefix.starts_with('/') {
+        return Err(format!(
+            "modules[{module_id}].exposure.prefix must start with '/'"
+        ));
+    }
+
+    if prefix.len() > 1 && prefix.ends_with('/') {
+        return Err(format!(
+            "modules[{module_id}].exposure.prefix must not end with '/'"
+        ));
+    }
+
+    if prefix.contains('?') || prefix.contains('#') || prefix.contains("//") {
+        return Err(format!(
+            "modules[{module_id}].exposure.prefix must be a canonical URL path prefix"
+        ));
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -349,6 +426,12 @@ struct ModuleBuildDefinition {
 enum ExposureDefinition {
     Host {
         host: String,
+        #[serde(rename = "targetPort")]
+        target_port: u16,
+    },
+    Prefix {
+        host: String,
+        prefix: String,
         #[serde(rename = "targetPort")]
         target_port: u16,
     },
@@ -483,4 +566,97 @@ struct ModuleBuildPlan {
     build_type: BuildType,
     context: String,
     dockerfile: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn definition_with_modules(modules: &str) -> InstanceDefinition {
+        serde_yaml_ng::from_str(&format!(
+            r#"
+version: 0
+instance:
+  id: test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+modules:
+{modules}
+deployment:
+  modulesNetwork: manafield-modules
+  edgeNetwork: manafield-edge
+  ingress:
+    provider: traefik
+    output: /tmp/manafield.yml
+"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn accepts_nested_prefixes_on_same_host() {
+        let definition = definition_with_modules(
+            r#"  - id: home
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    exposure:
+      type: prefix
+      host: manafield.studio
+      prefix: /
+      targetPort: 8080
+  - id: social
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    exposure:
+      type: prefix
+      host: manafield.studio
+      prefix: /social
+      targetPort: 8080"#,
+        );
+
+        assert_eq!(validate_definition(&definition), Ok(()));
+    }
+
+    #[test]
+    fn rejects_duplicate_prefix_on_same_host() {
+        let definition = definition_with_modules(
+            r#"  - id: home-a
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    exposure:
+      type: prefix
+      host: manafield.studio
+      prefix: /
+      targetPort: 8080
+  - id: home-b
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    exposure:
+      type: prefix
+      host: manafield.studio
+      prefix: /
+      targetPort: 8080"#,
+        );
+
+        let error = validate_definition(&definition).unwrap_err();
+        assert!(error.contains("duplicate prefix exposure"));
+    }
 }

@@ -148,20 +148,23 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [x] Separate the Official Web Shell from Core
 - [x] Select same-origin path composition
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
-- [ ] Create independent `manafield-web` repository
-- [ ] Bootstrap Go single-binary Web Shell
-- [ ] `/manafield/health` Operation
-- [ ] Core Registry reads
-- [ ] Instance home / navigation
+- [x] ADR-0012 — Replaceable Homepage Module / Web Shell Separation
+- [x] Create independent `manafield-web` repository
+- [x] Bootstrap Go single-binary Web Shell
+- [x] `/manafield/health` Operation
+- [x] Core Registry reads
+- [x] Web Shell runtime base path (`MANAFIELD_WEB_BASE_PATH`)
+- [x] Replaceable Homepage Module boundary / local `manafield-home` prototype
 - [ ] Registry-driven dynamic Module navigation
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider status UI
 - [ ] Module Health UI
 - [x] Web Surface metadata v0 (`page / api`) → [Web Surface v0](web-surface.md)
 - [ ] Web Exposure model (`none / host / prefix / routes / external`)
-- [ ] Build Plan same-host prefix / route normalization (preserve prefix)
-- [ ] Build Plan route conflict / precedence validation
-- [ ] Render Traefik same-host path composition (no prefix stripping)
+- [x] Build Plan same-host prefix validation / preserved prefixes
+- [x] Prefix duplicate conflict / specificity precedence
+- [ ] Normalize `routes` exposure / validate exact-route conflicts
+- [x] Render Traefik same-host prefix composition (no prefix stripping)
 - [ ] Manafield reserved root-path policy
 - [ ] Generate / apply ingress configuration from the resolved Build Plan
 - [ ] login / session entry UX
@@ -219,6 +222,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0009 — Separate Operation Routing from Web Exposure
 - [x] ADR-0010 — Capability-Based Dependency Resolution
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
+- [x] ADR-0012 — Replaceable Homepage Module / Web Shell Separation
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
@@ -234,6 +238,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Separate public platform code from private Instance Configuration
 - [x] Build Plan Resolver v0
 - [x] Single Jenkins Pipeline skeleton
+- [x] Generate dynamic Module Compose services from the resolved Build Plan
 - [x] First-run bootstrap from `instance.bootstrap.yaml` when `instance.yaml` is absent
 - [x] One-time Bootstrap Wizard skeleton / Account implies PostgreSQL + Example Web
 - [x] Wire selectable PostgreSQL Resource example through bootstrap deployment
@@ -251,7 +256,8 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Stabilize common Ingress Provider input / lifecycle
 - [x] Traefik Ingress Adapter v0 — host exposure
 - [x] Build Plan hostname conflict detection
-- [ ] Render Traefik prefix / root route claims
+- [x] Render Traefik prefixes / nested-prefix priority
+- [ ] Render Traefik exact root route claims
 - [ ] Nginx Ingress Adapter
 - [ ] Ingress rollback / stale-route cleanup
 
