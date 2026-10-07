@@ -2,7 +2,9 @@
 
 > 기존 private `manafield-echo` 서비스를 현재 Manafield Module 구조에 맞추기 전에 수행한 비교 검토입니다.
 >
-> 이 문서는 Echo를 즉시 변환하는 구현 계획이 아니라, 두 번째 실제 서비스 사례를 통해 Module Template 경계를 검증하기 위한 기록입니다.
+> 이 문서는 기존 Echo를 in-place 변환하는 구현 계획이 아니라, 두 번째 실제 서비스 사례를 통해 Module Template 경계를 검증하기 위한 기록입니다.
+>
+> **현재 결정:** Echo v2 backend/deployment는 새 Architecture 기준으로 새로 만들고, 기존 private Echo에서는 재사용 가치가 높은 CSS/JS/정적 FE 자산만 선별합니다.
 
 ## 1. 현재 Echo의 성격
 
@@ -88,7 +90,7 @@ DB가 필요한 Module은 존재할 수 있지만 모든 Module에 DB가 필요�
 - DB network name
 - DB credential variable names
 
-장기적으로 Module package/runtime requirement가 구체화될 때 Database/Storage dependency를 선언하는 별도 모델을 검토합니다.
+Database/Storage dependency는 [ADR-0010](adr/0010-capability-dependency-resolution.md)에 따라 Module Capability와 분리된 **Resource Requirement**로 표현합니다. Echo v2는 PostgreSQL을 전제로 하므로 `database.postgresql` Resource를 요구하는 첫 실제 사례가 될 수 있습니다.
 
 ### Authentication coupling
 
@@ -98,7 +100,7 @@ DB가 필요한 Module은 존재할 수 있지만 모든 Module에 DB가 필요�
 
 이는 기존 Manafield 서비스 구조와의 결합이며 새로운 Module Template의 기본 패턴으로 가져가지 않습니다.
 
-향후 Identity / Permission 모델이 정의되면 Echo 인증 흐름을 다시 연결해야 합니다.
+Echo v2가 계정/Identity 기능을 요구하게 되면 특정 계정 Module ID에 고정하기보다 `manafield.identity` 같은 Capability Contract를 요구하는 방향을 우선합니다. 실제 Identity 구현체는 Instance binding이 선택합니다.
 
 ### Traefik / proxy wiring
 
@@ -145,34 +147,42 @@ JDK build image와 JRE runtime image를 분리한 현재 Dockerfile 방향은 �
 - non-root runtime user
 - Docker HEALTHCHECK
 
-## 6. Echo를 현재 Manafield Module로 전환할 때 필요한 최소 작업
+## 6. Echo v2를 새 Module로 설계하기 전에 필요한 Template 경계
+
+Echo v2 private Repository를 만들기 전에 공통 Template Contract와 Java/Spring Web profile에서 다음을 설명할 수 있어야 합니다.
 
 ### Protocol
 
-- `manafield.module.json` 추가
-- Health Operation 추가
-- 최소한 핵심 callable API를 Operation Contract로 표현
-- Descriptor validation 통과
+- `manafield.module.json`
+- optional Module / Operation `description`
+- Health Operation
+- 핵심 callable API의 Operation Contract
+- Capability Requirement / Provided Capability의 경계
+
+### Resource
+
+- `database.postgresql` Resource Requirement
+- concrete PostgreSQL Provider / allocation은 Instance가 선택
+- DB credential은 Secret injection으로 전달
+- Echo는 JDBC/PostgreSQL driver로 DB에 직접 연결
 
 ### Container
 
 - runtime non-root user
 - Docker HEALTHCHECK
-- host port publish 제거 또는 development-only로 이동
-- production deployment용 자체 Traefik labels 제거
+- runtime-configurable port
+- production host port / Traefik label을 Module Repository에 고정하지 않음
 
 ### Instance Definition
 
-Echo 자체 Repository의 production Compose가 아니라 Instance Definition에서 다음을 구성합니다.
+Instance가 다음 concrete wiring을 결정합니다.
 
 - source / version
 - build contract
 - Web exposure
-- Database / Secret requirement는 현재 가능한 범위에서 별도 주입
-
-### Legacy integration
-
-기존 JWT / Manafield API 직접 호출은 초기 migration bridge로 유지할 수 있지만, Module Template 요구사항으로 승격하지 않습니다.
+- Capability binding
+- Resource Provider binding
+- Secret injection
 
 ## 7. Operation Contract 관련 관찰
 
@@ -193,7 +203,7 @@ GET  /api/admin/echoes
 
 Operation은 단순 HTTP route 목록이 아니라 **Manafield가 discover/call할 공용 기능 계약**입니다.
 
-따라서 Echo migration 시 다음을 검증해야 합니다.
+따라서 Echo v2 설계 시 다음을 검증해야 합니다.
 
 - 어떤 HTTP endpoint를 Operation으로 공개할 것인가
 - Web UI 내부 전용 endpoint와 Operation을 어떻게 구분할 것인가
@@ -215,9 +225,9 @@ Echo 검토로 다음 경계가 강화되었습니다.
 
 ## 9. 상태
 
-Echo 분석 자체는 완료했지만, **두 번째 실제 Module 검증은 아직 완료로 처리하지 않습니다.**
+기존 Echo 분석 자체는 완료했지만, **두 번째 실제 Module 검증은 아직 완료로 처리하지 않습니다.**
 
-Echo에 현재 Module Protocol을 실제로 적용하고 Core Registry에서 동작시키는 단계까지 완료한 뒤:
+먼저 Capability/Resource dependency와 Java/Spring Web profile을 포함한 Template Contract를 정리합니다. 그 뒤 새 private Echo v2 Repository를 만들고 실제 Core Registry에서 동작시키는 단계까지 완료한 뒤:
 
 ```text
 두 번째 실제 Module에서 Template 요구사항 재검증
