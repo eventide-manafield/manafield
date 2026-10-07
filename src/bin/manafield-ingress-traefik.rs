@@ -109,7 +109,7 @@ impl TraefikConfig {
                     routers.insert(
                         name.clone(),
                         Router {
-                            rule: format!("Host(\`{host}\`)"),
+                            rule: format!("Host(`{host}`)"),
                             entry_points: vec!["websecure".to_string()],
                             service: name.clone(),
                             tls: BTreeMap::new(),
