@@ -55,7 +55,7 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [ ] Go Web implementation profile 정리
 - [ ] TS / React Web implementation profile 정리
 - [ ] Java / Spring Web implementation profile 정리
-- [ ] `database.postgresql` Resource를 요구하는 stateful Web Module 설계 가능 상태 검증
+- [ ] `database.postgresql` Capability를 요구하는 stateful Web Module 설계 가능 상태 검증
 - [ ] 새 private Echo v2 Repository 생성 / 구현
 - [ ] Echo v2를 실제 Core Registry에 등록
 - [ ] 두 번째 실제 Module에서 Template Contract 재검증
