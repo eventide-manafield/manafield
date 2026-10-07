@@ -263,7 +263,9 @@ sequenceDiagram
 - 해당 Binding이 지원하는 Codec
 - 향후 필요한 Permission / Capability
 
-초기에는 Operation 정보를 **탐색 및 검증용 metadata**로 사용합니다. 실제 자동 Proxy/Route 연결은 Registry 구조가 안정화된 뒤 추가합니다.
+Operation 정보는 **호출 가능한 기능의 탐색 및 검증용 계약**으로 사용합니다.
+
+Web exposure는 Operation ID나 Binding path에서 자동으로 파생하지 않습니다. 외부 hostname/path 노출은 private Instance Definition의 별도 정책으로 처리하며, 현재 host exposure는 Build Plan과 Ingress Adapter를 통해 연결할 수 있습니다. 자세한 경계는 [ADR-0009](adr/0009-operation-web-exposure.md)을 참고합니다.
 
 현재 Core의 Module discovery 응답은 실험적으로 HTTP content negotiation을 지원합니다. 기본 응답은 JSON이며, `Accept: application/msgpack`을 보내면 MessagePack 바이너리로 응답합니다.
 
@@ -307,15 +309,26 @@ operations:
       codecs:
         - json
 
-web:
-  mode: proxy
-  route: /example
-
 permissions:
   - example.read
 ```
 
 Manifest Schema는 아직 확정되지 않았습니다.
+
+Public hostname/path 같은 Web exposure 설정은 이 Manifest 예시에 포함하지 않습니다. Module은 Web surface를 제공할 수 있지만, 실제 외부 노출 위치는 Instance Definition에서 결정합니다.
+
+예:
+
+```yaml
+modules:
+  - id: example
+    exposure:
+      type: host
+      host: example.manafield.studio
+      targetPort: 8080
+```
+
+이렇게 하면 같은 Module Repository를 여러 Instance에서 서로 다른 hostname/path 정책으로 재사용할 수 있습니다.
 
 ### 현재 개발용 Module discovery
 
@@ -398,15 +411,19 @@ Existing Modules continue to work
 
 Core와 Module Template은 별도 Repository로 관리할 예정입니다.
 
+현재 `manafield-reference` 구현에서 추출한 초기 요구사항은 [Module Template Requirements v0](module-template-requirements.md)에 정리합니다.
+
 예:
 
 ```text
+manafield-module-template-ts-react
 manafield-module-template-go
 manafield-module-template-python
-manafield-module-template-node
 ```
 
 개발자는 Manafield Core 전체를 clone하지 않고 Template Repository에서 시작해 Protocol만 구현할 수 있어야 합니다.
+
+단일 Reference 구현만 보고 Template을 너무 빨리 고정하지 않고, 두 번째 실제 Module을 구현한 뒤 공통 부분을 다시 검증합니다.
 
 ## 9. 보안 방향
 
