@@ -231,7 +231,8 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] Build Plan Resolver v0
 - [x] Jenkins 단일 Pipeline skeleton
 - [x] `instance.yaml` 부재 시 `instance.bootstrap.yaml` 기반 first-run bootstrap
-- [ ] Bootstrap 선택형 예제: PostgreSQL Resource / Example Web / Example Account
+- [x] 최초 1회 Bootstrap Wizard 골격 / Account → PostgreSQL + Example Web 의존성 규칙
+- [ ] Bootstrap 선택형 예제 실제 구현: PostgreSQL Resource / Example Web / Example Account
 - [ ] GitHub webhook → 동일 Instance Pipeline 연결
 - [ ] 변경 source 기반 selective build
 - [ ] Core / Runtime Provider / Module image tagging
