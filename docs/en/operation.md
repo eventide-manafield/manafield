@@ -12,10 +12,11 @@ In Manafield, an **Operation** is the contract for callable functionality expose
 
 An Operation describes:
 
-- the ID used to identify the capability
+- the ID used to identify the Operation
+- an optional description for search/listing UI
 - the expected input
 - the expected output
-- how the capability can be invoked
+- how the Operation can be invoked
 
 Conceptually:
 
@@ -34,6 +35,7 @@ The current Rust model follows this concept:
 ```rust
 struct OperationContract {
     id: String,
+    description: Option<String>,
     input: Option<DataSchema>,
     output: Option<DataSchema>,
     binding: OperationBinding,
@@ -66,6 +68,8 @@ flowchart TB
 
 Operation Contracts are currently stored in the Module Registry as **discovery and validation metadata**.
 
+`description` is nullable/optional display metadata. It helps humans understand an Operation in Registry search results and management UI, but does not participate in invocation compatibility or Capability satisfaction.
+
 Automatic Operation proxying / invocation is not implemented yet.
 
 ## 3. Input / Output
@@ -79,6 +83,7 @@ Example:
 ```json
 {
   "id": "echo",
+  "description": "Returns the supplied message.",
   "input": {
     "type": "object",
     "required": ["message"],
@@ -241,11 +246,13 @@ The Health Operation output schema is not currently fixed.
 {
   "id": "sample",
   "name": "Sample Module",
+  "description": "Sample Module demonstrating Operation Contracts",
   "version": "0.0.1",
   "healthOperation": "health",
   "operations": [
     {
       "id": "health",
+      "description": "Reports Module health.",
       "input": null,
       "output": {
         "type": "object",
@@ -268,6 +275,7 @@ The Health Operation output schema is not currently fixed.
     },
     {
       "id": "echo",
+      "description": "Returns the supplied message.",
       "input": {
         "type": "object",
         "required": ["message"],
@@ -334,3 +342,21 @@ The current Core implementation validates the following Operation rules:
 - the Health Operation must not require Input
 
 These rules reflect the current implementation and may evolve as the Protocol stabilizes.
+
+
+## 10. Relationship with Capabilities
+
+Operations and Capabilities are distinct concepts.
+
+```text
+Operation
+→ one callable functionality contract
+
+Capability
+→ higher-level compatibility contract shared by interchangeable implementations
+   └─ one or more Operations + semantic rules
+```
+
+For example, a `manafield.identity v1` Capability may require several identity-related Operations. Conversely, an internal or Web-UI-specific Operation may belong to no Capability at all.
+
+See [ADR-0010](adr/0010-capability-dependency-resolution.md) for the long-lived dependency boundary.
