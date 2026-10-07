@@ -143,6 +143,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0005 — Docker Runtime Provider Process Isolation
 - [x] ADR-0006 — Instance Build Plan / 인스턴스별 단일 Pipeline
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
+- [x] ADR-0008 — Manafield Network Planes
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
