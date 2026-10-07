@@ -51,9 +51,14 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Observe the Manafield Reference from its own UI
 - [x] Extract Module Template requirements from the reference implementation → [Module Template Requirements v0](module-template-requirements.md)
 - [x] Compare existing Echo service against Template boundaries → [Echo Module Migration Review](echo-module-migration-review.md)
-- [ ] Adapt Echo to the current Module Protocol
-- [ ] Revalidate Template requirements with a second real Module
-- [ ] Extract minimal `manafield-module-template-ts-react`
+- [ ] Stabilize the common Module Template Contract
+- [ ] Define a TS / React Web implementation profile
+- [ ] Define a Java / Spring Web implementation profile
+- [ ] Verify the Template can describe a stateful Web Module requiring `database.postgresql`
+- [ ] Create / implement the new private Echo v2 repository
+- [ ] Register Echo v2 in the live Core Registry
+- [ ] Revalidate the Template Contract with a second real Module
+- [ ] Extract implementation-specific Template repositories when useful
 
 ## Phase 1 — Runtime Provider Boundary
 
@@ -89,10 +94,29 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Prevent Docker socket re-exposure
 - [ ] Runtime logs
 
+## Phase 1.5 — Capability / Resource Dependency
+
+- [x] Separate Module identity from dependency contracts
+- [x] Separate Tag and Capability semantics
+- [x] Separate functional Capabilities from infrastructure Resource dependencies
+- [x] ADR-0010 — Capability-Based Dependency Resolution
+- [x] Optional Module / Operation `description` metadata
+- [ ] Capability Descriptor v0
+- [ ] `provides.capabilities` / `requires.capabilities` schema
+- [ ] Capability ↔ Operation contract validation
+- [ ] Capability version / constraint policy
+- [ ] Instance concrete Capability binding
+- [ ] Dependency graph / cycle validation
+- [ ] Resource Requirement Descriptor v0
+- [ ] Resource Provider boundary / protocol
+- [ ] Secret / connection metadata injection model
+- [ ] PostgreSQL Resource Provider v0
+- [ ] Per-Module database/schema/account allocation on a shared PostgreSQL instance
+
 ## Phase 2 — Module Lifecycle
 
 - [ ] Module install model
-- [ ] Runtime requirement / capability declaration
+- [ ] Runtime requirement declaration
 - [ ] Runtime Provider selection
 - [ ] Module create
 - [ ] Start / Stop / Restart
@@ -167,6 +191,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0007 — Public Platform / Private Instance Configuration
 - [x] ADR-0008 — Manafield Network Planes
 - [x] ADR-0009 — Separate Operation Routing from Web Exposure
+- [x] ADR-0010 — Capability-Based Dependency Resolution
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
@@ -202,7 +227,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Module install / update / remove
 - [ ] Drag & Drop Module installation
 - [ ] Permission review
-- [ ] Dependency management
+- [ ] Distributed / advanced dependency management
 - [ ] Distributed Module Registry / discovery
 - [ ] Compatibility Test Kit
 - [ ] Third-party Module isolation
