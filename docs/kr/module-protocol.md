@@ -419,58 +419,63 @@ Existing Modules continue to work
 
 Module ID는 concrete implementation의 identity이며 일반 dependency contract로 사용하지 않는 것을 기본 원칙으로 합니다.
 
-Module이 다른 Module의 기능을 필요로 할 때는 특정 Module 이름보다 **Capability Contract**를 요구합니다.
-
-개념 예:
+Module은 일반 필요사항을 **Capability Contract**로 선언합니다.
 
 ```yaml
 requires:
   capabilities:
     identity:
       id: manafield.identity
-      version: 1
-```
+      version: "^1.0.0"
 
-Capability를 제공하는 Module은 구현체 ID와 독립적으로 같은 contract를 선언할 수 있습니다.
-
-```yaml
-provides:
-  capabilities:
-    - id: manafield.identity
-      version: 1
-      description: 사용자 identity와 session 기능
-```
-
-`description`은 nullable/optional human-readable metadata입니다. 검색 결과와 관리 UI에서 설명을 표시하기 위한 것이며 dependency resolution에는 사용하지 않습니다.
-
-`tags` 역시 검색과 분류에 사용하지만 compatibility contract가 아니므로 dependency를 만족시키는 근거로 사용하지 않습니다.
-
-```text
-Operation
-→ 호출 가능한 한 기능
-
-Capability
-→ 여러 Operation과 의미 규칙을 묶는 호환성 계약
-
-Tag
-→ 검색 / 분류용 비구속 metadata
-```
-
-Database, Cache, Object Storage 같은 기반 자원 요구도 같은 Capability model을 사용합니다.
-
-```yaml
-requires:
-  capabilities:
     state:
       id: database.postgresql
       version: "^1.0.0"
 ```
 
-`database.postgresql`는 별도 Resource Requirement type이 아니라 Capability Contract입니다.
+Capability를 제공하는 concrete 대상은 Module Instance 또는 Resource Instance일 수 있습니다.
 
-Instance는 이 Capability를 제공하는 `main-postgres` 같은 concrete Resource를 binding할 수 있습니다. PostgreSQL Provider가 connection 정보를 준비하더라도 실제 SQL query는 Module의 JDBC, `pg`, `psycopg` 같은 native client가 Database에 직접 수행합니다.
+```yaml
+id: identity-core
+kind: module
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: "1.2.0"
+```
 
-Capability version은 Module release version과 독립적인 **SemVer 계약 버전**입니다. Provider는 정확한 version을 선언하고 Consumer는 SemVer range를 선언합니다. Resolver는 특정 Operation subset을 보고 compatibility를 추론하지 않습니다.
+```yaml
+id: main-postgres
+kind: resource
+provides:
+  capabilities:
+    - id: database.postgresql
+      version: "1.3.0"
+```
+
+Capability matching에 사용하는 필드는 `id + version`입니다. `description`과 `tags`는 검색/표시 metadata이며 dependency compatibility를 결정하지 않습니다.
+
+Capability version은 Module release version과 독립적인 **SemVer 계약 버전**입니다. `provides`는 exact version을 선언하고 `requires`는 SemVer range를 선언합니다. Operation subset을 보고 version compatibility를 자동 추론하지 않습니다.
+
+Concrete Binding은 consumer Instance의 Requirement slot에서 target Instance ID를 지정합니다.
+
+```yaml
+bindings:
+  identity: identity-core
+  state: main-postgres
+```
+
+Binding 상태는 `UNBOUND` / `BOUND`만 구분합니다. BOUND는 valid를 뜻하지 않으며 target 검증은 별도 concern입니다.
+
+Capability Discovery는 compatible 조회, same-ID advanced 조회, 전체 조회를 제공할 수 있지만 **자동 Binding하지 않습니다**. 후보가 하나뿐이어도 UNBOUND 상태를 자동 변경하지 않습니다.
+
+같은 Capability ID를 제공하지만 version range가 맞지 않는 target을 명시적으로 Binding한 경우 `CAPABILITY_VERSION_MISMATCH` warning을 기록하고 실행은 계속합니다.
+
+Endpoint, concrete config values, connection metadata, secret reference는 Instance 쪽에 두고 config schema는 Module/Resource Definition에 둡니다. Capability 자체에는 포함하지 않습니다.
+
+Module/Resource Instance ID는 하나의 Manafield Instance 안에서 unique해야 하며 중복 등록은 conflict입니다.
+
+Database, Cache, Object Storage 같은 기반 자원도 별도 Resource Requirement type을 만들지 않고 같은 Capability model을 사용합니다. Resource를 준비하는 system component가 있더라도 실제 application data traffic은 Module의 native client에서 Resource로 직접 흐릅니다.
 
 자세한 v0 모델은 [Capability Contract](capability.md)를 참고합니다. 장기 경계는 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 따릅니다.
 
