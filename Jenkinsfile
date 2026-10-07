@@ -64,7 +64,7 @@ pipeline {
                       ci-plan
 
                     test -s ci-plan/modules.tsv
-                    grep -q '^reference-web	' ci-plan/modules.tsv
+                    grep -q '^manafield-reference	' ci-plan/modules.tsv
                 '''
             }
         }
