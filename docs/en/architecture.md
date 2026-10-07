@@ -370,6 +370,26 @@ Public URLs are not derived automatically from Operation IDs or Binding paths.
 
 See [ADR-0009](adr/0009-operation-web-exposure.md) for the decision.
 
+### Official Web Shell
+
+The official Web View is a separate `manafield-web` Module rather than UI embedded in Core.
+
+An integrated Instance may compose multiple Module Web surfaces under one public origin through path routing.
+
+```text
+manafield.studio/           → manafield-web
+manafield.studio/account/*  → Account Module
+manafield.studio/echo/*     → Echo Module
+```
+
+`manafield-web` may own presentation responsibilities such as the home page, navigation, Registry discovery, and session-entry UX, but it is not the mandatory reverse proxy for all Module APIs. Ingress should route ordinary traffic directly to the owning Module where practical.
+
+The first Official Web Shell implementation starts as a lightweight Go single-binary Web Module. Core and ordinary Modules remain functional without it, and ordinary Modules do not depend on the Shell.
+
+Initial composition uses full-page/path surfaces; dynamic micro-frontend loading is deferred until there is a concrete need.
+
+See [ADR-0011](adr/0011-official-web-shell.md) for the decision.
+
 ## 9. Isolation
 
 The default architecture avoids loading arbitrary Module code directly into the Core process.
