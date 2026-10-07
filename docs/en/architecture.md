@@ -122,15 +122,28 @@ Tag
 → descriptive / non-binding metadata for search and classification
 ```
 
-Searchable entries such as Modules, Capabilities, and Resources may carry an optional human-readable `description`. Description is display/search-assistance metadata and does not participate in dependency resolution or compatibility checks.
+The compatibility matching surface of a Capability is intentionally small: `id + version`. Descriptions and tags support search/management UI and do not participate in matching.
 
-For example, Echo should depend on a `manafield.identity v1` Capability rather than the concrete `manafield-account` Module ID. A compatible fork or alternate implementation can then satisfy the same requirement.
+Module Instances and Resource Instances may advertise Capability metadata in the same registry model. Manafield does not require them to implement one shared language-level `CapabilityProvider` interface.
 
-The concrete Module is selected through Instance binding. When multiple candidates exist, Core should not silently choose one.
+For example, Echo may require `manafield.identity ^1` instead of a concrete `manafield-account` Module, and may require `database.postgresql ^1` through the same `requires.capabilities` grammar.
 
-Infrastructure needs such as databases, caches, and storage use the same **Capability** requirement model instead of a separate dependency grammar. For example, Echo can require `database.postgresql ^1`, and the Instance can bind that requirement to a concrete Resource such as `main-postgres` that provides the Capability.
+Concrete selection is represented as an explicit Binding from a consumer Instance's Requirement slot to a target Instance ID.
 
-Resources may be prepared or registered by Resource Providers, while Core does not proxy application data traffic. A PostgreSQL Provider may prepare a database/schema/account and connection secrets, while Echo still sends SQL directly through its own JDBC driver.
+```text
+echo-prod.identity → identity-core
+echo-prod.state    → main-postgres
+```
+
+Module/Resource Instance IDs are unique within one Manafield Instance; duplicate registration is rejected as a conflict.
+
+An unbound Requirement remains UNBOUND regardless of how many compatible candidates exist. Capability Discovery may expose compatible, advanced same-name, and full listing modes, but never creates a Binding automatically.
+
+If a bound target provides the same Capability ID with a version outside the requested range, Core emits a `CAPABILITY_VERSION_MISMATCH` warning and diagnostic log but does not hard-block execution solely for that mismatch.
+
+Endpoints, concrete config values, connection metadata, and secret references belong to concrete Instances or Instance configuration, while config schemas belong to Module/Resource Definitions. They are not part of Capability Contracts.
+
+A system-side component may prepare, register, or manage Resources, but the Capability binding target is the concrete Resource Instance rather than the management component. Application data traffic also remains outside Core.
 
 See [Capability Contract v0](capability.md) and [ADR-0010](adr/0010-capability-dependency-resolution.md) for the design.
 
