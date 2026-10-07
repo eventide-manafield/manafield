@@ -93,7 +93,7 @@ if "--providers.file.directory=/etc/traefik/dynamic" not in text:
 
 mount = f"      - {dynamic_dir}:/etc/traefik/dynamic:ro\n"
 
-if "/etc/traefik/dynamic" not in text:
+if ":/etc/traefik/dynamic" not in text:
     volume_anchor = "      - ./letsencrypt:/letsencrypt\n"
 
     if volume_anchor not in text:
