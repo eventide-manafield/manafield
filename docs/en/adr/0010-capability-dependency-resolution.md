@@ -193,104 +193,195 @@ Framework routes and Web-UI-internal endpoints are not automatically promoted to
 
 Core may validate mechanically checkable parts such as required Operation presence, but it does not infer full semantic compatibility.
 
-### 7. Capability providers may be Modules or Resources
+### 7. Capabilities are provided by Module Instances or Resource Instances
 
-The matching model is unified while provider semantics may differ.
+Manafield does not require a shared language-level `CapabilityProvider` implementation interface.
 
-#### Module-provided Capability
+The common requirement is the Capability metadata registered in the Manafield Registry.
+
+```text
+Module Instance
+→ provides Capability metadata
+
+Resource Instance
+→ provides Capability metadata
+```
+
+The implementation language and runtime may differ.
 
 Example:
 
-```text
-manafield.identity ^1
-        ↓
-Account Module
+```yaml
+id: identity-core
+kind: module
+provides:
+  capabilities:
+    - id: manafield.identity
+      version: "1.2.0"
 ```
 
-A Module provides the Capability through Operations.
-
-#### Resource-provided Capability
-
-Example:
-
-```text
-database.postgresql ^1
-        ↓
-main-postgres Resource
-        ↓ managed / registered by
-PostgreSQL Provider
+```yaml
+id: main-postgres
+kind: resource
+provides:
+  capabilities:
+    - id: database.postgresql
+      version: "1.0.0"
 ```
 
-A Resource is a concrete resource available to an Instance.
+A system-side component may create, register, or manage Resources, but the concrete Capability binding target is the Resource Instance rather than that management component.
 
-Examples:
+### 8. Distinguish Module/Resource Definitions from Instances
+
+A Definition describes a kind and its configuration shape, while an Instance represents a concrete installed or registered target.
+
+```text
+Definition
+→ config schema
+→ declaration shape
+
+Instance
+→ globally distinguishable instance ID
+→ config values
+→ endpoint / connection metadata
+→ provided Capability metadata
+```
+
+Endpoints, concrete config values, secret references, and config schemas are not part of the Capability Contract.
+
+The matching surface remains intentionally small:
+
+```text
+Capability
+→ id + version
+```
+
+Descriptions and tags may exist as human-readable/search metadata, but do not participate in compatibility matching.
+
+### 9. Instance IDs are unique within a Manafield Instance
+
+Concrete IDs for Module Instances and Resource Instances may not collide within one Manafield Instance.
+
+Core rejects duplicate registration as a conflict rather than silently renaming the target.
 
 ```text
 main-postgres
-dev-postgres
-remote-postgres
+identity-core
+echo-prod
 ```
 
-Each Resource may advertise the Capability IDs and exact contract versions it satisfies.
+Bindings target these unique Instance IDs.
 
-A Provider may discover, provision, allocate, and prepare connection metadata for Resources.
+### 10. A Binding maps a Requirement slot to a target Instance ID
 
-### 8. The Instance selects concrete Capability bindings
-
-Requirements are separate from concrete provider selection.
+Requirements and concrete selection remain separate.
 
 Example:
 
+```yaml
+requires:
+  capabilities:
+    identity:
+      id: manafield.identity
+      version: "^1.0.0"
+
+    state:
+      id: database.postgresql
+      version: "^1.0.0"
+```
+
+Conceptual bindings on the consumer Instance:
+
+```yaml
+bindings:
+  identity: identity-core
+  state: main-postgres
+```
+
+`identity` and `state` are Requirement slots/local aliases.
+
+`identity-core` and `main-postgres` are concrete target Instance IDs.
+
+Binding has only two states:
+
 ```text
-Echo.state
-requires database.postgresql ^1
-        ↓
-compatible candidates
-├─ main-postgres
-└─ dev-postgres
-        ↓
-Instance binding
-        ↓
-main-postgres
+UNBOUND
+BOUND
 ```
 
-Conceptual Instance configuration:
+BOUND does not mean valid.
 
-```yaml
-bindings:
-  capabilities:
-    echo.state:
-      resource: main-postgres
+Binding records only whether a target was selected. Target existence, Capability presence, and version compatibility are separate validation/diagnostic concerns.
+
+### 11. The Resolver does not automatically bind
+
+Even when there is exactly one compatible Instance, Core does not create a Binding automatically.
+
+```text
+compatible candidate count = 0
+→ UNBOUND remains UNBOUND
+
+compatible candidate count = 1
+→ UNBOUND remains UNBOUND
+
+compatible candidate count > 1
+→ UNBOUND remains UNBOUND
 ```
 
-Module-provided Capabilities follow the same principle:
+Concrete target selection is explicit.
 
-```yaml
-bindings:
-  capabilities:
-    echo.identity:
-      module: better-account
+Whether a new Module reuses an existing Resource, creates a new Resource, or presents a user choice belongs to the Module management layer rather than the Core Resolver.
+
+### 12. Capability Discovery is separate from Binding
+
+Discovery is a read-only concern.
+
+Three base query levels are defined.
+
+#### Compatible discovery
+
+Return only Instances whose Capability ID and SemVer range are compatible.
+
+#### Advanced discovery
+
+Return Instances with the same Capability ID even when the version is outside the requested range, and expose compatibility metadata.
+
+#### Full discovery
+
+Allow listing registered Instances and their provided Capability metadata without a Capability filter.
+
+Discovery never creates or changes a Binding.
+
+### 13. Version mismatch is a Warning and does not hard-block execution
+
+A bound target may provide the same Capability ID while declaring a version outside the required range.
+
+In that case:
+
+```text
+CAPABILITY_VERSION_MISMATCH
+→ WARNING
+→ emit diagnostic log
+→ continue execution
 ```
 
-The final binding schema is deferred.
+The SemVer range expresses an expected contract compatibility range. When the user explicitly bound a target Instance, Core does not block execution solely because of a declared version mismatch.
 
-Core does not silently pick between multiple candidates.
+A missing target Instance or a target that does not provide the required Capability at all remains a separate validation/error concern.
 
-Automatic binding when only one candidate exists is also deferred.
+### 14. Resource management components are not application-data proxies
 
-### 9. A Resource Provider is not an application-data proxy
+A system-side component may discover, register, provision, or manage Resources.
 
-Providing a Resource that satisfies `database.postgresql` does not mean Core or the Provider proxies SQL traffic.
+For PostgreSQL this may include:
 
-A PostgreSQL Provider may handle:
-
-- registration/discovery of existing PostgreSQL Resources
+- discovery/registration of existing PostgreSQL Resources
 - database/schema allocation
 - Module-scoped accounts and permissions
 - connection metadata
 - secret references
 
-Applications still query PostgreSQL directly through native clients.
+Application SQL traffic still does not flow through Core or the management component.
 
 ```text
 Java Module   → JDBC / PostgreSQL driver ─┐
@@ -299,61 +390,80 @@ Node Module   → pg                        ├→ PostgreSQL
 Python Module → psycopg                   ┘
 ```
 
-Core does not embed JDBC or database-specific application clients.
+### 15. System-side Provider families retain separate boundaries
 
-### 10. Providers are not ordinary Modules
+Runtime Providers, Resource management components, and Ingress Providers/Adapters may require privileges and lifecycles different from ordinary Modules.
 
-Providers are system-side components.
+Manafield does not prematurely collapse them into one universal Provider Protocol.
 
-Current or future examples:
+The important distinction is:
 
 ```text
-Provider
-├─ Runtime Provider
-│  └─ Docker
-├─ Resource Provider
-│  └─ PostgreSQL
-└─ Ingress Provider / Adapter
-   └─ Traefik
+Capability binding target
+→ Module Instance or Resource Instance
+
+System component that prepares/manages a Resource
+→ separate lifecycle/protocol concern
 ```
-
-Do not prematurely force these into one universal Provider Protocol.
-
-Capability matching may be shared while each Provider family receives its own lifecycle, privilege boundary, and protocol.
 
 ## Consequences
 
 ### Benefits
 
-- one `requires.capabilities` grammar for ordinary requirements
-- Module functionality and infrastructure resources can share SemVer contract matching
-- forks and alternate implementations are not tied to concrete Module IDs
-- an Instance can list compatible providers/resources before selecting a binding
-- shared PostgreSQL infrastructure can later allocate isolated databases/schemas to multiple Modules
-- the Resolver avoids feature-subset inference and remains bounded in complexity
+- ordinary requirements remain under one `requires.capabilities` grammar
+- the Capability matching surface stays small at `id + version`
+- implementation language is decoupled from Capability Registry metadata
+- Module Instances and Resource Instances share one Binding model
+- Binding is simplified to Requirement slot → unique Instance ID
+- Discovery and Binding are separated, removing implicit selection behavior
+- version mismatch remains diagnosable while respecting explicit user bindings
+- endpoint/config/schema/secret details do not bloat Capability Contracts
 
 ### Costs
 
-- Capability Contract Registry / descriptors are required
-- SemVer range matching is required
-- binding semantics vary depending on whether the provider source is a Module or Resource
-- ambiguity policy is needed when multiple candidates exist
-- Provider protocols and secret injection require additional design
-- dependency graph / cycle validation is required
+- Instance ID uniqueness must be enforced
+- Capability Discovery APIs/UI are required
+- Binding validation and diagnostic/error models are separate concerns
+- SemVer range matching and warning reporting are required
+- Module/Resource Definition and Instance boundaries must be implemented
+- Resource management lifecycle/protocol and secret materialization need separate design
+- dependency graph/cycle validation is required
 
 ## Non-goals
 
 This ADR does not finalize:
 
-- the final Capability Descriptor JSON/YAML schema
-- the final schema for Capability provider sources
-- the final Instance binding schema
-- automatic provider selection
-- the PostgreSQL Provider Protocol
-- database credential secret format
+- the final Capability Descriptor JSON/YAML wire schema
+- storage/distribution of the Capability Contract Registry
+- SemVer parser/library
+- pre-release version policy
+- final representation for one Instance providing multiple versions of the same Capability
+- final Resource-management protocol
+- database credential/secret materialization format
 - Module package format
-- Permission / trust model
+- Permission/trust model
 - dependency-cycle policy
 - feature-subset negotiation
 
-These will be defined by follow-up design documents or ADRs during implementation.
+The following points are explicitly decided by this ADR:
+
+```text
+automatic binding
+→ never performed
+
+binding state
+→ UNBOUND / BOUND
+
+binding target
+→ unique Instance ID
+
+discovery
+→ compatible / advanced / full
+
+version mismatch
+→ warning + log + continue
+
+Capability runtime/config payload
+→ excluded
+```
+
