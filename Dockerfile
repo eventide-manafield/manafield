@@ -32,6 +32,13 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --locked --release --features build-plan --bin manafield-build-plan \
     && cp /src/target/release/manafield-build-plan /tmp/manafield-build-plan
 
+FROM source AS ingress-traefik-builder
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
+    cargo build --locked --release --features ingress-traefik --bin manafield-ingress-traefik \
+    && cp /src/target/release/manafield-ingress-traefik /tmp/manafield-ingress-traefik
+
 FROM debian:bookworm-slim AS core-runtime
 
 RUN apt-get update \
@@ -63,3 +70,11 @@ COPY --from=build-plan-builder /tmp/manafield-build-plan /usr/local/bin/manafiel
 USER 10001:10001
 
 ENTRYPOINT ["/usr/local/bin/manafield-build-plan"]
+
+FROM debian:bookworm-slim AS ingress-traefik-runtime
+
+COPY --from=ingress-traefik-builder /tmp/manafield-ingress-traefik /usr/local/bin/manafield-ingress-traefik
+
+USER 10001:10001
+
+ENTRYPOINT ["/usr/local/bin/manafield-ingress-traefik"]
