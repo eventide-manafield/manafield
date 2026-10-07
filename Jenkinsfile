@@ -11,7 +11,7 @@ pipeline {
     parameters {
         string(
             name: "INSTANCE_ROOT",
-            defaultValue: "/opt/manafield/instance",
+            defaultValue: "/opt/manafield/ai-workspace/instance",
             description: "Private Manafield instance root containing instance.yaml"
         )
         string(
@@ -51,7 +51,7 @@ pipeline {
                         parameters: [
                             string(
                                 name: "INSTANCE_ROOT",
-                                defaultValue: params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/instance",
+                                defaultValue: params.INSTANCE_ROOT?.trim() ?: "/opt/manafield/ai-workspace/instance",
                                 description: "Directory containing the private instance.yaml"
                             ),
                             string(
