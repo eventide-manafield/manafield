@@ -456,19 +456,23 @@ Tag
 → 검색 / 분류용 비구속 metadata
 ```
 
-Database, Cache, Object Storage 같은 기반 자원은 Capability dependency와 별도 Resource Requirement로 표현합니다.
+Database, Cache, Object Storage 같은 기반 자원 요구도 같은 Capability model을 사용합니다.
 
 ```yaml
 requires:
-  resources:
+  capabilities:
     state:
       id: database.postgresql
-      version: 1
+      version: "^1.0.0"
 ```
 
-Resource는 일반 Module이 아니라 해당 자원을 공급하는 Provider가 만족합니다. PostgreSQL Provider가 connection 정보를 준비하더라도 실제 SQL query는 Module의 JDBC, `pg`, `psycopg` 같은 native client가 Database에 직접 수행합니다.
+`database.postgresql`는 별도 Resource Requirement type이 아니라 Capability Contract입니다.
 
-정확한 Descriptor schema, version range, binding syntax, cycle 처리 정책은 아직 확정하지 않았습니다. 장기 경계는 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 따릅니다.
+Instance는 이 Capability를 제공하는 `main-postgres` 같은 concrete Resource를 binding할 수 있습니다. PostgreSQL Provider가 connection 정보를 준비하더라도 실제 SQL query는 Module의 JDBC, `pg`, `psycopg` 같은 native client가 Database에 직접 수행합니다.
+
+Capability version은 Module release version과 독립적인 **SemVer 계약 버전**입니다. Provider는 정확한 version을 선언하고 Consumer는 SemVer range를 선언합니다. Resolver는 특정 Operation subset을 보고 compatibility를 추론하지 않습니다.
+
+자세한 v0 모델은 [Capability Contract](capability.md)를 참고합니다. 장기 경계는 [ADR-0010](adr/0010-capability-dependency-resolution.md)을 따릅니다.
 
 ## 9. Module Template
 
@@ -496,11 +500,11 @@ Protocol은 **권한 요청**과 **dependency Capability**를 서로 다른 개�
 
 - 요청 권한
 - 제공/요구 Capability
-- Resource requirement
+- 요구 Capability
 - Runtime 요구사항
 - 노출 Port
 - Storage 요구사항
-- Dependency binding metadata
+- Capability binding metadata
 - Web contribution
 
 정확한 Security Model은 기본 Protocol과 Docker Runtime이 동작한 뒤 설계합니다.
