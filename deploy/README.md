@@ -26,7 +26,9 @@ Build Plan
 
 The files in this directory describe the public deployment contract and examples.
 
-`instance.example.yaml` is intentionally safe to publish.
+`instance.yaml.example` is the copy-ready example intended to be duplicated as `instance.yaml` and customized for an instance. It is intentionally safe to publish.
+
+`instance.example.yaml` is currently kept as a compatibility copy during the pre-alpha naming transition.
 
 A real production `instance.yaml` is **private by default** and should be managed outside the public Core repository. The repository ignores `deploy/instance.yaml` to reduce the chance of accidentally committing a real instance definition.
 
@@ -45,7 +47,7 @@ See [ADR-0007](../docs/en/adr/0007-public-platform-private-instance.md) for the 
 
 ## Draft v0
 
-See [instance.example.yaml](instance.example.yaml).
+See [instance.yaml.example](instance.yaml.example).
 
 The current shape is intentionally small:
 
@@ -93,7 +95,7 @@ Run it with:
 
 ```bash
 cargo run --features build-plan --bin manafield-build-plan -- \
-  deploy/instance.example.yaml \
+  deploy/instance.yaml.example \
   build-plan.json
 ```
 
