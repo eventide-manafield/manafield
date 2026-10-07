@@ -1,4 +1,5 @@
 mod api;
+mod cli;
 mod core;
 
 use std::error::Error;
@@ -6,6 +7,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use axum::Router;
+use cli::Command;
 use core::{RegistryService, discover_modules};
 use tokio::net::TcpListener;
 use tracing::info;
@@ -16,30 +18,52 @@ const DEFAULT_MODULES_DIR: &str = "modules";
 
 #[tokio::main]
 async fn main() {
-    init_tracing();
+    let command = match cli::parse_args(std::env::args().skip(1)) {
+        Ok(command) => command,
+        Err(error) => {
+            eprintln!("manafield: {error}");
+            eprintln!();
+            cli::print_help();
+            std::process::exit(2);
+        }
+    };
 
+    match command {
+        Command::Serve => {
+            init_tracing();
+
+            if let Err(error) = serve().await {
+                eprintln!("manafield: {error}");
+                std::process::exit(1);
+            }
+        }
+        command => {
+            if let Err(error) = cli::run(command) {
+                eprintln!("manafield: {error}");
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+async fn serve() -> Result<(), Box<dyn Error>> {
     let bind_addr =
         std::env::var("MANAFIELD_BIND").unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_owned());
 
-    let addr: SocketAddr = bind_addr
-        .parse()
-        .expect("MANAFIELD_BIND must be a valid socket address");
+    let addr: SocketAddr = bind_addr.parse()?;
 
-    let registry = load_registry()
-        .await
-        .unwrap_or_else(|error| panic!("failed to load Manafield modules: {error}"));
+    let registry = load_registry().await?;
     let app = Router::new().merge(api::router(registry));
 
-    let listener = TcpListener::bind(addr)
-        .await
-        .expect("failed to bind Manafield Core");
+    let listener = TcpListener::bind(addr).await?;
 
     info!(%addr, "Manafield Core is listening");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
-        .await
-        .expect("Manafield Core server failed");
+        .await?;
+
+    Ok(())
 }
 
 async fn load_registry() -> Result<RegistryService, Box<dyn Error>> {

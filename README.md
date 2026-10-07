@@ -77,6 +77,21 @@ flowchart TB
 
 이 버전은 현재 개발 기준이며, 아직 공식적인 **MSRV(Minimum Supported Rust Version)** 를 의미하지는 않습니다.
 
+## 기본 CLI
+
+Manafield Core binary는 Web 없이도 상태를 확인할 수 있는 작은 headless CLI를 함께 제공합니다.
+
+```bash
+manafield health
+manafield ps
+manafield resource
+manafield resource example-postgres
+```
+
+CLI command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
+
+인자 없이 `manafield`를 실행하거나 `manafield serve`를 사용하면 Core server가 실행됩니다.
+
 ## 목표 구조
 
 - **Headless Core** — Web UI가 없어도 동작합니다.
@@ -167,6 +182,21 @@ The current Manafield Core development baseline is **Rust 1.99.0**.
 When using `rustup`, running `cargo` or `rustc` inside this repository automatically selects the pinned Rust 1.99.0 toolchain.
 
 This is the current development baseline and does **not** yet define an official MSRV (Minimum Supported Rust Version).
+
+## Built-in CLI
+
+The Manafield Core binary includes a small headless CLI for inspecting a running Core without a Web UI.
+
+```bash
+manafield health
+manafield ps
+manafield resource
+manafield resource example-postgres
+```
+
+CLI commands use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
+
+Running `manafield` without arguments, or using `manafield serve`, starts the Core server.
 
 ## Highlights
 

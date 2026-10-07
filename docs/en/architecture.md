@@ -169,6 +169,16 @@ flowchart LR
 
 An official Web View may be provided separately, but the Core and Modules should remain usable without it.
 
+The Core binary also provides a small built-in CLI as a default headless operational surface.
+
+```text
+manafield health
+manafield ps
+manafield resource [id]
+```
+
+The CLI is a Core API client; it does not inspect Docker or interpret concrete Resource implementations directly. A future contract may allow Modules to contribute CLI command metadata while preserving the rule that arbitrary Module code is not loaded into the Core process.
+
 ## 5. High-level Architecture
 
 ```mermaid

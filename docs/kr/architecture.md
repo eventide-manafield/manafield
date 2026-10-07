@@ -169,6 +169,16 @@ flowchart LR
 
 공식 Web View를 별도로 제공할 수 있지만, Core와 Module은 Web 없이도 동작할 수 있어야 합니다.
 
+Core binary는 기본 headless 운영 surface로 작은 CLI를 함께 제공합니다.
+
+```text
+manafield health
+manafield ps
+manafield resource [id]
+```
+
+이 CLI는 Docker나 Resource 구현을 직접 해석하지 않고 Core API를 사용하는 client입니다. 향후 Module이 CLI command metadata를 선언해 기능을 확장하는 방식은 별도 contract로 설계할 수 있지만, Module 코드를 Core process에 직접 로드하지 않는 원칙은 유지합니다.
+
 ## 5. 상위 구조
 
 ```mermaid

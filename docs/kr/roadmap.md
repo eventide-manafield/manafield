@@ -35,6 +35,8 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Runtime Module Registry API
 - [x] Immutable RegistrySnapshot
 - [x] ArcSwap 기반 lock-free read model
+- [x] Built-in Headless CLI v0 — `health` / `ps` / `resource`
+- [ ] Module CLI contribution contract
 - [ ] Module Protocol v0 문서 안정화
 - [ ] Registry update semantics 정의
 
