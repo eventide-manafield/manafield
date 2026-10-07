@@ -129,16 +129,26 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 
 ## Phase 3 — Official Web View
 
-- [ ] Manafield Web
-- [ ] Dynamic Module navigation
+- [x] Official Web Shell을 Core와 분리하는 원칙 확정
+- [x] Same-Origin path composition 방향 확정
+- [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
+- [ ] 독립 Repository 생성: `manafield-web`
+- [ ] Go single-binary Web Shell bootstrap
+- [ ] `/manafield/health` Operation
+- [ ] Core Registry 조회
+- [ ] Instance home / navigation
+- [ ] Registry 기반 Dynamic Module navigation
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider 상태 UI
 - [ ] Module Health UI
-- [ ] Module Web Contribution
+- [ ] Module Web Contribution metadata v0
 - [ ] Web Exposure 모델 (`none / host / prefix / routes / external`)
-- [ ] Build Plan public route normalization / conflict detection
+- [ ] Build Plan same-host prefix / route normalization
+- [ ] Build Plan route conflict / precedence validation
+- [ ] Traefik same-host path composition 렌더링
 - [ ] Manafield reserved root path 정책
 - [ ] resolved Build Plan 기반 ingress 설정 생성 / 적용
+- [ ] login / session entry UX
 - [ ] Settings UI
 
 ### Module Manager Module
@@ -192,6 +202,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0008 — Manafield Network Planes
 - [x] ADR-0009 — Operation Routing / Web Exposure 분리
 - [x] ADR-0010 — Capability 기반 Dependency Resolution
+- [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
