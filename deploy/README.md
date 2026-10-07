@@ -157,10 +157,15 @@ MANAFIELD_NETWORK
 MANAFIELD_LOG
 ```
 
-The default host bindings are loopback-only:
+The runtime Compose publishes only the Core loopback port:
 
 ```text
-Core          127.0.0.1:18080
+Core 127.0.0.1:18080
+```
+
+The development override additionally publishes:
+
+```text
 Reference Web 127.0.0.1:18081
 ```
 
