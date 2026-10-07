@@ -52,6 +52,7 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Extract Module Template requirements from the reference implementation → [Module Template Requirements v0](module-template-requirements.md)
 - [x] Compare existing Echo service against Template boundaries → [Echo Module Migration Review](echo-module-migration-review.md)
 - [ ] Stabilize the common Module Template Contract
+- [ ] Define a Go Web implementation profile
 - [ ] Define a TS / React Web implementation profile
 - [ ] Define a Java / Spring Web implementation profile
 - [ ] Verify the Template can describe a stateful Web Module requiring `database.postgresql`
@@ -141,11 +142,11 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Registry / Operation browser
 - [ ] Runtime Provider status UI
 - [ ] Module Health UI
-- [ ] Module Web Contribution metadata v0
+- [x] Web Surface metadata v0 (`page / api`) → [Web Surface v0](web-surface.md)
 - [ ] Web Exposure model (`none / host / prefix / routes / external`)
-- [ ] Build Plan same-host prefix / route normalization
+- [ ] Build Plan same-host prefix / route normalization (preserve prefix)
 - [ ] Build Plan route conflict / precedence validation
-- [ ] Render Traefik same-host path composition
+- [ ] Render Traefik same-host path composition (no prefix stripping)
 - [ ] Manafield reserved root-path policy
 - [ ] Generate / apply ingress configuration from the resolved Build Plan
 - [ ] login / session entry UX
