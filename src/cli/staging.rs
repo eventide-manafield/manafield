@@ -71,6 +71,19 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
     let postgres_id = resources.first().map(|v| field(v, "id")).transpose()?;
     let network = field(&plan["deployment"], "modulesNetwork")?;
     let edge = field(&plan["deployment"], "edgeNetwork")?;
+    let project = compose_project_name(field(&plan, "instanceId")?)?;
+    // Docker Compose project name and managed internal network are stable per
+    // Instance, not per Release. Neither collides with the old Jenkins stack.
+    let scoped_network = format!(
+        "{network}-{}",
+        field(&plan, "instanceId")?.to_ascii_lowercase()
+    );
+    if !scoped_network
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(fail(format!("unsafe network name '{scoped_network}'")));
+    }
 
     let staging = root.join("manafield/staged").join(options.release_id);
     if staging.exists() {
@@ -88,8 +101,9 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
         &plan,
         modules,
         postgres_id,
-        network,
+        &scoped_network,
         edge,
+        &project,
         options.modules_root,
     ) {
         Ok(()) => {
@@ -113,6 +127,7 @@ fn prepare_inside(
     postgres_id: Option<&str>,
     modules_network: &str,
     edge_network: &str,
+    project: &str,
     modules_root: Option<&Path>,
 ) -> Result<(), CliError> {
     // Core and Resource Provider are built from the selected local Manafield
@@ -331,6 +346,10 @@ fn prepare_inside(
         &fs::read_to_string(source.join("deploy/compose.yml")).map_err(|e| fail(e.to_string()))?,
     )
     .map_err(|e| fail(format!("invalid Core Compose template: {e}")))?;
+    // Avoid switching/removing the Jenkins project's active containers or
+    // named PostgreSQL volume. The Compose project name is stable across
+    // Releases of the same Instance but distinct across Instance IDs.
+    compose["name"] = serde_yaml_ng::Value::String(project.to_owned());
     // Compose providers and modules rely on Core health; ensure it exists.
     compose["services"]["core"]["healthcheck"] = serde_yaml_ng::to_value(json!({
         "test":["CMD","curl","--fail","--silent","http://127.0.0.1:8080/health"],
@@ -412,6 +431,21 @@ fn field<'a>(value: &'a Value, key: &str) -> Result<&'a str, CliError> {
         .and_then(Value::as_str)
         .ok_or_else(|| fail(format!("missing {key} in Build Plan")))
 }
+fn compose_project_name(id: &str) -> Result<String, CliError> {
+    if id.is_empty()
+        || id.len() > 40
+        || !id.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric())
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(fail(format!(
+            "unsupported Instance ID '{id}' for Docker Compose project"
+        )));
+    }
+    Ok(format!("manafield-{}", id.to_ascii_lowercase()))
+}
+
 fn valid_part(s: &str) -> bool {
     !s.is_empty()
         && s != "."
@@ -566,6 +600,11 @@ mod tests {
         assert!(!valid_part(".."));
         assert!(valid_env_slot("main_state"));
         assert!(!valid_env_slot("a-b"));
+        assert_eq!(
+            compose_project_name("manafield-bootstrap").unwrap(),
+            "manafield-manafield-bootstrap"
+        );
+        assert!(compose_project_name("../unsafe").is_err());
         assert!(module_source_dir(Path::new("/tmp"), "../etc").is_err());
     }
 }

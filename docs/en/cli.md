@@ -134,9 +134,9 @@ cargo run --locked --bin manafield -- deploy \
 
 Direct mode builds Core and Module Docker images, conditionally builds the official PostgreSQL Resource Provider, materializes PostgreSQL Binding schema/role/secret files, renders Compose and Build Plan into `<instance-root>/manafield/staged/<release-id>/`, and applies them without `--remove-orphans`. Existing prepared files can be reused for retries. `release.env` is generated with 0600 permissions; existing resource passwords are retained.
 
-**Supported scope:** Docker Runtime Provider, Git/dir Modules without external exposure, at most one PostgreSQL Resource Provider. Ingress/exposed Modules and other Resource providers fail explicitly. The Compose project name remains `manafield`; multiple concurrently managed Instances on one Docker host are not yet supported.
+**Supported scope:** Docker Runtime Provider, Git/dir Modules without external exposure, at most one PostgreSQL Resource Provider. Ingress/exposed Modules and other Resource providers fail explicitly. Direct mode scopes the Compose project as `manafield-<instance-id>` and its internal network per Instance, keeping resources separate from the legacy Jenkins stack. Releases of the same Instance reuse the same project and volume.
 
-Direct deployment records active Release after Core HTTP health passes; full Module/Resource readiness, ingress publication, image digest pinning, cleanup/removal, rollback, and data migrations are not yet covered. Existing PostgreSQL volumes are preserved, but credentials from older Jenkins deployments may need manual reconciliation. **A real Docker-engine integration run is still required.**
+Direct deployment records active Release after Core HTTP health passes; full Module/Resource readiness, ingress publication, image digest pinning, cleanup/removal, rollback, and data migrations are not yet covered. Direct-mode PostgreSQL volumes are persistent across Releases, but legacy Jenkins project volumes are not automatically migrated. **A real Docker-engine integration run is still required.**
 
 ## Immutable Release snapshots and staged deployment bridge
 
