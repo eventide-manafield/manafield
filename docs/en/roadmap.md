@@ -240,7 +240,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Design: `use A` → edit temp YAML → `deploy B` snapshots new immutable Release YAML and applies it
 - [x] Design: Release ID `vN_YYYYMMDDTHHMMSSZ` (UTC), `manafield/release/<id>.yaml`, `manafield/temp/working.yaml`
 - [x] Design: Persist PostgreSQL Resource/volume/database data across Releases; YAML retries are not data restoration
-- [ ] Split `manafield` CLI and `manafield-core` server into separate binaries in one distribution
+- [x] Split `manafield` CLI and `manafield-core` server into separate binaries in one distribution
 - [ ] Implement `manafield build all` for platform artifacts only; migrate external Module build responsibility out of transitional Jenkins-compatible build
 - [ ] Implement `manafield use`, temp working-copy management, dirty-work protection
 - [ ] Implement `manafield module bind` temp YAML editing

@@ -190,7 +190,7 @@ A future contract may allow Modules to contribute CLI command metadata while pre
 
 Release IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC), stored at `<instance-root>/manafield/release/<id>.yaml`. PostgreSQL Resources and persistent data are reused across Releases. A full release-to-release diff engine is optional; safe desired-state reconciliation is not.
 
-The target ships **separate CLI and Core server binaries in one distribution**. Existing combined-binary CLI commands are transitional. See [ADR-0014](adr/0014-instance-working-release.md) and the [CLI guide](cli.md).
+The target ships **separate CLI and Core server binaries in one distribution**. The binary split is implemented; planned CLI commands such as `build all` and `deploy <release-id>` are not yet implemented. See [ADR-0014](adr/0014-instance-working-release.md) and the [CLI guide](cli.md).
 
 ## 5. High-level Architecture
 

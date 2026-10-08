@@ -26,6 +26,10 @@ manafield deploy v1_20261008T070000Z
 
 현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**하며, `manafield deploy RELEASE_DIR`는 이미 준비된 Compose 산출물만 실행한다. 위 목표 명령과 섞어 생각하면 안 돼.
 
+## CLI / Core 바이너리 분리
+
+`manafield` CLI와 `manafield-core` HTTP 서버는 서로 다른 실행파일로 동일한 Docker Core 이미지/배포 묶음에 포함됩니다. 서버는 `manafield-core`로 시작하며 CLI 인자 생략 시 도움말을 표시합니다. Jenkins가 `/usr/local/bin/manafield`를 추출하는 기존 경로는 유지합니다.
+
 ## 구축 전제조건
 
 지원되는 **전체 Manafield v0 Instance 구축과 배포에는 Docker가 필수**입니다.
@@ -39,7 +43,8 @@ Core의 독립적인 API / Registry / validation과 `manafield plan`은 Docker �
 
 | 명령 | 현 상태 | 의미 |
 | --- | --- | --- |
-| `manafield serve` | 구현 | Core API 실행. 인자 없는 실행도 동일 |
+| `manafield-core` | 구현 | 별도 바이너리로 Core API 서버 실행 |
+| `manafield` (인자 없음) | 구현 | CLI 도움말 출력 |
 | `manafield health` | 구현 | Core API 상태 조회 |
 | `manafield ps` | 구현 | Core 및 등록된 Module/Resource 조회 |
 | `manafield resource [id]` | 구현 | Resource 목록 또는 단일 Resource 조회 |

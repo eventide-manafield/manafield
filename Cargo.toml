@@ -3,6 +3,7 @@ name = "manafield"
 version = "0.0.1"
 edition = "2024"
 rust-version = "1.99"
+autobins = false
 
 [features]
 default = []
@@ -19,6 +20,14 @@ serde_yaml_ng = "0.10"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[[bin]]
+name = "manafield"
+path = "src/bin/manafield.rs"
+
+[[bin]]
+name = "manafield-core"
+path = "src/main.rs"
 
 [[bin]]
 name = "manafield-build-plan"

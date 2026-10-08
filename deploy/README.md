@@ -4,6 +4,8 @@ This directory contains deployment-composition examples for a Manafield instance
 
 ## v0 execution baseline
 
+The Core runtime Docker image contains separate executables: `/usr/local/bin/manafield` for CLI and `/usr/local/bin/manafield-core` for the Core HTTP server. Its container entrypoint is `manafield-core`, while Jenkins can still extract the CLI at the existing path.
+
 A supported full Manafield v0 Instance build/deployment requires Docker.
 
 The canonical local execution path is the `manafield` CLI + Docker. Jenkins is an optional remote CI/CD frontend that should call the same CLI/reusable execution logic rather than own Manafield-specific semantics.
