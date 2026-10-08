@@ -6,7 +6,7 @@
 
 ## Working copy and Release CLI — implementation status
 
-The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all` is implemented; `use`, `module bind`, and Release-ID `deploy` are not yet implemented.**
+The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all` and `use` are implemented; `module bind` and Release-ID `deploy` are not yet implemented.**
 
 ```bash
 manafield build all
@@ -17,7 +17,7 @@ manafield deploy v1_20261008T070000Z
 ```
 
 - `build all` builds the **Manafield platform only**, not independently published Modules.
-- `use A` copies immutable Release A into `<instance-root>/manafield/temp/working.yaml`, without silently overwriting dirty work or changing the live deployment.
+- `use A` copies immutable Release A into `<instance-root>/manafield/temp/working.yaml`, discarding prior unsaved edits on explicit `use A` without changing live deployment.
 - `module bind A B C` edits the temp YAML Requirement slot B of consumer A to point at Module/Resource Instance C; it neither deploys nor copies a Resource.
 - `deploy B` with a new ID validates and atomically snapshots the working copy at `<instance-root>/manafield/release/B.yaml` before applying it. Existing IDs reapply saved YAML unchanged, rejecting conflicting dirty edits.
 - Default IDs: `v<positive integer>_<UTC YYYYMMDDTHHMMSSZ>`, never reused or overwritten.
@@ -25,6 +25,19 @@ manafield deploy v1_20261008T070000Z
 - A full Release-to-Release diff engine is not required immediately, but runtime reconciliation and non-destructive idempotence are.
 
 Currently, transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**, and `manafield deploy RELEASE_DIR` only invokes Compose on a pre-staged artifact directory. Neither implements this target contract.
+
+## Select a Release working copy — no Docker required
+
+```bash
+manafield use v1_20261008T070000Z --instance-root /path/to/instance
+manafield use --instance-root /path/to/instance
+```
+
+The Instance root comes from `--instance-root`, then `MANAFIELD_INSTANCE_ROOT`, then the current working directory. Read `manafield/release/<id>.yaml`, stage selected YAML at `manafield/temp/working.yaml`, and persist selection in `manafield/temp/context.json`.
+
+Explicit `use A` discards prior unsaved temp edits. A missing or malformed Release must leave the previous working copy intact. Running `use` without an ID shows the selected base and whether its YAML was edited. No Docker commands or live Instance changes occur.
+
+A future mutating `module bind` without `use` should start from existing temp, else active Release, else initial `instance.yaml`; this auto-initialization and Binding mutation are **not yet implemented**.
 
 ## Build the Manafield platform directly (without Jenkins)
 
@@ -70,6 +83,7 @@ That does not imply a full Docker-free v0 Instance deployment.
 | `manafield health` | Implemented | Query Core health |
 | `manafield ps` | Implemented | Query Core, Modules, Resources |
 | `manafield resource [id]` | Implemented | List or inspect Resources |
+| `manafield use [RELEASE_ID] [--instance-root DIR]` | Implemented | Select an immutable YAML into a working copy or inspect current selection; explicit switching discards unsaved edits |
 | `manafield build all [--source DIR] [--output DIR] [--no-docker]` | Implemented | Produce a Manafield-only platform bundle and, by default, Core + official PostgreSQL Provider Docker images |
 | `manafield plan [INSTANCE]` | Implemented | Validate and resolve an Instance Definition |
 | `manafield deploy RELEASE_DIR` | Implemented | Docker Compose deployment of an already staged release |

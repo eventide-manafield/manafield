@@ -1,5 +1,6 @@
 mod build;
 mod deploy;
+mod workspace;
 
 use std::env;
 use std::error::Error;
@@ -20,6 +21,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
+    Use {
+        release_id: Option<String>,
+        instance_root: Option<String>,
+    },
     Ps,
     Resource(Option<String>),
     Plan {
@@ -59,6 +64,7 @@ where
             "Core is a separate executable; run manafield-core".to_owned(),
         )),
         "health" => ensure_no_more(args, Command::Health),
+        "use" => parse_use_args(args),
         "ps" => ensure_no_more(args, Command::Ps),
         "resource" | "resources" => {
             let id = args.next();
@@ -78,6 +84,38 @@ where
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
     }
+}
+
+fn parse_use_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let mut release_id = None;
+    let mut instance_root = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--instance-root" if instance_root.is_none() => {
+                instance_root = Some(args.next().ok_or_else(|| {
+                    CliError::Usage("--instance-root requires a directory".to_owned())
+                })?);
+            }
+            flag if flag.starts_with('-') => {
+                return Err(CliError::Usage(format!(
+                    "unknown/repeated use option '{flag}'"
+                )));
+            }
+            id if release_id.is_none() => release_id = Some(id.to_owned()),
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unexpected argument '{other}' after Release ID"
+                )));
+            }
+        }
+    }
+    Ok(Command::Use {
+        release_id,
+        instance_root,
+    })
 }
 
 fn parse_plan_args<I>(mut args: I) -> Result<Command, CliError>
@@ -234,6 +272,10 @@ where
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
         Command::Health => print_health(),
+        Command::Use {
+            release_id,
+            instance_root,
+        } => workspace::run(instance_root.as_deref(), release_id.as_deref()),
         Command::Ps => print_ps(),
         Command::Resource(id) => print_resource(id.as_deref()),
         Command::Plan {
@@ -389,6 +431,8 @@ pub fn print_help() {
            manafield [COMMAND]\n\
          \n\
          Commands:\n\
+           use [RELEASE_ID]  Select a Release as editable YAML (or show selection)\n\
+                             option: --instance-root DIR\n\
            health            Show Core health\n\
            ps                Show Core, Module, and Resource summary\n\
            resource [ID]     List Resources or show one Resource\n\
@@ -727,6 +771,31 @@ mod tests {
                 ci_output_dir: None,
             }
         );
+    }
+
+    #[test]
+    fn parses_use_selection_and_status() {
+        assert_eq!(
+            parse_args(args(&[
+                "use",
+                "v1_20261008T070000Z",
+                "--instance-root",
+                "/tmp/i"
+            ]))
+            .unwrap(),
+            Command::Use {
+                release_id: Some("v1_20261008T070000Z".to_owned()),
+                instance_root: Some("/tmp/i".to_owned())
+            }
+        );
+        assert_eq!(
+            parse_args(args(&["use"])).unwrap(),
+            Command::Use {
+                release_id: None,
+                instance_root: None
+            }
+        );
+        assert!(parse_args(args(&["use", "--instance-root"])).is_err());
     }
 
     #[test]

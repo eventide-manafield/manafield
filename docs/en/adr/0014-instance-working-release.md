@@ -40,12 +40,12 @@ manafield module bind echo-prod state main-postgres
 manafield deploy B
 ```
 
-- `use A` loads an immutable Release YAML into a **mutable private temp working copy**, recording A as its base. It does not deploy A. Refuse to silently discard dirty changes.
-- `module bind` and future editing commands modify only that working copy. Manual YAML editing must target the same source of truth.
+- `use A` loads an immutable Release YAML into a **mutable private temp working copy**, recording A as its base. It does not deploy A. **An explicit `use A` intentionally replaces the previous temp copy, discarding unsaved edits without confirmation.**
+- `module bind` and future editing commands modify only that working copy. When no working copy exists, choose an existing temp copy, else the active Release, else the initial `instance.yaml`. If none exists, report a missing-initialization error rather than create an empty YAML. Read-only commands do not create a working copy. Manual YAML editing must target the same source of truth.
 - When B is a **new Release ID**, `deploy B` validates and snapshots the working copy as immutable B **before** attempting deployment. Preserve B even if deployment fails.
 - When B **already exists**, deploy the saved B verbatim. Dirty working-copy changes must cause a conflict, not be silently dropped or written over B.
 - An argument-free `deploy` may generate a new Release ID and print it. Re-deploy an existing Release explicitly using `deploy A`.
-- `use` changes the selected editing baseline, not the live deployment.
+- `use` changes the selected editing baseline, not the live deployment. Record the last selected base Release in `manafield/temp/context.json` and the successful live Release separately in `manafield/state/active-release.json`. CLI restarts do not discard temp edits.
 
 These commands are a **target design**, not currently implemented syntax. A separate `release create` is not required initially; snapshotting belongs to the new-release deploy transaction. A save-without-deploy operation may be added later.
 
@@ -59,12 +59,15 @@ Planned private per-instance layout:
     ├── release/
     │   ├── v1_20261008T070000Z.yaml
     │   └── v2_20261008T080000Z.yaml
-    └── temp/
-        └── working.yaml
+    ├── temp/
+    │   ├── working.yaml
+    │   └── context.json
+    └── state/
+        └── active-release.json
 ```
 
 - Default ID: `v<positive integer>_<UTC YYYYMMDDTHHMMSSZ>`; the integer monotonically increases per Instance. Never overwrite or reuse an existing ID.
-- The private working copy may persist across invocations. Do not store raw secrets in the working copy or Release YAML.
+- The private working copy may persist across invocations. Invalid or missing Release IDs must not discard existing edits even when `use` was invoked. Do not store raw secrets in the working copy or Release YAML.
 - Pin concrete source/version references and binding target Instance IDs in the snapshot. Image digests/manifests may be referenced in separate immutable metadata when needed for reproducibility. **Release IDs are not Platform or Module versions.**
 - Write immutable files atomically. Store deployment success/failure history separately rather than editing the Release YAML.
 
