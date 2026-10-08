@@ -136,9 +136,9 @@ cargo run --locked --bin manafield -- deploy \
 
 이 모드는 `<instance-root>/manafield/staged/<release-id>/`에 Compose 설정, Core·Module 매니페스트, Build Plan, PostgreSQL Binding 파일을 직접 만들고, Docker 이미지를 빌드한 뒤 적용해. PostgreSQL Provider가 1개 있으면 공식 Provider 이미지를 함께 빌드하고, Binding별 schema/role/password 파일을 만들며 기존 password 파일은 재사용해. `release.env`는 0600 권한으로 생성돼.
 
-**현시점의 직접 배포 범위:** Docker Runtime Provider, 비공개(Module Exposure 없음) Git/dir Module, PostgreSQL Resource **최대 1개**. 외부 공개/Ingress 구성 및 PostgreSQL 이외 Provider는 아직 지원하지 않으며 배포 전에 오류로 종료해. Compose 프로젝트명은 v0 기준 `manafield`로 고정되어 있으므로 **여러 Instance를 동일 Docker 호스트에 동시에 띄우는 용도로는 아직 적합하지 않아.**
+**현시점의 직접 배포 범위:** Docker Runtime Provider, 비공개(Module Exposure 없음) Git/dir Module, PostgreSQL Resource **최대 1개**. 외부 공개/Ingress 구성 및 PostgreSQL 이외 Provider는 아직 지원하지 않으며 배포 전에 오류로 종료해. 직접 배포에서는 Compose 프로젝트명을 `manafield-<instance-id>`로, 내부 네트워크를 Instance별로 분리해. 같은 Instance의 Release는 같은 볼륨을 재사용하지만, 기존 Jenkins 프로젝트와는 **서로 다른 컨테이너·볼륨**을 사용해.
 
-새 Release는 Docker 빌드 실패와 관계없이 불변 YAML로 남아. 같은 Release를 재시도하면 유효한 기존 준비 산출물을 재사용하며 데이터 볼륨이나 비밀번호 파일을 지우지 않아. Resource 재사용은 **볼륨과 인증정보를 유지한다는 의미**로, PostgreSQL 데이터/계정 마이그레이션이나 기존 Jenkins 설치의 인증정보 자동 이전을 보증하지 않아. 기존 PostgreSQL Volume에 새 임의 관리 비밀번호를 설정하면 인증이 맞지 않을 수 있으니 초기 도입 시 별도 점검이 필요해.
+새 Release는 Docker 빌드 실패와 관계없이 불변 YAML로 남아. 같은 Release를 재시도하면 유효한 기존 준비 산출물을 재사용하며 데이터 볼륨이나 비밀번호 파일을 지우지 않아. Resource 재사용은 **볼륨과 인증정보를 유지한다는 의미**로, PostgreSQL 데이터/계정 마이그레이션이나 기존 Jenkins 설치의 인증정보 자동 이전을 보증하지 않아. 기존 Jenkins PostgreSQL Volume의 데이터는 새 Instance로 자동 이전되지 않으니 이관 시 별도 절차가 필요해.
 
 Core `/health`까지 통과하면 활성 Release를 기록하지만, 모든 Module/Resource의 등록/실제 가용성은 별도로 확인해야 해. 이 기능은 이미지 digest 잠금, 이전 배포 자동 롤백, Ingress 반영, 파괴적 리소스 제거를 포함하지 않아. **실제 Docker 엔진 통합 검증은 아직 필요해.**
 

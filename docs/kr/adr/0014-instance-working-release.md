@@ -113,4 +113,4 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 
 `deploy`는 사전 준비된 산출물 옵션 `--staged-dir`가 없으면, Core 소스(`--source`, 기본 cwd)를 기준으로 **비공개 Git/dir Module과 PostgreSQL 최대 1개**의 빌드/Materialization/Compose 산출물을 직접 생성할 수 있다. Git Module은 선언 ref를 Fetch/Checkout하여 이미지에 실제 Git 커밋 태그를 부여한다. `source.type: dir`은 `--modules-root` 옵션으로 찾는다. Ingress/Exposure 및 나머지 Resource Provider는 실패 우선 정책으로 거부한다.
 
-직접 배포는 Core 헬스 성공을 활성 상태 기록의 기준으로 사용하며, 전체 Module/Resource 검증과 데이터 마이그레이션, 과거 Jenkins 설치의 PostgreSQL 인증정보 자동 승계는 후속 과제다. PostgreSQL 볼륨과 기존 Secret은 삭제하지 않으며 Compose project `manafield` 고정은 현재 단일 Instance 실행 한계다. 실제 Docker Runtime 통합 검증 전까지 운영 준비 완료로 간주하지 않는다.
+직접 배포는 Core 헬스 성공을 활성 상태 기록의 기준으로 사용하며, 전체 Module/Resource 검증과 데이터 마이그레이션, 과거 Jenkins 설치의 PostgreSQL 인증정보 자동 승계는 후속 과제다. PostgreSQL 볼륨과 기존 Secret은 삭제하지 않으며 직접 배포의 Compose 프로젝트 및 내부 네트워크는 Instance ID 기반으로 분리되어 기존 Jenkins 프로젝트와 충돌하지 않도록 한다. 실제 Docker Runtime 통합 검증 전까지 운영 준비 완료로 간주하지 않는다.
