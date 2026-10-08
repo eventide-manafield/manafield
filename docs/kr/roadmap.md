@@ -129,7 +129,7 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] Resource 관리 컴포넌트 lifecycle / protocol
 - [ ] Secret / connection metadata injection model
 - [ ] PostgreSQL Resource 관리 구현 v0 (`database.postgresql` Capability)
-- [ ] 동일 PostgreSQL instance의 Module별 database/schema/account allocation / Capability binding
+- [ ] 동일 PostgreSQL Resource database의 Module별 schema/role allocation / Capability binding
 
 ## Phase 2 — Module Lifecycle
 

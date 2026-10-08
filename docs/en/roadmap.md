@@ -129,7 +129,7 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Resource management component lifecycle / protocol
 - [ ] Secret / connection metadata injection model
 - [ ] PostgreSQL Resource management v0 (`database.postgresql` Capability)
-- [ ] Per-Module database/schema/account allocation / Capability binding on a shared PostgreSQL instance
+- [ ] Per-Module schema/role allocation / Capability binding inside a shared PostgreSQL Resource database
 
 ## Phase 2 — Module Lifecycle
 

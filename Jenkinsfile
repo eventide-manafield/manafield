@@ -559,7 +559,8 @@ EOF
                           test -n "$safe_module"
 
                           identifier="$(postgres_identifier "mf_${safe_module}_${binding_slot}")"
-                          database="$identifier"
+                          database="manafield"
+                          schema="$identifier"
                           username="$identifier"
 
                           secret_dir="$INSTANCE_ROOT/secrets/postgresql/$binding_target"
@@ -584,13 +585,14 @@ EOF
                           # read-only so non-root Module containers can consume the bind mount.
                           chmod 0444 "$secret_file"
 
-                          printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                          printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
                             "$module_id" \
                             "$binding_slot" \
                             "$binding_target" \
                             "manafield-postgres" \
                             "5432" \
                             "$database" \
+                            "$schema" \
                             "$username" \
                             "$secret_file" \
                             >> postgresql-bindings.tsv
@@ -603,7 +605,7 @@ EOF
 
                     if [ -s postgresql-bindings.tsv ]; then
                       echo "Materialized PostgreSQL bindings:"
-                      awk -F '\t' '{ printf "  %s.%s -> %s (%s/%s)\n", $1, $2, $3, $6, $7 }' \
+                      awk -F '\t' '{ printf "  %s.%s -> %s (database=%s schema=%s role=%s)\n", $1, $2, $3, $6, $7, $8 }' \
                         postgresql-bindings.tsv
                     fi
                 '''
@@ -661,13 +663,19 @@ EOF
                     if [ -s postgresql-bindings.tsv ]; then
                       tab="$(printf '\t')"
 
-                      while IFS="$tab" read -r module_id binding_slot binding_target binding_host binding_port database username secret_file; do
+                      while IFS="$tab" read -r module_id binding_slot binding_target binding_host binding_port database schema username secret_file; do
                         [ -n "$module_id" ] || continue
 
                         secret_name="$(basename "$secret_file")"
                         provider_secret_file="/run/manafield/postgresql/secrets/$binding_target/$secret_name"
 
-                        printf '%s\t%s\t%s\t%s\n'                           "$binding_target"                           "$database"                           "$username"                           "$provider_secret_file"                           >> "$RELEASE_DIR/postgresql-allocations.tsv"
+                        printf '%s\t%s\t%s\t%s\t%s\n' \
+                          "$binding_target" \
+                          "$database" \
+                          "$schema" \
+                          "$username" \
+                          "$provider_secret_file" \
+                          >> "$RELEASE_DIR/postgresql-allocations.tsv"
                       done < postgresql-bindings.tsv
                     fi
 
@@ -683,6 +691,7 @@ EOF
                       "MANAFIELD_POSTGRES_PROVIDER_IMAGE=$postgres_provider_image" \
                       "MANAFIELD_POSTGRES_RESOURCE_ID=$postgres_resource_id" \
                       "MANAFIELD_POSTGRES_RESOURCE_NAME=Manafield PostgreSQL" \
+                      "MANAFIELD_POSTGRES_DB=manafield" \
                       "MANAFIELD_POSTGRES_ALLOCATIONS_FILE_HOST=$RELEASE_DIR/postgresql-allocations.tsv" \
                       "MANAFIELD_POSTGRES_SECRETS_PATH=$INSTANCE_ROOT/secrets/postgresql" \
                       > "$RELEASE_DIR/release.env"
@@ -770,14 +779,19 @@ EOF
                               '$1 == module && $2 == slot { print $6; exit }' \
                               postgresql-bindings.tsv
                           )"
-                          binding_username="$(
+                          binding_schema="$(
                             awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
                               '$1 == module && $2 == slot { print $7; exit }' \
                               postgresql-bindings.tsv
                           )"
-                          binding_secret_file="$(
+                          binding_username="$(
                             awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
                               '$1 == module && $2 == slot { print $8; exit }' \
+                              postgresql-bindings.tsv
+                          )"
+                          binding_secret_file="$(
+                            awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                              '$1 == module && $2 == slot { print $9; exit }' \
                               postgresql-bindings.tsv
                           )"
                           binding_secret_target="/run/manafield/bindings/$binding_slot/password"
@@ -790,6 +804,9 @@ EOF
                             >> "$RELEASE_DIR/modules.compose.yml"
                           printf '      MANAFIELD_BINDING_%s_CONFIG_DATABASE: "%s"\n' \
                             "$binding_slot_upper" "$binding_database" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '      MANAFIELD_BINDING_%s_CONFIG_SCHEMA: "%s"\n' \
+                            "$binding_slot_upper" "$binding_schema" \
                             >> "$RELEASE_DIR/modules.compose.yml"
                           printf '      MANAFIELD_BINDING_%s_CONFIG_USERNAME: "%s"\n' \
                             "$binding_slot_upper" "$binding_username" \
@@ -980,21 +997,3 @@ EOF
                         || return 1
 
                       tab="$(printf '\t')"
-
-                      while IFS="$tab" read -r module_id safe_id _; do
-                        [ -n "$module_id" ] || continue
-
-                        module_pattern="$(printf '"id":"%s"' "$module_id")"
-                        grep -Fq "$module_pattern" /tmp/manafield-modules.json || return 1
-
-                        module_container="$(compose ps -q "module-$safe_id")"
-                        [ -n "$module_container" ] || return 1
-                        [ "$(docker inspect -f '{{.State.Running}}' "$module_container")" = "true" ] \
-                          || return 1
-                      done < module-sources.tsv
-                    }
-
-                    verify_expected_resources() {
-                      if [ ! -s ci-plan/resources.tsv ]; then
-                        return 0
-                      fi
