@@ -92,7 +92,7 @@ manafield deploy /opt/manafield/instance/releases/123
 
 `health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
 
-`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build / verify / rebuild`와 release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중이야. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
+`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build / verify / rebuild`와 release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
 
 인자 없이 `manafield`를 실행하거나 `manafield serve`를 사용하면 Core server가 실행됩니다.
 

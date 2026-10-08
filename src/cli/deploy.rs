@@ -100,10 +100,17 @@ mod tests {
         assert_eq!(
             args,
             vec![
-                "compose", "--env-file", "/tmp/release 123/release.env",
-                "--file", "/tmp/release 123/compose.yml",
-                "--file", "/tmp/release 123/modules.compose.yml",
-                "up", "-d", "--no-build", "--remove-orphans",
+                "compose",
+                "--env-file",
+                "/tmp/release 123/release.env",
+                "--file",
+                "/tmp/release 123/compose.yml",
+                "--file",
+                "/tmp/release 123/modules.compose.yml",
+                "up",
+                "-d",
+                "--no-build",
+                "--remove-orphans",
             ]
         );
         assert_eq!(
