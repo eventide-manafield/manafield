@@ -6,7 +6,7 @@
 
 ## 작업본 및 Release CLI — 구현 / 미구현 구분
 
-[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`과 `use`는 구현됐고, `module bind` / Release ID 기반 `deploy`는 미구현이야.**
+[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`, `use`, `module bind`는 구현됐고, Release ID 기반 `deploy`는 미구현이야.**
 
 ```bash
 manafield build all
@@ -37,7 +37,23 @@ manafield use --instance-root /path/to/instance
 
 명시적 `use A`는 기존 미저장 작업본을 버리고 A를 불러오는 작업이야. 다만 지정한 Release가 없거나 YAML이 잘못됐으면 이전 작업본을 유지해. `use`만 실행하면 선택 상태와 수정 여부를 조회해. 이 단계에서는 **실제 Module/Resource 또는 Docker를 전혀 변경하지 않아.**
 
-후속 작업인 `module bind`가 `use` 없이 실행될 때는 기존 작업본 → 마지막 배포된 Release → 초기 `instance.yaml` 순서로 기준을 찾아 작업본을 자동 생성하도록 설계했어. **자동 생성과 Binding 편집은 아직 구현 전이야.**
+이제 `module bind`는 `use` 없이도 기존 작업본 → `manafield/state/active-release.json`의 마지막 배포 Release → 초기 `instance.yaml` 순서로 작업본을 선택하거나 생성해. 없으면 오류를 반환하고 빈 YAML을 만들지 않아. 현재는 `active-release.json`에 `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}` 형식을 사용할 예정이며, 해당 상태 파일을 실제 배포 성공 시 쓰는 부분은 아직 미구현이야.
+
+## Module Binding 수정 — Docker 불필요
+
+```bash
+manafield module bind echo state main-postgres --instance-root /path/to/instance
+manafield use --instance-root /path/to/instance
+```
+
+`module bind A B C`는 Instance YAML의 `modules[].bindings.B: C`를 **temp 작업본에서만** 바꿔. 대상 C는 구성에 포함된 활성 Module 또는 Resource Instance ID여야 하고, Module A는 정확히 하나 존재해야 해. B는 `[A-Za-z_][A-Za-z0-9_]*` 형식이야.
+
+- 미선택 시 temp가 있으면 계속 사용하고, 없으면 마지막 배포 Release, 그것도 없으면 `<instance-root>/instance.yaml`에서 작업본 생성
+- 미존재/비활성 대상이나 잘못된 YAML은 오류이며 새 temp 작업본을 생성하지 않음
+- 작업본은 `manafield/temp/working.yaml`, 상태는 `manafield/temp/context.json`에 저장
+- 여러 번 실행해도 기존 Binding을 유지하며, 실행 중인 Module/Resource는 바뀌지 않음
+- 현 단계는 YAML 파싱/직렬화 방식이라 **원본 작업본의 주석과 서식은 보존되지 않을 수 있어**. 수동 편집이 필요하다면 결과를 확인해줘
+- Requirement의 Capability 버전/적합성 검사는 이 명령만으로 완결되지 않으며 후속 검증 및 배포 로직에서 수행해야 해
 
 ## 플랫폼 전체 빌드 — Jenkins 없이 실행 가능
 
@@ -83,6 +99,7 @@ Core의 독립적인 API / Registry / validation과 `manafield plan`은 Docker �
 | `manafield health` | 구현 | Core API 상태 조회 |
 | `manafield ps` | 구현 | Core 및 등록된 Module/Resource 조회 |
 | `manafield resource [id]` | 구현 | Resource 목록 또는 단일 Resource 조회 |
+| `manafield module bind A B C [--instance-root DIR]` | 구현 | temp YAML의 Module Requirement Binding 설정; 실행 환경 변경 없음 |
 | `manafield use [RELEASE_ID] [--instance-root DIR]` | 구현 | 불변 Release YAML을 작업본으로 선택하거나 현재 선택 상태 확인; 기존 미저장 temp는 명시적 전환 시 폐기 |
 | `manafield build all [--source DIR] [--output DIR] [--no-docker]` | 구현 | Manafield 플랫폼 실행파일 배포 묶음 생성. 기본값은 Docker 이미지(Core/공식 PostgreSQL Provider)도 빌드 |
 | `manafield plan [INSTANCE]` | 구현 | Instance Definition 검증 및 Build Plan 생성 |
