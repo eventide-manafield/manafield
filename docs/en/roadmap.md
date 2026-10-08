@@ -249,7 +249,9 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Generate Release IDs and atomically publish immutable YAML; store latest deployment attempt separately
 - [ ] Persist full attempt history and pin image/source artifact identities
 - [x] Implement new/existing `manafield deploy <release-id>` and verify pre-staged Build Plan equivalence
-- [ ] Prepare all Instance sources, Module installations and staged deployment artifacts directly from CLI
+- [x] Prepare Git/dir Modules, single PostgreSQL Resource Bindings and Compose artifacts directly from CLI
+- [ ] Support ingress/exposures, multiple or external Resource Providers and multi-Instance Runtime
+- [ ] Reconcile existing PostgreSQL credentials/identity and complete real Docker integration tests
 - [ ] Verify all Module/Resource health and ingress publication in the new deployment flow
 - [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`
 

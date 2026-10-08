@@ -108,3 +108,9 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 실제 적용에는 현재 `--staged-dir DIR` 옵션으로 외부에서 준비된 Compose 파일과 `build-plan.json`이 필요하다. Build Plan이 저장된 Release와 일치하지 않으면 Docker 호출을 거부한다. 배포 성공 판정은 **Compose 동작 및 Core HTTP 헬스**를 의미하며, 모든 Module/Resource의 헬스와 Ingress 반영은 후속 작업이다.
 
 새 경로는 `--remove-orphans`를 사용하지 않고, 마지막 시도 상태와 활성 Release ID를 별도 JSON에 기록한다. 이전 Jenkins 방식의 디렉터리 기반 `deploy RELEASE_DIR`은 호환성 용도로 그대로 남는다. YAML 스냅샷만으로 이미지 digest, 외부 소스 ref, 데이터 상태가 완전히 고정되는 것은 아니다.
+
+## 직접 Instance 배포 v0 제한 (2026-10-08)
+
+`deploy`는 사전 준비된 산출물 옵션 `--staged-dir`가 없으면, Core 소스(`--source`, 기본 cwd)를 기준으로 **비공개 Git/dir Module과 PostgreSQL 최대 1개**의 빌드/Materialization/Compose 산출물을 직접 생성할 수 있다. Git Module은 선언 ref를 Fetch/Checkout하여 이미지에 실제 Git 커밋 태그를 부여한다. `source.type: dir`은 `--modules-root` 옵션으로 찾는다. Ingress/Exposure 및 나머지 Resource Provider는 실패 우선 정책으로 거부한다.
+
+직접 배포는 Core 헬스 성공을 활성 상태 기록의 기준으로 사용하며, 전체 Module/Resource 검증과 데이터 마이그레이션, 과거 Jenkins 설치의 PostgreSQL 인증정보 자동 승계는 후속 과제다. PostgreSQL 볼륨과 기존 Secret은 삭제하지 않으며 Compose project `manafield` 고정은 현재 단일 Instance 실행 한계다. 실제 Docker Runtime 통합 검증 전까지 운영 준비 완료로 간주하지 않는다.
