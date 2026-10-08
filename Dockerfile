@@ -6,6 +6,7 @@ WORKDIR /src
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY src ./src
+COPY deploy/instance.bootstrap.yaml ./deploy/instance.bootstrap.yaml
 
 RUN rustup component add rustfmt clippy
 
