@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-06
 
+> Follow-up: [ADR-0014](0014-instance-working-release.md) distinguishes **Manafield platform builds** from **independently published Module installation and Instance Release/Deploy**. Today's Jenkins Module source builds are transitional and not the final `build all` contract.
+
 ## Context
 
 A Manafield instance may deploy Core, Runtime Providers, and many Modules together.

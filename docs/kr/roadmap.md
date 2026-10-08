@@ -228,9 +228,27 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [x] ADR-0012 — 교체 가능한 Homepage Module / Web Shell 분리
 - [x] ADR-0013 — Docker-required v0 Deployment / CLI-first Execution
+- [x] ADR-0014 — Instance 작업본 / 불변 Release / 영속 Resource
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
+
+## 플랫폼 Build / Release 작업본 분리 — ADR-0014
+
+- [x] 설계: Manafield 플랫폼 빌드와 독립 Module 빌드·설치를 구분
+- [x] 설계: `module bind A B C` = A의 Requirement slot B가 target Instance C를 가리키는 논리적 참조
+- [x] 설계: `use A` → temp YAML 편집 → `deploy B`에서 새 불변 Release YAML 확정 및 적용
+- [x] 설계: Release ID `vN_YYYYMMDDTHHMMSSZ` (UTC), `manafield/release/<id>.yaml`, `manafield/temp/working.yaml`
+- [x] 설계: 기존 PostgreSQL Resource/Volume/데이터는 Release 간에 유지하며 YAML 재배포는 데이터 복원이 아님
+- [ ] `manafield` CLI와 `manafield-core` 서버를 별도 바이너리로 분리해 동일 배포 묶음에 포함
+- [ ] `manafield build all`을 플랫폼 자체만 빌드하도록 구현; 현재 Jenkins 호환 Build의 외부 Module 빌드 책임 분리
+- [ ] `manafield use` / temp 작업본 관리·미저장 변경 보호 구현
+- [ ] `manafield module bind` 작업본 YAML 편집 구현
+- [ ] Release ID 발급·원자적 불변 YAML 확정·배포 이력 분리 구현
+- [ ] `manafield deploy <release-id>` 신규/기존 ID 의미 구현
+- [ ] Resource 재사용 및 비파괴 멱등 적용 검증, Jenkins `--remove-orphans` 정책 검토
+
+**현재와 목표를 구별:** 현행 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Module도 빌드하고 `manafield deploy RELEASE_DIR`은 준비된 Compose 디렉터리를 실행합니다. 위의 `build all` / `deploy <release-id>`는 아직 구현되지 않았습니다. 자세한 내용은 [ADR-0014](adr/0014-instance-working-release.md)를 참고합니다.
 
 ## Phase 5 — CI/CD / Instance Build Plan
 

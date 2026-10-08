@@ -3,6 +3,8 @@
 - 상태: Accepted
 - 날짜: 2026-10-08
 
+> 후속 결정: [ADR-0014](0014-instance-working-release.md)는 플랫폼 빌드와 Instance Release 배포를 분리하고, 작업본 YAML 및 영속 Resource 정책을 정의합니다. 이 문서의 `build / deploy / rebuild` 나열은 당시의 **이전 계획**이지 최종 명령 문법이 아닙니다.
+
 ## Context
 
 Manafield는 Core의 일반 Registry / Protocol 모델과 실제 실행 기술을 Runtime Provider 경계로 분리합니다.

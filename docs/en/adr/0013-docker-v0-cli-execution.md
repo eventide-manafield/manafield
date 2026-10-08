@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-08
 
+> Follow-up: [ADR-0014](0014-instance-working-release.md) separates platform building and Instance Release deployment, defining working-copy YAML and persistent Resources. The `build / deploy / rebuild` commands listed below are the **migration vision at the time**, not the final command grammar.
+
 ## Context
 
 Manafield separates the general Core registry/protocol model from concrete execution technology through the Runtime Provider boundary.

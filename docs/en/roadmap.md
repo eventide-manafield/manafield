@@ -228,9 +228,27 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [x] ADR-0012 — Replaceable Homepage Module / Web Shell Separation
 - [x] ADR-0013 — Docker-required v0 Deployment / CLI-first Execution
+- [x] ADR-0014 — Instance Working Copy / Immutable Releases / Persistent Resources
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
+
+## Platform Build / Release Working-Copy Split — ADR-0014
+
+- [x] Design: Separate Manafield platform builds from independently published Module builds/installation
+- [x] Design: `module bind A B C` is a logical Requirement slot B of consumer A pointing to target Instance C
+- [x] Design: `use A` → edit temp YAML → `deploy B` snapshots new immutable Release YAML and applies it
+- [x] Design: Release ID `vN_YYYYMMDDTHHMMSSZ` (UTC), `manafield/release/<id>.yaml`, `manafield/temp/working.yaml`
+- [x] Design: Persist PostgreSQL Resource/volume/database data across Releases; YAML retries are not data restoration
+- [ ] Split `manafield` CLI and `manafield-core` server into separate binaries in one distribution
+- [ ] Implement `manafield build all` for platform artifacts only; migrate external Module build responsibility out of transitional Jenkins-compatible build
+- [ ] Implement `manafield use`, temp working-copy management, dirty-work protection
+- [ ] Implement `manafield module bind` temp YAML editing
+- [ ] Generate Release IDs, save immutable YAML atomically, store deployment history separately
+- [ ] Implement new/existing `manafield deploy <release-id>` behavior
+- [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`
+
+**Current versus target:** `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules; `manafield deploy RELEASE_DIR` operates on pre-staged Compose directories. The target `build all` / `deploy <release-id>` is not implemented yet. See [ADR-0014](adr/0014-instance-working-release.md).
 
 ## Phase 5 — CI/CD / Instance Build Plan
 
