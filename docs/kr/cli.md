@@ -6,7 +6,7 @@
 
 ## 작업본 및 Release CLI — 구현 / 미구현 구분
 
-[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`, `use`, `module bind`는 구현됐고, Release ID 기반 `deploy`는 미구현이야.**
+[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`, `use`, `module bind`, Release ID 기반 스냅샷 저장 및 준비된 산출물 적용은 구현됐어.** 단, Instance 전체 source checkout / Module 빌드 / 배포 산출물 생성을 CLI만으로 수행하는 기능은 아직 구현 중이야.
 
 ```bash
 manafield build all
@@ -19,12 +19,12 @@ manafield deploy v1_20261008T070000Z
 - `build all`은 **Manafield 플랫폼**만 빌드하며 별도 배포된 Module은 재빌드하지 않음
 - `use A`는 기존 불변 YAML을 `<instance-root>/manafield/temp/working.yaml`로 복사해 선택함. 명시적인 `use`로 전환하면 기존 미저장 편집을 폐기함
 - `module bind A B C`는 A의 Requirement slot B가 대상 Module/Resource Instance C를 가리키도록 temp YAML만 수정함. 즉시 배포나 Resource 복제를 하지 않음
-- `deploy B`에서 B가 새 ID면 작업본 검증 → `<instance-root>/manafield/release/B.yaml` 불변 저장 → 배포. 기존 ID이면 저장된 Release를 그대로 재적용하며 미저장 편집이 있을 경우 오류로 처리
+- `deploy B`에서 B가 새 ID면 작업본 검증 → `<instance-root>/manafield/release/B.yaml` 불변 저장 → 준비된 산출물 적용 시도. 기존 ID이면 저장된 Release를 그대로 재적용하며 미저장 편집이 있을 경우 오류로 처리
 - 기본 Release ID는 `v<자연수>_<UTC YYYYMMDDTHHMMSSZ>`이고, Instance 내에서 재사용하거나 덮어쓸 수 없음
 - 기존 PostgreSQL과 Volume/스키마/Role/데이터는 Release가 바뀌어도 재사용. YAML 재배포만으로 데이터 백업/복원이 되지는 않음
 - Release 간 전체 diff 엔진은 당장 필수가 아니지만, 배포 엔진의 멱등성·기존 Resource 식별·비파괴 변경 처리는 필요함
 
-현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**하며, `manafield deploy RELEASE_DIR`는 이미 준비된 Compose 산출물만 실행한다. 위 목표 명령과 섞어 생각하면 안 돼.
+현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**해. `manafield deploy RELEASE_DIR` 역시 기존 Compose 경로 전용인 반면, 새 `deploy <release-id> --staged-dir DIR`는 Release YAML과 준비된 산출물의 Build Plan을 비교하고 적용해. 후자의 산출물 생성 자체는 아직 외부 준비 단계야.
 
 ## Release 작업본 선택 — Docker 불필요
 
@@ -103,7 +103,8 @@ Core의 독립적인 API / Registry / validation과 `manafield plan`은 Docker �
 | `manafield use [RELEASE_ID] [--instance-root DIR]` | 구현 | 불변 Release YAML을 작업본으로 선택하거나 현재 선택 상태 확인; 기존 미저장 temp는 명시적 전환 시 폐기 |
 | `manafield build all [--source DIR] [--output DIR] [--no-docker]` | 구현 | Manafield 플랫폼 실행파일 배포 묶음 생성. 기본값은 Docker 이미지(Core/공식 PostgreSQL Provider)도 빌드 |
 | `manafield plan [INSTANCE]` | 구현 | Instance Definition 검증 및 Build Plan 생성 |
-| `manafield deploy RELEASE_DIR` | 구현 | 준비된 release에 한해 Docker Compose 배포 |
+| `manafield deploy [RELEASE_ID] [--instance-root DIR] [--snapshot-only] [--staged-dir DIR]` | 구현 (단계적) | YAML 스냅샷 확정, 준비된 Compose 산출물 일치 검증, Docker 적용 및 Core 헬스 확인 |
+| `manafield deploy RELEASE_DIR` | 기존 호환 | 기존 Jenkins 방식의 준비된 Compose 디렉터리 적용 |
 | `manafield build WORKSPACE REVISION CORE_IMAGE` | 구현 | Jenkins가 준비한 workspace의 Core/Module/Resource Docker 이미지 빌드 |
 | `manafield verify` / `rebuild` | 미구현 | Jenkins에서 단계적으로 이전할 예정 |
 
@@ -114,6 +115,29 @@ manafield plan instance.yaml \
   --output build-plan.json \
   --ci-output ci-plan
 ```
+
+## 불변 Release 확정과 적용 — 단계적 구현
+
+```bash
+# 1. 기존 use/bind 작업본을 새 Release로 저장 (Docker 호출 없음)
+manafield deploy v2_20261008T080000Z --snapshot-only --instance-root /path/to/instance
+
+# 2. 준비된 산출물에 Build Plan이 맞는 경우에만 실제 배포
+manafield deploy v2_20261008T080000Z \
+  --instance-root /path/to/instance \
+  --staged-dir /path/to/prepared-release
+
+# 3. ID 생략 시 새 vN_UTC타임스탬프 자동 발급
+manafield deploy --snapshot-only --instance-root /path/to/instance
+```
+
+`--staged-dir`에는 `build-plan.json`, `release.env`, `compose.yml`, `modules.compose.yml`, `compose-profiles.txt`가 모두 필요해. CLI는 저장한 Release에서 Build Plan을 다시 해석하고 JSON 내용이 **일치하지 않으면 Docker를 실행하지 않아**.
+
+신규 ID는 작업본을 검증하고 불변 YAML로 확정한 뒤 적용을 시도해. 준비된 산출물이 없으면 **Release는 남지만 명령은 실패**하며, 나중에 같은 ID로 다시 시도할 수 있어. 기존 ID는 작업본에 미저장 변경이 있으면 재배포를 거부해. `--snapshot-only`로 구성만 확정할 수도 있어.
+
+배포 시에는 `docker compose up -d --no-build`, `ps`, Core 컨테이너 내부 HTTP `/health` 확인을 수행하고, 이 단계가 성공해야 `manafield/state/active-release.json`을 갱신해. `last-attempt.json`은 마지막 적용 시도 상태를 기록해. **Module/Resource 전체 헬스 검증과 운영 실패 복구, Ingress 반영은 아직 이 새 경로의 범위 밖**이야.
+
+영속 Resource를 보호하기 위해 새 경로에서는 `--remove-orphans`를 사용하지 않아. **Jenkins의 예전 `deploy RELEASE_DIR` 경로에는 이 변경이 적용되지 않았어.** 그리고 Build Plan 일치는 이미지 digest 고정을 보장하지 않으므로, 모듈 소스 revision 및 이미지 고정은 추가 과제로 남아 있어.
 
 ## 준비된 release 배포
 

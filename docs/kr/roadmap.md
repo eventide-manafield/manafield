@@ -246,8 +246,11 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] `manafield use` 불변 Release 선택, temp 작업본 저장·기준 정보 영속화 및 명시적 변경 폐기 구현
 - [x] `module bind` 미선택 시 기존 temp / active Release / 초기 instance.yaml 자동 생성 구현
 - [x] `manafield module bind` 작업본 YAML 편집 구현
-- [ ] Release ID 발급·원자적 불변 YAML 확정·배포 이력 분리 구현
-- [ ] `manafield deploy <release-id>` 신규/기존 ID 의미 구현
+- [x] Release ID 발급·원자적 불변 YAML 확정·마지막 배포 시도 상태 분리 구현
+- [ ] 다회 배포 이력 보존 및 Release/Artifact digest 고정 구현
+- [x] `manafield deploy <release-id>` 신규/기존 ID 처리 및 사전 준비된 Build Plan 일치 검증
+- [ ] CLI 자체로 Instance 전체 소스 준비·Module 설치·배포 산출물 생성 구현
+- [ ] 새 배포 경로의 전체 Module/Resource/Ingress 상태 검증 및 안전한 배포 재시도
 - [ ] Resource 재사용 및 비파괴 멱등 적용 검증, Jenkins `--remove-orphans` 정책 검토
 
 **현재와 목표를 구별:** 현행 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Module도 빌드하고 `manafield deploy RELEASE_DIR`은 준비된 Compose 디렉터리를 실행합니다. 새 `build all`은 구현됐지만 `deploy <release-id>`는 아직 미구현입니다. 자세한 내용은 [ADR-0014](adr/0014-instance-working-release.md)를 참고합니다.

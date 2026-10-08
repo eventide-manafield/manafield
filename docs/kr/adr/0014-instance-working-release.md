@@ -100,3 +100,11 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 ## CLI 구현 현황 (2026-10-08)
 
 `manafield module bind A B C`는 temp YAML 편집만 수행한다. 작업본이 없다면 마지막 배포 Release(`manafield/state/active-release.json`의 `release_id`), 없으면 초기 `instance.yaml`을 읽어 생성한다. 원본 Release와 실행 환경은 변경하지 않는다. 현재 YAML serializer는 주석과 서식을 보존하지 않을 수 있으며, Capability 계약 적합성 검증은 후속 로직으로 남는다.
+
+## CLI 신규 Release 배포 연결 (2026-10-08)
+
+`manafield deploy [release-id]`는 새 ID의 경우 작업본을 검증한 뒤 원자적으로 불변 YAML을 보존한다. 기존 ID는 작업본에 미저장 변경이 있으면 거부한다. ID가 없으면 `vN_UTC타임스탬프`를 발급한다. `--snapshot-only`는 YAML 확정만 수행한다.
+
+실제 적용에는 현재 `--staged-dir DIR` 옵션으로 외부에서 준비된 Compose 파일과 `build-plan.json`이 필요하다. Build Plan이 저장된 Release와 일치하지 않으면 Docker 호출을 거부한다. 배포 성공 판정은 **Compose 동작 및 Core HTTP 헬스**를 의미하며, 모든 Module/Resource의 헬스와 Ingress 반영은 후속 작업이다.
+
+새 경로는 `--remove-orphans`를 사용하지 않고, 마지막 시도 상태와 활성 Release ID를 별도 JSON에 기록한다. 이전 Jenkins 방식의 디렉터리 기반 `deploy RELEASE_DIR`은 호환성 용도로 그대로 남는다. YAML 스냅샷만으로 이미지 digest, 외부 소스 ref, 데이터 상태가 완전히 고정되는 것은 아니다.

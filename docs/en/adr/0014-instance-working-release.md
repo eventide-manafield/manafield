@@ -97,3 +97,11 @@ An immutable YAML snapshot allows retrying or re-applying an earlier desired con
 ## CLI implementation status (2026-10-08)
 
 `manafield module bind A B C` updates only temp working YAML. If missing, the working copy is initialized from the last deployed Release (`release_id` in `manafield/state/active-release.json`) or initial `instance.yaml`. Immutable Release YAML and live runtime are untouched. YAML serialization may not preserve comments/formatting; full Capability compatibility validation remains future work.
+
+## CLI Release deployment bridge (2026-10-08)
+
+`manafield deploy [release-id]` now validates a working copy and atomically commits a new immutable YAML snapshot (or applies an existing one unless dirty working edits conflict). Without an ID it allocates `vN_UTCtimestamp`; `--snapshot-only` stops after saving.
+
+Runtime application currently requires `--staged-dir DIR` with pre-created Compose artifacts and `build-plan.json`. The staged Build Plan must match the Release or Docker execution is rejected. Success currently means **Compose application and Core HTTP health**, not full Module/Resource health or ingress verification.
+
+The new path avoids `--remove-orphans` and records the last attempt and active Release separately. The old Jenkins-compatible `deploy RELEASE_DIR` stays unchanged. Immutable YAML alone does not pin all image digests, mutable external source refs or runtime data.
