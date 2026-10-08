@@ -101,20 +101,27 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
 
     let mut modules = String::new();
     for module in &plan.modules {
-        let (source_type, source_value, source_ref) = match &module.source {
+        let (source_type, source_value, source_ref, source_subdir) = match &module.source {
             ModuleSourceDefinition::Git {
                 repository,
                 git_ref,
-            } => ("git", repository.as_str(), git_ref.as_str()),
-            ModuleSourceDefinition::Dir => ("dir", "-", "-"),
+                subdir,
+            } => (
+                "git",
+                repository.as_str(),
+                git_ref.as_str(),
+                subdir.as_deref().unwrap_or("."),
+            ),
+            ModuleSourceDefinition::Dir => ("dir", "-", "-", "."),
         };
 
         modules.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
             module.id,
             source_type,
             source_value,
             source_ref,
+            source_subdir,
             module.build.build_type.as_str(),
             module.build.context,
             module.build.dockerfile,
@@ -326,9 +333,14 @@ fn validate_module_source(label: &str, source: &ModuleSourceDefinition) -> Resul
         ModuleSourceDefinition::Git {
             repository,
             git_ref,
+            subdir,
         } => {
             require_non_empty(&format!("{label}.repository"), repository)?;
             require_non_empty(&format!("{label}.ref"), git_ref)?;
+
+            if let Some(subdir) = subdir {
+                validate_source_subdir(label, subdir)?;
+            }
         }
         ModuleSourceDefinition::Dir => {}
     }
@@ -342,6 +354,29 @@ fn require_non_empty(label: &str, value: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn validate_source_subdir(label: &str, subdir: &str) -> Result<(), String> {
+    require_non_empty(&format!("{label}.subdir"), subdir)?;
+
+    if subdir.starts_with('/') || subdir.starts_with('\\') {
+        return Err(format!("{label}.subdir must be a relative path"));
+    }
+
+    if subdir.contains('\\') {
+        return Err(format!("{label}.subdir must use '/' path separators"));
+    }
+
+    if subdir
+        .split('/')
+        .any(|part| part.is_empty() || part == "." || part == "..")
+    {
+        return Err(format!(
+            "{label}.subdir must be a canonical relative path without '.', '..', or empty segments"
+        ));
+    }
+
+    Ok(())
 }
 
 fn validate_binding_slot(module_id: &str, slot: &str) -> Result<(), String> {
@@ -435,6 +470,8 @@ enum ModuleSourceDefinition {
         repository: String,
         #[serde(rename = "ref")]
         git_ref: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        subdir: Option<String>,
     },
     Dir,
 }
@@ -715,6 +752,49 @@ deployment:
 
         let error = validate_definition(&definition).unwrap_err();
         assert!(error.contains("duplicate prefix exposure"));
+    }
+
+    #[test]
+    fn accepts_git_module_subdir() {
+        let definition = definition_with_modules(
+            r#"  - id: account-core
+    source:
+      type: git
+      repository: https://example.invalid/manafield-account.git
+      ref: main
+      subdir: modules/account-core
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile"#,
+        );
+
+        assert_eq!(validate_definition(&definition), Ok(()));
+
+        let plan = BuildPlan::from(definition);
+        let ModuleSourceDefinition::Git { subdir, .. } = &plan.modules[0].source else {
+            panic!("expected git source");
+        };
+        assert_eq!(subdir.as_deref(), Some("modules/account-core"));
+    }
+
+    #[test]
+    fn rejects_git_module_subdir_traversal() {
+        let definition = definition_with_modules(
+            r#"  - id: account-core
+    source:
+      type: git
+      repository: https://example.invalid/manafield-account.git
+      ref: main
+      subdir: ../account-core
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile"#,
+        );
+
+        let error = validate_definition(&definition).unwrap_err();
+        assert!(error.contains("canonical relative path"));
     }
 
     #[test]

@@ -226,6 +226,18 @@ source:
   ref: main
 ```
 
+A Git source may optionally point at a Module subdirectory inside a monorepo:
+
+```yaml
+source:
+  type: git
+  repository: https://github.com/example/account-suite.git
+  ref: main
+  subdir: modules/account-core
+```
+
+`subdir` is relative to the repository root. Absolute paths, backslashes, empty path segments, `.`, and `..` traversal are rejected by the Build Plan Resolver. The Module build context and Dockerfile remain relative to the selected Module directory, not the repository root.
+
 Local directory source:
 
 ```yaml

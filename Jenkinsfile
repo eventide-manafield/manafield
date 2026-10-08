@@ -230,7 +230,7 @@ EOF
 
                     tab="$(printf '\t')"
 
-                    while IFS="$tab" read -r module_id source_type source_value source_ref build_type build_context dockerfile; do
+                    while IFS="$tab" read -r module_id source_type source_value source_ref source_subdir build_type build_context dockerfile; do
                       [ -n "$module_id" ] || continue
                       [ "$source_type" = "dir" ] || continue
 
@@ -354,7 +354,7 @@ EOF
 
                     tab="$(printf '\t')"
 
-                    while IFS="$tab" read -r module_id source_type source_value source_ref build_type build_context dockerfile; do
+                    while IFS="$tab" read -r module_id source_type source_value source_ref source_subdir build_type build_context dockerfile; do
                       [ -n "$module_id" ] || continue
 
                       safe_id="$(
@@ -367,10 +367,22 @@ EOF
 
                       case "$source_type" in
                         git)
-                          git clone --no-checkout "$source_value" "$module_dir"
-                          git -C "$module_dir" fetch --depth=1 origin "$source_ref"
-                          git -C "$module_dir" checkout --detach FETCH_HEAD
-                          revision="$(git -C "$module_dir" rev-parse --short=12 HEAD)"
+                          repo_dir="$WORKSPACE/modules/$safe_id-source"
+
+                          git clone --no-checkout "$source_value" "$repo_dir"
+                          git -C "$repo_dir" fetch --depth=1 origin "$source_ref"
+                          git -C "$repo_dir" checkout --detach FETCH_HEAD
+                          revision="$(git -C "$repo_dir" rev-parse --short=12 HEAD)"
+
+                          module_dir="$repo_dir"
+                          if [ "$source_subdir" != "." ]; then
+                            module_dir="$repo_dir/$source_subdir"
+                          fi
+
+                          test -d "$module_dir" || {
+                            echo "Git Module '$module_id' subdir '$source_subdir' does not exist." >&2
+                            exit 1
+                          }
                           ;;
                         dir)
                           source_dir="$(
@@ -398,6 +410,11 @@ EOF
                           exit 1
                           ;;
                       esac
+
+                      test -f "$module_dir/manafield.module.json" || {
+                        echo "Module '$module_id' manifest was not found at $module_dir/manafield.module.json" >&2
+                        exit 1
+                      }
 
                       image="$safe_id:$revision"
 
@@ -981,20 +998,3 @@ EOF
                       if [ ! -s ci-plan/resources.tsv ]; then
                         return 0
                       fi
-
-                      docker exec "$core_container" \
-                        curl --fail --silent --show-error \
-                        http://127.0.0.1:8080/resources >/tmp/manafield-resources.json \
-                        || return 1
-
-                      while IFS="$(printf '\t')" read -r resource_id _; do
-                        [ -n "$resource_id" ] || continue
-                        resource_pattern="$(printf '"id":"%s"' "$resource_id")"
-                        grep -Fq "$resource_pattern" /tmp/manafield-resources.json || return 1
-                      done < ci-plan/resources.tsv
-                    }
-
-                    attempts=30
-                    while [ "$attempts" -gt 0 ]; do
-                      if docker exec "$core_container" \
-                           curl --fail --silent --show-error \
