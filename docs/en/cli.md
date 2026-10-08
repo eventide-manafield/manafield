@@ -6,7 +6,7 @@
 
 ## Working copy and Release CLI — implementation status
 
-The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all`, `use` and `module bind` are implemented; Release-ID `deploy` is not yet implemented.**
+The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all`, `use`, `module bind`, immutable Release snapshots, and deployment of matching pre-staged artifacts are implemented.** The CLI still does not prepare all Module/Resource artifacts from an Instance YAML by itself.
 
 ```bash
 manafield build all
@@ -24,7 +24,7 @@ manafield deploy v1_20261008T070000Z
 - Preserve existing PostgreSQL identities, volumes, schemas, roles and data across Releases. YAML retries do not restore database data.
 - A full Release-to-Release diff engine is not required immediately, but runtime reconciliation and non-destructive idempotence are.
 
-Currently, transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**, and `manafield deploy RELEASE_DIR` only invokes Compose on a pre-staged artifact directory. Neither implements this target contract.
+The transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**. The old `deploy RELEASE_DIR` consumes an existing Compose directory; new `deploy <release-id> --staged-dir DIR` checks Build Plan equivalence first. Preparing those artifacts remains separate.
 
 ## Select a Release working copy — no Docker required
 
@@ -103,7 +103,8 @@ That does not imply a full Docker-free v0 Instance deployment.
 | `manafield use [RELEASE_ID] [--instance-root DIR]` | Implemented | Select an immutable YAML into a working copy or inspect current selection; explicit switching discards unsaved edits |
 | `manafield build all [--source DIR] [--output DIR] [--no-docker]` | Implemented | Produce a Manafield-only platform bundle and, by default, Core + official PostgreSQL Provider Docker images |
 | `manafield plan [INSTANCE]` | Implemented | Validate and resolve an Instance Definition |
-| `manafield deploy RELEASE_DIR` | Implemented | Docker Compose deployment of an already staged release |
+| `manafield deploy [RELEASE_ID] [--instance-root DIR] [--snapshot-only] [--staged-dir DIR]` | Implemented (staged bridge) | Snapshot YAML, verify prepared artifacts, apply Compose and check Core HTTP health |
+| `manafield deploy RELEASE_DIR` | Legacy compatibility | Docker Compose application of an already staged directory |
 | `manafield build WORKSPACE REVISION CORE_IMAGE` | Implemented | Build Core/Module/Resource Docker images from a prepared Jenkins workspace |
 | `manafield verify` / `rebuild` | Not implemented | Future incremental Jenkins migrations |
 
@@ -114,6 +115,29 @@ manafield plan instance.yaml \
   --output build-plan.json \
   --ci-output ci-plan
 ```
+
+## Immutable Release snapshots and staged deployment bridge
+
+```bash
+# Save a new snapshot without touching Docker
+manafield deploy v2_20261008T080000Z --snapshot-only --instance-root /path/to/instance
+
+# Apply matching pre-built/pre-staged Compose artifacts
+manafield deploy v2_20261008T080000Z \
+  --instance-root /path/to/instance \
+  --staged-dir /path/to/prepared-release
+
+# Generate the next vN_UTC timestamp ID automatically
+manafield deploy --snapshot-only --instance-root /path/to/instance
+```
+
+The staged directory must contain `build-plan.json`, `release.env`, `compose.yml`, `modules.compose.yml`, and `compose-profiles.txt`. The command resolves the saved Release and **rejects mismatching Build Plan JSON before running Docker**.
+
+For a new ID, the validated working copy is saved as an immutable Release YAML before deployment. Missing artifacts cause an error **after the snapshot is saved**, allowing a retry with the same ID. Existing Release IDs reject reapplication when there are unsaved working-copy edits. `--snapshot-only` saves the configuration without Docker.
+
+Applying staged artifacts uses `docker compose up -d --no-build`, `ps`, and a Core-container HTTP `/health` check. Only after those succeed is `manafield/state/active-release.json` updated; the latest attempt status is stored separately in `last-attempt.json`. **This does not yet verify every Module/Resource, publish ingress, perform backups/recovery, or generate the staged artifacts automatically.**
+
+The new path deliberately does **not** use `--remove-orphans`. Legacy Jenkins `deploy RELEASE_DIR` behavior is unchanged. Build Plan equality also does not pin mutable source refs or image digests; true reproducibility requires additional artifact identity checks.
 
 ## Deploy a staged release
 

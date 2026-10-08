@@ -1,5 +1,6 @@
 mod build;
 mod deploy;
+mod release;
 mod workspace;
 
 use std::env;
@@ -47,6 +48,12 @@ pub enum Command {
         workspace: String,
         revision: String,
         core_image: String,
+    },
+    DeployRelease {
+        id: Option<String>,
+        instance_root: Option<String>,
+        staged: Option<String>,
+        snapshot_only: bool,
     },
     Deploy {
         release_dir: String,
@@ -297,16 +304,72 @@ where
     })
 }
 
-fn parse_deploy_args<I>(mut args: I) -> Result<Command, CliError>
+fn parse_deploy_args<I>(args: I) -> Result<Command, CliError>
 where
     I: Iterator<Item = String>,
 {
-    let release_dir = args
-        .next()
-        .filter(|value| !value.is_empty() && !value.starts_with('-'))
-        .ok_or_else(|| CliError::Usage("deploy requires a staged release directory".to_owned()))?;
+    let mut args = args.peekable();
+    // Existing Jenkins-compatible `deploy RELEASE_DIR` remains unmodified.
+    if let Some(first) = args.peek()
+        && (first.starts_with('/') || first.starts_with('.') || first.contains('/'))
+    {
+        let release_dir = args.next().unwrap();
+        return ensure_no_more(args, Command::Deploy { release_dir });
+    }
 
-    ensure_no_more(args, Command::Deploy { release_dir })
+    let mut id = None;
+    let mut instance_root = None;
+    let mut staged = None;
+    let mut snapshot_only = false;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--instance-root" if instance_root.is_none() => {
+                instance_root = Some(args.next().ok_or_else(|| {
+                    CliError::Usage("--instance-root requires a directory".into())
+                })?);
+            }
+            "--staged-dir" if staged.is_none() => {
+                staged =
+                    Some(args.next().ok_or_else(|| {
+                        CliError::Usage("--staged-dir requires a directory".into())
+                    })?);
+            }
+            "--snapshot-only" if !snapshot_only => snapshot_only = true,
+            other if other.starts_with('-') => {
+                return Err(CliError::Usage(format!(
+                    "unknown or repeated deploy option '{other}'"
+                )));
+            }
+            other if id.is_none() => id = Some(other.to_owned()),
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unexpected deploy argument '{other}'"
+                )));
+            }
+        }
+    }
+    if snapshot_only && staged.is_some() {
+        return Err(CliError::Usage(
+            "--snapshot-only cannot be used with --staged-dir".into(),
+        ));
+    }
+    // Preserve the historical one-argument Jenkins/Compose deployment grammar.
+    if let Some(value) = id.as_deref()
+        && !value.starts_with('v')
+        && instance_root.is_none()
+        && staged.is_none()
+        && !snapshot_only
+    {
+        return Ok(Command::Deploy {
+            release_dir: value.to_owned(),
+        });
+    }
+    Ok(Command::DeployRelease {
+        id,
+        instance_root,
+        staged,
+        snapshot_only,
+    })
 }
 
 fn ensure_no_more<I>(mut args: I, command: Command) -> Result<Command, CliError>
@@ -346,6 +409,17 @@ pub fn run(command: Command) -> Result<(), CliError> {
         )
         .map_err(|error| CliError::Execution(error.to_string())),
         Command::Deploy { release_dir } => deploy::run(&release_dir),
+        Command::DeployRelease {
+            id,
+            instance_root,
+            staged,
+            snapshot_only,
+        } => release::run(release::Options {
+            id,
+            instance_root,
+            staged,
+            snapshot_only,
+        }),
         Command::BuildAll {
             source,
             output,
@@ -500,7 +574,9 @@ pub fn print_help() {
            build all         Build the Manafield platform distribution\n\
                              options: --source DIR --output DIR --no-docker\n\
            build WORKSPACE REVISION CORE_IMAGE  Legacy Jenkins image builder\n\
-           deploy RELEASE    Deploy a staged release through Docker Compose\n\
+           deploy [ID]       Snapshot a new Release YAML and deploy its matching artifacts\n\
+                             options: --instance-root DIR --staged-dir DIR --snapshot-only\n\
+           deploy RELEASE_DIR Legacy Jenkins Compose deployment\n\
            help              Show this help\n\
            version           Show version\n\
          \n\
@@ -833,6 +909,43 @@ mod tests {
     }
 
     #[test]
+    fn parses_release_deploy_and_legacy_deploy_separately() {
+        assert_eq!(
+            parse_args(args(&[
+                "deploy",
+                "v3_20261008T070000Z",
+                "--instance-root",
+                "/tmp/instance",
+                "--snapshot-only"
+            ]))
+            .unwrap(),
+            Command::DeployRelease {
+                id: Some("v3_20261008T070000Z".to_owned()),
+                instance_root: Some("/tmp/instance".to_owned()),
+                staged: None,
+                snapshot_only: true,
+            }
+        );
+        assert_eq!(
+            parse_args(args(&["deploy", "/tmp/staged-release"])).unwrap(),
+            Command::Deploy {
+                release_dir: "/tmp/staged-release".to_owned()
+            }
+        );
+        assert!(
+            parse_args(args(&[
+                "deploy",
+                "v3_20261008T070000Z",
+                "--snapshot-only",
+                "--staged-dir",
+                "/tmp/staged"
+            ]))
+            .is_err()
+        );
+        assert!(parse_args(args(&["deploy", "v3_20261008T070000Z", "unexpected"])).is_err());
+    }
+
+    #[test]
     fn parses_module_bind() {
         assert_eq!(
             parse_args(args(&[
@@ -947,11 +1060,16 @@ mod tests {
     }
 
     #[test]
-    fn deploy_requires_exactly_one_release_directory() {
-        assert!(matches!(
-            parse_args(args(&["deploy"])),
-            Err(CliError::Usage(_))
-        ));
+    fn deploy_supports_generated_ids_but_rejects_invalid_legacy_args() {
+        assert_eq!(
+            parse_args(args(&["deploy"])).unwrap(),
+            Command::DeployRelease {
+                id: None,
+                instance_root: None,
+                staged: None,
+                snapshot_only: false,
+            }
+        );
         assert!(matches!(
             parse_args(args(&["deploy", "/tmp/release", "extra"])),
             Err(CliError::Usage(_))

@@ -29,6 +29,21 @@ pub fn resolve(
     Ok(())
 }
 
+/// Validate the complete v0 Instance Definition without writing build artifacts.
+pub fn validate_yaml(contents: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let definition: InstanceDefinition = serde_yaml_ng::from_str(contents)?;
+    validate_definition(&definition)?;
+    Ok(())
+}
+
+/// Return the fully resolved (executor-neutral) Build Plan as JSON for safe
+/// equality checks before applying pre-staged Compose files.
+pub fn plan_value(input: &Path) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let definition = read_definition(input)?;
+    validate_definition(&definition)?;
+    Ok(serde_json::to_value(BuildPlan::from(definition))?)
+}
+
 fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(directory)?;
 
