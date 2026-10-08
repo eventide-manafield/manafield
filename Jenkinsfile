@@ -917,3 +917,23 @@ EOF
                         || return 1
 
                       tab="$(printf '\t')"
+                      while IFS="$tab" read -r module_id rest; do
+                        [ -n "$module_id" ] || continue
+
+                        if ! docker exec "$core_container" \
+                          curl --fail --silent --show-error \
+                          "http://127.0.0.1:8080/modules/$module_id" \
+                          > /dev/null; then
+                          echo "Expected module is not registered: $module_id" >&2
+                          return 1
+                        fi
+                      done < ci-plan/modules.tsv
+                    }
+
+                    verify_expected_modules
+                    echo "Deployment verification passed."
+                '''
+            }
+        }
+    }
+}
