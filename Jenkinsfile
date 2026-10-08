@@ -557,6 +557,8 @@ EOF
 
                 sh '''
                     set -eu
+                    # Secret provisioning must never echo tokens to build logs.
+                    set +x
 
                     modules_network="$(cat ci-plan/modules-network.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
@@ -685,6 +687,26 @@ EOF
 
                       binding_mounts="$RELEASE_DIR/.binding-mounts-$safe_id"
                       : > "$binding_mounts"
+
+                      if [ "$module_id" = "manafield-account-core" ]; then
+                        management_dir="$INSTANCE_ROOT/secrets/account-core"
+                        management_file="$management_dir/management.token"
+                        mkdir -p "$management_dir"
+                        chmod 0700 "$INSTANCE_ROOT/secrets" "$management_dir"
+
+                        if [ ! -f "$management_file" ]; then
+                          umask 077
+                          od -An -N32 -tx1 /dev/urandom | tr -d ' \\n' > "$management_file"
+                        fi
+                        test "$(wc -c < "$management_file")" -eq 64
+                        chmod 0444 "$management_file"
+
+                        printf '      MANAFIELD_ACCOUNT_MANAGEMENT_TOKEN_FILE: "/run/manafield/management/token"\\n' \\
+                          >> "$RELEASE_DIR/modules.compose.yml"
+                        printf '%s\\t%s\\n' \\
+                          "$management_file" "/run/manafield/management/token" \\
+                          >> "$binding_mounts"
+                      fi
 
                       while IFS="$tab" read -r binding_module binding_slot binding_target; do
                         [ -n "$binding_module" ] || continue
