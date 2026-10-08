@@ -1,6 +1,7 @@
 mod build;
 mod deploy;
 mod release;
+mod staging;
 mod workspace;
 
 use std::env;
@@ -54,6 +55,8 @@ pub enum Command {
         instance_root: Option<String>,
         staged: Option<String>,
         snapshot_only: bool,
+        source: Option<String>,
+        modules_root: Option<String>,
     },
     Deploy {
         release_dir: String,
@@ -321,6 +324,8 @@ where
     let mut instance_root = None;
     let mut staged = None;
     let mut snapshot_only = false;
+    let mut source = None;
+    let mut modules_root = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--instance-root" if instance_root.is_none() => {
@@ -335,6 +340,17 @@ where
                     })?);
             }
             "--snapshot-only" if !snapshot_only => snapshot_only = true,
+            "--source" if source.is_none() => {
+                source = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--source requires a directory".into()))?,
+                );
+            }
+            "--modules-root" if modules_root.is_none() => {
+                modules_root = Some(args.next().ok_or_else(|| {
+                    CliError::Usage("--modules-root requires a directory".into())
+                })?);
+            }
             other if other.starts_with('-') => {
                 return Err(CliError::Usage(format!(
                     "unknown or repeated deploy option '{other}'"
@@ -369,6 +385,8 @@ where
         instance_root,
         staged,
         snapshot_only,
+        source,
+        modules_root,
     })
 }
 
@@ -414,11 +432,15 @@ pub fn run(command: Command) -> Result<(), CliError> {
             instance_root,
             staged,
             snapshot_only,
+            source,
+            modules_root,
         } => release::run(release::Options {
             id,
             instance_root,
             staged,
             snapshot_only,
+            source,
+            modules_root,
         }),
         Command::BuildAll {
             source,
@@ -575,7 +597,7 @@ pub fn print_help() {
                              options: --source DIR --output DIR --no-docker\n\
            build WORKSPACE REVISION CORE_IMAGE  Legacy Jenkins image builder\n\
            deploy [ID]       Snapshot a new Release YAML and deploy its matching artifacts\n\
-                             options: --instance-root DIR --staged-dir DIR --snapshot-only\n\
+                             options: --instance-root DIR --source DIR --modules-root DIR --staged-dir DIR --snapshot-only\n\
            deploy RELEASE_DIR Legacy Jenkins Compose deployment\n\
            help              Show this help\n\
            version           Show version\n\
@@ -909,6 +931,33 @@ mod tests {
     }
 
     #[test]
+    fn parses_direct_deploy_options() {
+        assert_eq!(
+            parse_args(args(&[
+                "deploy",
+                "--instance-root",
+                "/instance",
+                "--source",
+                "/repo",
+                "--modules-root",
+                "/local"
+            ]))
+            .unwrap(),
+            Command::DeployRelease {
+                id: None,
+                instance_root: Some("/instance".into()),
+                staged: None,
+                snapshot_only: false,
+                source: Some("/repo".into()),
+                modules_root: Some("/local".into()),
+            }
+        );
+        assert!(parse_args(args(&["deploy", "--source"])).is_err());
+        assert!(parse_args(args(&["deploy", "--modules-root"])).is_err());
+        assert!(parse_args(args(&["deploy", "--source", "a", "--source", "b"])).is_err());
+    }
+
+    #[test]
     fn parses_release_deploy_and_legacy_deploy_separately() {
         assert_eq!(
             parse_args(args(&[
@@ -924,6 +973,8 @@ mod tests {
                 instance_root: Some("/tmp/instance".to_owned()),
                 staged: None,
                 snapshot_only: true,
+                source: None,
+                modules_root: None,
             }
         );
         assert_eq!(
@@ -1068,6 +1119,8 @@ mod tests {
                 instance_root: None,
                 staged: None,
                 snapshot_only: false,
+                source: None,
+                modules_root: None,
             }
         );
         assert!(matches!(

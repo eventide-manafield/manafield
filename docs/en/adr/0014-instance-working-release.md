@@ -105,3 +105,9 @@ An immutable YAML snapshot allows retrying or re-applying an earlier desired con
 Runtime application currently requires `--staged-dir DIR` with pre-created Compose artifacts and `build-plan.json`. The staged Build Plan must match the Release or Docker execution is rejected. Success currently means **Compose application and Core HTTP health**, not full Module/Resource health or ingress verification.
 
 The new path avoids `--remove-orphans` and records the last attempt and active Release separately. The old Jenkins-compatible `deploy RELEASE_DIR` stays unchanged. Immutable YAML alone does not pin all image digests, mutable external source refs or runtime data.
+
+## Direct Instance v0 deployment limitations (2026-10-08)
+
+Without `--staged-dir`, `deploy` prepares source/build/Compose artifacts from local Manafield Core source (`--source`, default cwd) for non-exposed Git/dir Modules and at most one PostgreSQL Resource. Git refs are fetched and checked out, and image tags include resolved commit IDs; `--modules-root` locates local Module directories. Other Resource providers and ingress/exposure fail explicitly.
+
+Direct mode currently records active Release after Core HTTP health, not full Module/Resource verification or DB migration. Existing PostgreSQL volumes and secrets are not deleted, but credential migration from Jenkins-managed installations is not automatic. The fixed Compose project `manafield` limits multi-Instance operation. Real Docker integration remains necessary before calling it production-ready.

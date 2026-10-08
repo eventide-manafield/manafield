@@ -6,7 +6,7 @@
 
 ## 작업본 및 Release CLI — 구현 / 미구현 구분
 
-[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`, `use`, `module bind`, Release ID 기반 스냅샷 저장 및 준비된 산출물 적용은 구현됐어.** 단, Instance 전체 source checkout / Module 빌드 / 배포 산출물 생성을 CLI만으로 수행하는 기능은 아직 구현 중이야.
+[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`, `use`, `module bind`, Release ID 기반 스냅샷 저장 및 준비된 산출물 적용은 구현됐어.** **지원되는 v0 구성에서는 CLI가 Module Checkout·이미지 빌드·Compose 생성까지 직접 수행해.** Ingress 공개 Module 등 미지원 기능은 명확히 거부해.
 
 ```bash
 manafield build all
@@ -24,7 +24,7 @@ manafield deploy v1_20261008T070000Z
 - 기존 PostgreSQL과 Volume/스키마/Role/데이터는 Release가 바뀌어도 재사용. YAML 재배포만으로 데이터 백업/복원이 되지는 않음
 - Release 간 전체 diff 엔진은 당장 필수가 아니지만, 배포 엔진의 멱등성·기존 Resource 식별·비파괴 변경 처리는 필요함
 
-현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**해. `manafield deploy RELEASE_DIR` 역시 기존 Compose 경로 전용인 반면, 새 `deploy <release-id> --staged-dir DIR`는 Release YAML과 준비된 산출물의 Build Plan을 비교하고 적용해. 후자의 산출물 생성 자체는 아직 외부 준비 단계야.
+현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**해. `manafield deploy RELEASE_DIR` 역시 기존 Compose 경로 전용인 반면, 새 `deploy <release-id> --staged-dir DIR`는 Release YAML과 준비된 산출물의 Build Plan을 비교하고 적용해. `--staged-dir`를 생략하면 지원되는 구성은 CLI가 직접 산출물을 준비해.
 
 ## Release 작업본 선택 — Docker 불필요
 
@@ -116,6 +116,32 @@ manafield plan instance.yaml \
   --ci-output ci-plan
 ```
 
+## Jenkins 없는 직접 Instance 배포 — 지원되는 v0 구성
+
+```bash
+cd ~/manafield-build
+git pull --ff-only
+
+# 테스트용 사유 Instance (운영 Instance와 분리)
+mkdir -p ~/manafield-direct-test
+cp deploy/instance.bootstrap.yaml ~/manafield-direct-test/instance.yaml
+
+# CLI 직접 실행: Release 자동 발급 → Core/Module 빌드 → Compose 생성 → 적용
+cargo run --locked --bin manafield -- deploy \
+  --instance-root ~/manafield-direct-test \
+  --source ~/manafield-build
+```
+
+`--source DIR`는 **Manafield Core 소스 저장소** 경로이며, 생략하면 현재 디렉터리를 사용해. `--modules-root DIR`는 `source.type: dir`인 Module을 `DIR/<module-id>`에서 찾는 옵션이야(기본: `<instance-root>/modules`). Git 기반 Module은 YAML의 URL/ref를 자동 Clone하고, 참조 모듈의 빌드 이미지 태그에 실제 Git 커밋 단축 SHA를 사용해.
+
+이 모드는 `<instance-root>/manafield/staged/<release-id>/`에 Compose 설정, Core·Module 매니페스트, Build Plan, PostgreSQL Binding 파일을 직접 만들고, Docker 이미지를 빌드한 뒤 적용해. PostgreSQL Provider가 1개 있으면 공식 Provider 이미지를 함께 빌드하고, Binding별 schema/role/password 파일을 만들며 기존 password 파일은 재사용해. `release.env`는 0600 권한으로 생성돼.
+
+**현시점의 직접 배포 범위:** Docker Runtime Provider, 비공개(Module Exposure 없음) Git/dir Module, PostgreSQL Resource **최대 1개**. 외부 공개/Ingress 구성 및 PostgreSQL 이외 Provider는 아직 지원하지 않으며 배포 전에 오류로 종료해. Compose 프로젝트명은 v0 기준 `manafield`로 고정되어 있으므로 **여러 Instance를 동일 Docker 호스트에 동시에 띄우는 용도로는 아직 적합하지 않아.**
+
+새 Release는 Docker 빌드 실패와 관계없이 불변 YAML로 남아. 같은 Release를 재시도하면 유효한 기존 준비 산출물을 재사용하며 데이터 볼륨이나 비밀번호 파일을 지우지 않아. Resource 재사용은 **볼륨과 인증정보를 유지한다는 의미**로, PostgreSQL 데이터/계정 마이그레이션이나 기존 Jenkins 설치의 인증정보 자동 이전을 보증하지 않아. 기존 PostgreSQL Volume에 새 임의 관리 비밀번호를 설정하면 인증이 맞지 않을 수 있으니 초기 도입 시 별도 점검이 필요해.
+
+Core `/health`까지 통과하면 활성 Release를 기록하지만, 모든 Module/Resource의 등록/실제 가용성은 별도로 확인해야 해. 이 기능은 이미지 digest 잠금, 이전 배포 자동 롤백, Ingress 반영, 파괴적 리소스 제거를 포함하지 않아. **실제 Docker 엔진 통합 검증은 아직 필요해.**
+
 ## 불변 Release 확정과 적용 — 단계적 구현
 
 ```bash
@@ -133,7 +159,7 @@ manafield deploy --snapshot-only --instance-root /path/to/instance
 
 `--staged-dir`에는 `build-plan.json`, `release.env`, `compose.yml`, `modules.compose.yml`, `compose-profiles.txt`가 모두 필요해. CLI는 저장한 Release에서 Build Plan을 다시 해석하고 JSON 내용이 **일치하지 않으면 Docker를 실행하지 않아**.
 
-신규 ID는 작업본을 검증하고 불변 YAML로 확정한 뒤 적용을 시도해. 준비된 산출물이 없으면 **Release는 남지만 명령은 실패**하며, 나중에 같은 ID로 다시 시도할 수 있어. 기존 ID는 작업본에 미저장 변경이 있으면 재배포를 거부해. `--snapshot-only`로 구성만 확정할 수도 있어.
+신규 ID는 작업본을 검증하고 불변 YAML로 확정한 뒤 적용을 시도해. `--staged-dir`를 지정하면 산출물이 준비되어 있어야 하고, 생략하면 CLI가 직접 준비해. 실패해도 **Release 스냅샷은 남아** 나중에 같은 ID로 재시도할 수 있어. 기존 ID는 작업본에 미저장 변경이 있으면 재배포를 거부해. `--snapshot-only`로 구성만 확정할 수도 있어.
 
 배포 시에는 `docker compose up -d --no-build`, `ps`, Core 컨테이너 내부 HTTP `/health` 확인을 수행하고, 이 단계가 성공해야 `manafield/state/active-release.json`을 갱신해. `last-attempt.json`은 마지막 적용 시도 상태를 기록해. **Module/Resource 전체 헬스 검증과 운영 실패 복구, Ingress 반영은 아직 이 새 경로의 범위 밖**이야.
 
@@ -159,8 +185,8 @@ docker compose --env-file RELEASE_DIR/release.env
 docker compose [같은 옵션] ps
 ```
 
-현재 `deploy`는 **이미 빌드된 이미지와 준비된 release**만 사용합니다.
-소스 checkout, 이미지 빌드, PostgreSQL binding materialization, release staging, ingress publish, 배포 후 Protocol 검증은 아직 이 명령의 책임이 아닙니다.
+레거시 `deploy RELEASE_DIR`는 **이미 빌드된 이미지와 준비된 release**만 사용합니다.
+이 레거시 경로는 checkout/빌드/Binding 준비를 수행하지 않습니다. 별도의 Release-ID 직접 배포 경로는 위에서 설명합니다.
 
 ## Jenkins와 CLI의 역할
 

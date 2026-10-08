@@ -9,13 +9,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
-use super::{CliError, workspace};
+use super::{CliError, staging, workspace};
 
 pub(super) struct Options {
     pub id: Option<String>,
     pub instance_root: Option<String>,
     pub staged: Option<String>,
     pub snapshot_only: bool,
+    pub source: Option<String>,
+    pub modules_root: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -65,14 +67,25 @@ pub(super) fn run(options: Options) -> Result<(), CliError> {
         println!("Snapshot-only: no Docker command was run.");
         return Ok(());
     }
-    let Some(staged_dir) = options.staged else {
-        let detail = "no prepared deployment artifacts supplied; retry with --staged-dir DIR after staging this Release";
-        record_attempt(&root, &id, "not_applied", detail)?;
-        return Err(CliError::Execution(format!(
-            "Release '{id}' is saved but not deployed: {detail}"
-        )));
+    let staged_dir = if let Some(dir) = options.staged {
+        PathBuf::from(dir)
+    } else {
+        let source = options.source.unwrap_or_else(|| ".".to_owned());
+        let result = staging::prepare(staging::PrepareOptions {
+            instance_root: &root,
+            release: &snapshot,
+            release_id: &id,
+            source: Path::new(&source),
+            modules_root: options.modules_root.as_deref().map(Path::new),
+        });
+        match result {
+            Ok(dir) => dir,
+            Err(error) => {
+                record_attempt(&root, &id, "not_applied", &error.to_string())?;
+                return Err(error);
+            }
+        }
     };
-    let staged_dir = PathBuf::from(staged_dir);
     if let Err(error) = validate_staged(&snapshot, &staged_dir) {
         record_attempt(
             &root,
@@ -177,7 +190,7 @@ fn save_immutable(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
     Ok(())
 }
 
-fn validate_staged(release: &Path, staged: &Path) -> Result<(), CliError> {
+pub(super) fn validate_staged(release: &Path, staged: &Path) -> Result<(), CliError> {
     for name in [
         "release.env",
         "compose.yml",
@@ -349,6 +362,8 @@ mod tests {
             instance_root: Some(root.to_str().unwrap().into()),
             staged: None,
             snapshot_only,
+            source: None,
+            modules_root: None,
         }
     }
 

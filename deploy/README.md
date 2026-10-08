@@ -47,7 +47,7 @@ The existing Jenkins `<instance-root>/releases/<BUILD_NUMBER>/` contains prepare
 <instance-root>/manafield/temp/working.yaml
 ```
 
-Implemented: `manafield use A` copies immutable A into an editable temp YAML, `manafield module bind A B C` changes a Requirement-slot-to-Instance-ID reference, and `manafield deploy B --snapshot-only` saves a new immutable B. `manafield deploy B --staged-dir DIR` validates a prepared Build Plan against B and applies it without `--remove-orphans`. Full Instance artifact staging still happens outside this new CLI deployment path.
+Implemented: `manafield use A` copies immutable A into an editable temp YAML, `manafield module bind A B C` changes a Requirement-slot-to-Instance-ID reference, and `manafield deploy B --snapshot-only` saves a new immutable B. `manafield deploy B --staged-dir DIR` validates a prepared Build Plan against B and applies it without `--remove-orphans`. Without `--staged-dir`, the CLI now directly builds Core and Git/dir Module images and prepares Compose for non-exposed Modules with up to one PostgreSQL Resource. Ingress publication, other providers, live database credential reconciliation and full Module/Resource health remain follow-up work.
 
 `build all` will build Manafield platform components only. Today's Jenkins compatibility `build WORKSPACE REVISION CORE_IMAGE` still builds external Module images. Existing PostgreSQL Resources and persistent volumes/data must survive Release changes. Reapplying an earlier YAML **does not** restore previous database data, and the existing `--remove-orphans` deployment flag must be reviewed for safety.
 

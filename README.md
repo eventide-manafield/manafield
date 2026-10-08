@@ -119,16 +119,16 @@ manafield deploy B
 
 A의 불변 YAML을 temp로 불러와 Requirement Binding만 변경하고, 새 ID B의 불변 YAML로 저장해 배포하는 방식입니다. 기본 ID는 `vN_YYYYMMDDTHHMMSSZ`(UTC), 저장 위치는 `manafield/release/<id>.yaml`입니다. 기존 PostgreSQL 데이터와 영속 Volume은 Release 간에 유지합니다.
 
-**`use`, `module bind`, 불변 Release 저장 및 사전 준비된 산출물의 Release ID 배포까지 구현됐습니다.** 단, YAML만으로 전체 배포 산출물을 자동 생성하는 기능은 아직 진행 중입니다. 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
+**`use`, `module bind`, 불변 Release 저장 및 사전 준비된 산출물의 Release ID 배포까지 구현됐습니다.** 지원되는 v0 구성은 YAML에서 Docker 이미지와 Compose 배포 산출물을 직접 생성합니다. Ingress 및 미지원 Provider는 아직 별도 경로가 필요합니다. 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
 
-새 Release CLI 사용 예시(현재는 배포 산출물 별도 준비 필요):
+새 Release CLI 사용 예시(지원되는 구성은 Docker 산출물도 직접 생성):
 
 ```bash
 manafield deploy --snapshot-only --instance-root /path/to/instance
-manafield deploy v1_20261008T080000Z --instance-root /path/to/instance --staged-dir /path/to/prepared-release
+manafield deploy v1_20261008T080000Z --instance-root /path/to/instance --source /path/to/manafield-source
 ```
 
-`deploy <release-id>`는 해당 YAML과 준비된 Build Plan의 일치 여부를 검사하며, 실제 Docker 적용은 `--staged-dir`가 있을 때만 시도합니다. 자세한 제약은 [CLI 가이드](docs/kr/cli.md)에서 설명합니다.
+`deploy <release-id>`는 해당 YAML과 준비된 Build Plan의 일치 여부를 검사하며, `--staged-dir`가 없으면 `--source`의 Core 소스로 이미지를 빌드하고 Compose 산출물을 생성한 뒤 Docker 적용을 시도합니다. 자세한 제약은 [CLI 가이드](docs/kr/cli.md)에서 설명합니다.
 
 ## 목표 구조
 
@@ -264,7 +264,7 @@ manafield deploy B
 
 Load immutable YAML A as a temp working copy, edit Requirement Bindings, then snapshot it as new immutable B and apply it. Default IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC) and are stored at `manafield/release/<id>.yaml`. Reuse persistent PostgreSQL data and volumes across Releases.
 
-**`use`, `module bind`, immutable Release snapshots and staged-artifact Release-ID deployment are implemented.** Fully preparing an Instance from YAML without external build/staging remains future work. The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
+**`use`, `module bind`, immutable Release snapshots and staged-artifact Release-ID deployment are implemented.** Supported v0 configurations are now prepared from YAML, including Module images and Compose artifacts, while Ingress and unsupported Resources remain separate. The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
 
 ## Highlights
 
