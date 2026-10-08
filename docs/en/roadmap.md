@@ -243,7 +243,8 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Split `manafield` CLI and `manafield-core` server into separate binaries in one distribution
 - [x] Implement `manafield build all` for platform artifacts and official Docker images only
 - [ ] Remove external Module build responsibility from transitional Jenkins-compatible build
-- [ ] Implement `manafield use`, temp working-copy management, dirty-work protection
+- [x] Implement `manafield use` selection, persisted temp context and intentional discard of prior unsaved edits
+- [ ] Auto-initialize missing temp for `module bind` from active Release or initial instance.yaml
 - [ ] Implement `manafield module bind` temp YAML editing
 - [ ] Generate Release IDs, save immutable YAML atomically, store deployment history separately
 - [ ] Implement new/existing `manafield deploy <release-id>` behavior
