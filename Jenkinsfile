@@ -910,24 +910,9 @@ EOF
                 sh '''
                     set -eu
 
-                    compose_profiles="$(cat "$RELEASE_DIR/compose-profiles.txt")"
-                    if [ -n "$compose_profiles" ]; then
-                      export COMPOSE_PROFILES="$compose_profiles"
-                    else
-                      unset COMPOSE_PROFILES || true
-                    fi
-
-                    docker compose \
-                      --env-file "$RELEASE_DIR/release.env" \
-                      --file "$RELEASE_DIR/compose.yml" \
-                      --file "$RELEASE_DIR/modules.compose.yml" \
-                      up -d --no-build --remove-orphans
-
-                    docker compose \
-                      --env-file "$RELEASE_DIR/release.env" \
-                      --file "$RELEASE_DIR/compose.yml" \
-                      --file "$RELEASE_DIR/modules.compose.yml" \
-                      ps
+                    # The staged release is deployed by the shared CLI executor.
+                    test -x ./manafield-cli
+                    ./manafield-cli deploy "$RELEASE_DIR"
                 '''
             }
         }
