@@ -114,7 +114,8 @@ mod tests {
             ]
         );
         assert_eq!(
-            command.get_envs()
+            command
+                .get_envs()
                 .find(|(key, _)| *key == OsStr::new("COMPOSE_PROFILES"))
                 .and_then(|(_, value)| value),
             Some(OsStr::new("postgresql"))
@@ -124,8 +125,10 @@ mod tests {
     #[test]
     fn empty_profiles_clear_inherited_compose_profiles() {
         let command = compose_command(Path::new("/tmp/release"), "", &["ps"]);
-        assert!(command.get_envs().any(|(key, value)| {
-            key == OsStr::new("COMPOSE_PROFILES") && value.is_none()
-        }));
+        assert!(
+            command
+                .get_envs()
+                .any(|(key, value)| { key == OsStr::new("COMPOSE_PROFILES") && value.is_none() })
+        );
     }
 }

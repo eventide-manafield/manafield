@@ -23,7 +23,8 @@ Core의 독립적인 API / Registry / validation과 `manafield plan`은 Docker �
 | `manafield resource [id]` | 구현 | Resource 목록 또는 단일 Resource 조회 |
 | `manafield plan [INSTANCE]` | 구현 | Instance Definition 검증 및 Build Plan 생성 |
 | `manafield deploy RELEASE_DIR` | 구현 | 준비된 release에 한해 Docker Compose 배포 |
-| `manafield build` / `verify` / `rebuild` | 미구현 | Jenkins에서 단계적으로 이전할 예정 |
+| `manafield build WORKSPACE REVISION CORE_IMAGE` | 구현 | Jenkins가 준비한 workspace의 Core/Module/Resource Docker 이미지 빌드 |
+| `manafield verify` / `rebuild` | 미구현 | Jenkins에서 단계적으로 이전할 예정 |
 
 ## Build Plan 생성
 
@@ -58,7 +59,7 @@ docker compose [같은 옵션] ps
 
 ## Jenkins와 CLI의 역할
 
-현재 Jenkins의 `Resolve Build Plan`과 `Deploy` stage는 공통 `manafield` CLI를 호출합니다.
+현재 Jenkins의 `Resolve Build Plan`, `Build Images`, `Deploy` stage는 공통 `manafield` CLI를 호출합니다.
 Jenkins의 나머지 stage는 migration이 진행 중입니다.
 
 장기적으로 Jenkins는 Git webhook, 승인, Credentials, 로그/이력 같은 CI 기능을 담당하고,
@@ -70,3 +71,18 @@ CLI의 현재 Docker 호출은 **CLI를 실행하는 호스트/CI 환경**에서
 
 현재 목표는 Jenkins 없이도 CLI + Docker로 전체 Instance를 재구축할 수 있게 만드는 것이며,
 **아직 그 end-to-end 검증이 완료된 상태는 아닙니다.**
+
+## 준비된 workspace의 이미지 빌드
+
+```bash
+manafield build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
+```
+
+`module-sources.tsv` (8개 열)과 `ci-plan/resources.tsv` (2개 열, 선택)를 사용해
+Core, Module, PostgreSQL Resource Provider 이미지를 Docker로 빌드합니다.
+출력 파일은 기존 Jenkins 계약인 `resolved-images.env`와
+`resource-providers.tsv`를 그대로 유지합니다.
+
+이 명령은 source checkout, Build Plan 해석, binding materialization,
+release staging을 수행하지 않습니다. 현재는 Jenkins가 입력을 준비해야 하므로
+CLI만으로 Instance를 처음부터 구축하는 기능은 아직 구현 중입니다.

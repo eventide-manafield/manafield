@@ -437,72 +437,7 @@ EOF
             steps {
                 sh '''
                     set -eu
-
-                    docker build \
-                      --target core-runtime \
-                      --label "org.opencontainers.image.revision=$CORE_SHA" \
-                      --tag "$CORE_IMAGE" \
-                      .
-
-                    {
-                      printf 'core.image=%s\n' "$CORE_IMAGE"
-                      printf 'core.revision=%s\n' "$CORE_SHA"
-                    } > resolved-images.env
-
-                    tab="$(printf '\t')"
-
-                    while IFS="$tab" read -r module_id safe_id module_dir revision image build_type build_context dockerfile; do
-                      [ "$build_type" = "docker" ] || {
-                        echo "Unsupported Module build type: $build_type" >&2
-                        exit 1
-                      }
-
-                      docker build \
-                        --label "org.opencontainers.image.revision=$revision" \
-                        --tag "$image" \
-                        --file "$module_dir/$dockerfile" \
-                        "$module_dir/$build_context"
-
-                      printf 'module.%s.image=%s\n' "$module_id" "$image" \
-                        >> resolved-images.env
-                      printf 'module.%s.revision=%s\n' "$module_id" "$revision" \
-                        >> resolved-images.env
-                    done < module-sources.tsv
-
-                    : > resource-providers.tsv
-
-                    if [ -s ci-plan/resources.tsv ]; then
-                      while IFS="$tab" read -r resource_id provider; do
-                        [ -n "$resource_id" ] || continue
-
-                        case "$provider" in
-                          postgresql)
-                            provider_image="manafield-resource-postgresql:$CORE_SHA"
-
-                            docker build \
-                              --label "org.opencontainers.image.revision=$CORE_SHA" \
-                              --tag "$provider_image" \
-                              --file providers/postgresql/Dockerfile \
-                              providers/postgresql
-
-                            printf '%s\t%s\t%s\n' \
-                              "$resource_id" \
-                              "$provider" \
-                              "$provider_image" \
-                              >> resource-providers.tsv
-
-                            printf 'resource.%s.provider.image=%s\n' \
-                              "$resource_id" \
-                              "$provider_image" \
-                              >> resolved-images.env
-                            ;;
-                          *)
-                            echo "Unsupported Resource provider: $provider" >&2
-                            exit 1
-                            ;;
-                        esac
-                      done < ci-plan/resources.tsv
-                    fi
+                    ./manafield-cli build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
                 '''
             }
         }

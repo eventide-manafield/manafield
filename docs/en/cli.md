@@ -23,7 +23,8 @@ That does not imply a full Docker-free v0 Instance deployment.
 | `manafield resource [id]` | Implemented | List or inspect Resources |
 | `manafield plan [INSTANCE]` | Implemented | Validate and resolve an Instance Definition |
 | `manafield deploy RELEASE_DIR` | Implemented | Docker Compose deployment of an already staged release |
-| `manafield build` / `verify` / `rebuild` | Not implemented | Future incremental Jenkins migrations |
+| `manafield build WORKSPACE REVISION CORE_IMAGE` | Implemented | Build Core/Module/Resource Docker images from a prepared Jenkins workspace |
+| `manafield verify` / `rebuild` | Not implemented | Future incremental Jenkins migrations |
 
 ## Resolve a Build Plan
 
@@ -49,7 +50,7 @@ perform post-deployment Protocol verification.
 
 ## Jenkins boundary
 
-The Jenkins `Resolve Build Plan` and `Deploy` stages invoke the shared CLI.
+The Jenkins `Resolve Build Plan`, `Build Images`, and `Deploy` stages invoke the shared CLI.
 The remaining pipeline stages are still migrating. Jenkins retains CI triggers,
 approvals, credential integration, and build history; Manafield-specific execution
 semantics should move into CLI/reusable executors over time.
@@ -60,3 +61,18 @@ not from the Core API process; the future privileged Runtime Provider boundary r
 
 CLI + Docker rebuilding a complete Instance without Jenkins is the target,
 **not yet a verified end-to-end implementation**.
+
+## Build images from a prepared workspace
+
+```bash
+manafield build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
+```
+
+Reads `module-sources.tsv` (8 columns) and optional
+`ci-plan/resources.tsv` (2 columns) to build Docker images for Core,
+Modules, and PostgreSQL Resource Providers. Preserves the existing
+`resolved-images.env` and `resource-providers.tsv` output formats.
+
+Source checkout, Build Plan resolution, binding materialization, and release
+staging remain separate. Jenkins must prepare the workspace; a complete
+CLI-only first-time Instance build is still a future goal.

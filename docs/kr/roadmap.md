@@ -246,6 +246,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] Built-in CLI `manafield plan`으로 Build Plan Resolver 통합
 - [x] Jenkins Resolve Build Plan stage를 `manafield plan` 호출로 전환
 - [x] `manafield deploy RELEASE_DIR` 추가 및 Jenkins Deploy stage 이관
+- [x] `manafield build WORKSPACE REVISION CORE_IMAGE` 구현 및 Jenkins Build Images stage 이관
 - [x] CLI + Docker를 canonical Instance execution path로 확정
 - [x] Jenkins를 optional remote CI/CD frontend로 정의
 - [x] Jenkins 단일 Pipeline skeleton
@@ -261,7 +262,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Deploy 후 Health / Protocol verification
 - [ ] CI credential store 기반 Secret 주입
 - [ ] Jenkins의 Checkout / Build / Materialize / Stage / Deploy / Verify 로직을 CLI/reusable executor로 단계적 이동
-- [ ] 남은 `manafield build / verify / rebuild` CLI surface 및 stage 구현
+- [ ] 남은 `manafield verify / rebuild` CLI surface 및 stage 구현
 - [ ] Jenkins 없이 CLI + Docker만으로 전체 Instance rebuild 검증
 
 ### Ingress Adapters

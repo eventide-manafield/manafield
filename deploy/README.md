@@ -408,6 +408,18 @@ clone sources, build images, stage a release, publish ingress, or perform
 post-deployment Health/Protocol verification; those remain separate Jenkins
 stages during the migration.
 
+### Build images with the CLI
+
+From a prepared Jenkins workspace, run:
+
+```bash
+manafield build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
+```
+
+This builds Core, Module and PostgreSQL Resource Provider Docker images from the
+existing TSV source lists and preserves the output files `resolved-images.env`
+and `resource-providers.tsv`. Jenkins still prepares source checkouts and inputs.
+
 ## Jenkins Pipeline
 
 The repository root contains a `Jenkinsfile` implementing the first remote CI/CD frontend for Instance builds.
