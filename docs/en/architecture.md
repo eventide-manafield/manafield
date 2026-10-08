@@ -182,6 +182,16 @@ Operational commands such as `health`, `ps`, and `resource` remain Core API clie
 
 A future contract may allow Modules to contribute CLI command metadata while preserving the rule that arbitrary Module code is not loaded into the Core process.
 
+### Releases versus Runtime State (target)
+
+**Platform building** produces Manafield Core, CLI, and official components; it does not rebuild independently published Modules. Instance Definitions describe Module/Resource Instances and Requirement Bindings.
+
+`manafield use A` selects an editable private YAML copy of immutable A. `manafield module bind A B C` changes only consumer A's Requirement-slot-B target Instance C. `manafield deploy B` snapshots the working YAML when B is new or re-applies immutable B if it already exists.
+
+Release IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC), stored at `<instance-root>/manafield/release/<id>.yaml`. PostgreSQL Resources and persistent data are reused across Releases. A full release-to-release diff engine is optional; safe desired-state reconciliation is not.
+
+The target ships **separate CLI and Core server binaries in one distribution**. Existing combined-binary CLI commands are transitional. See [ADR-0014](adr/0014-instance-working-release.md) and the [CLI guide](cli.md).
+
 ## 5. High-level Architecture
 
 ```mermaid

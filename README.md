@@ -105,6 +105,20 @@ Manafield v0의 **전체 Instance 구축과 배포에는 Docker가 필요합니�
 
 Core의 일반 Registry / Protocol 모델은 계속 Docker-specific privilege와 분리합니다. 자세한 결정은 [ADR-0013](docs/kr/adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
+### Release 작업 흐름 (향후 CLI)
+
+`build all`은 **Manafield 플랫폼 자체만 빌드**합니다. 이미 존재하는 Module/Resource를 매번 빌드하는 명령이 아닙니다. Instance의 연결과 배포는 별도로 취급합니다.
+
+```text
+manafield use A
+manafield module bind echo-prod state main-postgres
+manafield deploy B
+```
+
+A의 불변 YAML을 temp로 불러와 Requirement Binding만 변경하고, 새 ID B의 불변 YAML로 저장해 배포하는 방식입니다. 기본 ID는 `vN_YYYYMMDDTHHMMSSZ`(UTC), 저장 위치는 `manafield/release/<id>.yaml`입니다. 기존 PostgreSQL 데이터와 영속 Volume은 Release 간에 유지합니다.
+
+**위 명령은 설계 목표이며 아직 구현되지 않았습니다.** 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
+
 ## 목표 구조
 
 - **Headless Core** — Web UI가 없어도 동작합니다.
@@ -224,6 +238,20 @@ A **full Manafield v0 Instance build and deployment requires Docker**. Docker is
 The local target is CLI + Docker. The current `deploy` command requires a pre-staged release, Docker CLI, Compose plugin, and access to the Docker daemon. Jenkins provides remote CI/CD concerns such as webhooks, approvals, credential integration, and build history while invoking the same CLI path.
 
 The general Core registry/protocol model remains separated from Docker-specific privilege. See [ADR-0013](docs/en/adr/0013-docker-v0-cli-execution.md).
+
+### Release workflow (planned CLI)
+
+`build all` builds **only the Manafield platform**, not all already-published Modules/Resources. Editing Instance Bindings and deploying Releases are separate concerns.
+
+```text
+manafield use A
+manafield module bind echo-prod state main-postgres
+manafield deploy B
+```
+
+Load immutable YAML A as a temp working copy, edit Requirement Bindings, then snapshot it as new immutable B and apply it. Default IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC) and are stored at `manafield/release/<id>.yaml`. Reuse persistent PostgreSQL data and volumes across Releases.
+
+**These commands are planned, not currently implemented.** The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
 
 ## Highlights
 

@@ -4,6 +4,28 @@
 >
 > 한국어 문서를 우선합니다. 상세한 구조 결정은 [ADR-0013](adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
+## 작업본 및 Release CLI — 목표 설계 (미구현)
+
+[ADR-0014](adr/0014-instance-working-release.md)의 제안된 사용자 명령 형식은 다음과 같아. **아직 실행 가능한 명령어는 아니야.**
+
+```bash
+manafield build all
+manafield use v1_20261008T070000Z
+manafield module bind echo-prod state main-postgres
+manafield deploy v2_20261008T080000Z
+manafield deploy v1_20261008T070000Z
+```
+
+- `build all`은 **Manafield 플랫폼**만 빌드하며 별도 배포된 Module은 재빌드하지 않음
+- `use A`는 기존 불변 YAML을 `<instance-root>/manafield/temp/working.yaml`로 복사해 선택함. 이미 편집한 작업본이 있으면 확인 없이 덮어쓰지 않음
+- `module bind A B C`는 A의 Requirement slot B가 대상 Module/Resource Instance C를 가리키도록 temp YAML만 수정함. 즉시 배포나 Resource 복제를 하지 않음
+- `deploy B`에서 B가 새 ID면 작업본 검증 → `<instance-root>/manafield/release/B.yaml` 불변 저장 → 배포. 기존 ID이면 저장된 Release를 그대로 재적용하며 미저장 편집이 있을 경우 오류로 처리
+- 기본 Release ID는 `v<자연수>_<UTC YYYYMMDDTHHMMSSZ>`이고, Instance 내에서 재사용하거나 덮어쓸 수 없음
+- 기존 PostgreSQL과 Volume/스키마/Role/데이터는 Release가 바뀌어도 재사용. YAML 재배포만으로 데이터 백업/복원이 되지는 않음
+- Release 간 전체 diff 엔진은 당장 필수가 아니지만, 배포 엔진의 멱등성·기존 Resource 식별·비파괴 변경 처리는 필요함
+
+현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**하며, `manafield deploy RELEASE_DIR`는 이미 준비된 Compose 산출물만 실행한다. 위 목표 명령과 섞어 생각하면 안 돼.
+
 ## 구축 전제조건
 
 지원되는 **전체 Manafield v0 Instance 구축과 배포에는 Docker가 필수**입니다.

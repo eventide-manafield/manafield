@@ -3,6 +3,8 @@
 - 상태: Accepted
 - 날짜: 2026-10-06
 
+> 후속 결정: [ADR-0014](0014-instance-working-release.md)는 **Manafield 플랫폼 자체 빌드**와 **독립 Module 설치 및 Instance Release/Deploy**를 분리합니다. 현재 Jenkins의 Module source build는 과도기 구현이며 최종 `build all`의 책임은 아닙니다.
+
 ## Context
 
 Manafield 인스턴스에는 Core, Runtime Provider, 여러 Module이 함께 배치될 수 있습니다.

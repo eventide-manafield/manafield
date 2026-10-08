@@ -20,5 +20,6 @@ ADRs focus on **long-lived boundaries and responsibilities** rather than transie
 | [0011](0011-official-web-shell.md) | Official Web Shell / Same-Origin Module Composition | Accepted |
 | [0012](0012-replaceable-homepage-module.md) | Replaceable Homepage Module / Web Shell Separation | Accepted |
 | [0013](0013-docker-v0-cli-execution.md) | Docker-required v0 Deployment / CLI-first Execution | Accepted |
+| [0014](0014-instance-working-release.md) | Instance Working Copy / Immutable Releases / Persistent Resources | Accepted |
 
 Add new ADRs sequentially as long-term decisions are made.

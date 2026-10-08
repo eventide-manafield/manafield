@@ -4,6 +4,28 @@
 >
 > The Korean documentation takes precedence. See [ADR-0013](adr/0013-docker-v0-cli-execution.md).
 
+## Working copy and Release CLI — target design (NOT IMPLEMENTED)
+
+The proposed operator commands from [ADR-0014](adr/0014-instance-working-release.md) are **not yet supported by the binary**.
+
+```bash
+manafield build all
+manafield use v1_20261008T070000Z
+manafield module bind echo-prod state main-postgres
+manafield deploy v2_20261008T080000Z
+manafield deploy v1_20261008T070000Z
+```
+
+- `build all` builds the **Manafield platform only**, not independently published Modules.
+- `use A` copies immutable Release A into `<instance-root>/manafield/temp/working.yaml`, without silently overwriting dirty work or changing the live deployment.
+- `module bind A B C` edits the temp YAML Requirement slot B of consumer A to point at Module/Resource Instance C; it neither deploys nor copies a Resource.
+- `deploy B` with a new ID validates and atomically snapshots the working copy at `<instance-root>/manafield/release/B.yaml` before applying it. Existing IDs reapply saved YAML unchanged, rejecting conflicting dirty edits.
+- Default IDs: `v<positive integer>_<UTC YYYYMMDDTHHMMSSZ>`, never reused or overwritten.
+- Preserve existing PostgreSQL identities, volumes, schemas, roles and data across Releases. YAML retries do not restore database data.
+- A full Release-to-Release diff engine is not required immediately, but runtime reconciliation and non-destructive idempotence are.
+
+Currently, transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**, and `manafield deploy RELEASE_DIR` only invokes Compose on a pre-staged artifact directory. Neither implements this target contract.
+
 ## Prerequisites
 
 A supported **full Manafield v0 Instance build and deployment requires Docker**:
