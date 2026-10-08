@@ -36,6 +36,21 @@ Build Plan
 → exact revisions / image tags / affected components
 ```
 
+## Future Instance Release YAML (ADR-0014)
+
+The existing Jenkins `<instance-root>/releases/<BUILD_NUMBER>/` contains prepared Compose artifacts. It is **not** the new immutable Release YAML storage model.
+
+```text
+<instance-root>/manafield/release/v1_20261008T070000Z.yaml
+<instance-root>/manafield/temp/working.yaml
+```
+
+The **planned** `manafield use A` copies immutable A into the editable temp YAML. `manafield module bind A B C` changes only the Requirement-slot-to-Instance-ID reference. `manafield deploy B` saves a new B snapshot before deploying, or reuses an existing B without modifying it.
+
+`build all` will build Manafield platform components only. Today's Jenkins compatibility `build WORKSPACE REVISION CORE_IMAGE` still builds external Module images. Existing PostgreSQL Resources and persistent volumes/data must survive Release changes. Reapplying an earlier YAML **does not** restore previous database data, and the existing `--remove-orphans` deployment flag must be reviewed for safety.
+
+See [ADR-0014](../docs/en/adr/0014-instance-working-release.md). The remainder of this guide describes the **current** Jenkins deployment implementation, not the future Release CLI.
+
 ## Public example vs private instance
 
 The files in this directory describe the public deployment contract and examples.
