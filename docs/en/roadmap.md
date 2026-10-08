@@ -245,6 +245,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Build Plan Resolver v0
 - [x] Integrate the Build Plan Resolver as built-in CLI `manafield plan`
 - [x] Move the Jenkins Resolve Build Plan stage to `manafield plan`
+- [x] Implement `manafield deploy RELEASE_DIR` and migrate the Jenkins Deploy stage
 - [x] Define CLI + Docker as the canonical Instance execution path
 - [x] Define Jenkins as an optional remote CI/CD frontend
 - [x] Single Jenkins Pipeline skeleton
@@ -260,7 +261,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Post-deploy Health / Protocol verification
 - [ ] Secret injection through CI credential storage
 - [ ] Gradually move Jenkins Checkout / Build / Materialize / Stage / Deploy / Verify semantics into CLI/reusable executors
-- [ ] Implement `manafield build / deploy / verify / rebuild` CLI surfaces
+- [ ] Implement remaining `manafield build / verify / rebuild` CLI surfaces and stages
 - [ ] Validate a full Instance rebuild using only CLI + Docker, without Jenkins
 
 ### Ingress Adapters

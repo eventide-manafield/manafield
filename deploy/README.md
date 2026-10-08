@@ -392,6 +392,22 @@ The containers use a read-only root filesystem, drop Linux capabilities, and ena
 
 The deployment executor can inject exact image tags directly as environment variables and run Compose with `--no-build`, so a committed deployment `.env` is not required. The current Jenkins frontend performs this work; the behavior is expected to move behind reusable CLI/executor logic.
 
+### Deploy a staged release with the CLI
+
+A prepared release must contain `release.env`, `compose.yml`,
+`modules.compose.yml`, and `compose-profiles.txt`.
+
+```bash
+manafield deploy /opt/manafield/instance/releases/123
+```
+
+This requires a working Docker CLI, Docker Compose plugin, and access to a Docker daemon.
+The CLI applies the staged `COMPOSE_PROFILES`, invokes `docker compose up -d
+--no-build --remove-orphans`, then `docker compose ps`. It does **not** yet
+clone sources, build images, stage a release, publish ingress, or perform
+post-deployment Health/Protocol verification; those remain separate Jenkins
+stages during the migration.
+
 ## Jenkins Pipeline
 
 The repository root contains a `Jenkinsfile` implementing the first remote CI/CD frontend for Instance builds.
@@ -437,7 +453,7 @@ The pipeline:
 7. creates an immutable-ish release directory
 8. stages Module descriptors for Core discovery
 9. enables required Compose profiles for desired Resources
-10. deploys the release with Docker Compose
+10. invokes `manafield deploy RELEASE_DIR` for staged Docker Compose deployment
 11. verifies Core health, Module Registry state, Resource Registry state, and Manafield Reference health
 
 A Jenkins deployment directory is expected to look like:

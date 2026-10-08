@@ -178,7 +178,7 @@ manafield resource [id]
 manafield plan [instance.yaml]
 ```
 
-`health`, `ps`, `resource` 같은 운영 command는 Docker나 Resource 구현을 직접 해석하지 않고 Core API를 사용합니다. 반면 `plan`과 앞으로 추가할 `build / deploy / verify` 계열 command는 Instance Definition과 deployment executor를 다룹니다.
+`health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. `plan`은 Instance Definition을 해석하고, 현재 구현된 `deploy RELEASE_DIR`은 사전 준비된 release를 Docker Compose로 적용합니다. `build / verify / rebuild` 및 staging의 CLI 이관은 진행 중이며, 전체 CLI-only 구축은 아직 지원되지 않습니다.
 
 Module이 CLI command metadata를 선언해 기능을 확장하는 방식은 별도 contract로 설계할 수 있지만, Module 코드를 Core process에 직접 로드하지 않는 원칙은 유지합니다.
 

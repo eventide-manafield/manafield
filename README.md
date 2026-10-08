@@ -87,11 +87,12 @@ manafield ps
 manafield resource
 manafield resource manafield-postgres
 manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
+manafield deploy /opt/manafield/instance/releases/123
 ```
 
 `health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
 
-`plan`은 Instance Definition을 로컬에서 검증하고 Build Plan으로 해석합니다. 이후 build / deploy / verify 단계도 Jenkinsfile의 전용 로직이 아니라 `manafield` CLI의 재사용 가능한 실행 경로로 점진적으로 이동합니다.
+`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build / verify / rebuild`와 release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중이야. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
 
 인자 없이 `manafield`를 실행하거나 `manafield serve`를 사용하면 Core server가 실행됩니다.
 
@@ -99,7 +100,7 @@ manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
 
 Manafield v0의 **전체 Instance 구축과 배포에는 Docker가 필요합니다.** Docker는 v0에서 의도적으로 채택한 deployment substrate이며, Jenkins는 필수 구성요소가 아닙니다.
 
-로컬에서는 `manafield` CLI + Docker만으로 같은 Instance를 구축할 수 있어야 하고, Jenkins는 webhook, approval, credential integration, build history 같은 원격 CI/CD 기능을 제공하면서 같은 CLI 실행 경로를 호출하는 방향으로 발전합니다.
+향후에는 로컬에서도 `manafield` CLI + Docker만으로 동일한 Instance를 구축할 수 있어야 합니다. 현재 `deploy`에는 사전 준비된 release, Docker CLI, Compose plugin, Docker daemon 접근 권한이 필요합니다. Jenkins는 webhook, approval, credential integration, build history를 담당하면서 같은 CLI 경로를 호출하는 방향으로 발전합니다.
 
 Core의 일반 Registry / Protocol 모델은 계속 Docker-specific privilege와 분리합니다. 자세한 결정은 [ADR-0013](docs/kr/adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
@@ -146,6 +147,7 @@ flowchart TB
 
 한국어 문서를 기준으로 유지하며, 영어 문서는 이를 바탕으로 동기화합니다.
 
+- [CLI / Docker v0 실행 가이드](docs/kr/cli.md)
 - [Architecture](docs/kr/architecture.md)
 - [Module Protocol](docs/kr/module-protocol.md)
 - [Operation](docs/kr/operation.md)
@@ -204,11 +206,12 @@ manafield ps
 manafield resource
 manafield resource manafield-postgres
 manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
+manafield deploy /opt/manafield/instance/releases/123
 ```
 
 Operational commands such as `health`, `ps`, and `resource` use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
 
-`plan` validates and resolves an Instance Definition locally. Build, deploy, and verify behavior will gradually move from Jenkins-specific stages into reusable `manafield` CLI execution paths.
+`plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. Build, verify, rebuild, and release staging are still migrating; **a full CLI-only from-scratch Instance build is not yet implemented.**
 
 Running `manafield` without arguments, or using `manafield serve`, starts the Core server.
 
@@ -216,7 +219,7 @@ Running `manafield` without arguments, or using `manafield serve`, starts the Co
 
 A **full Manafield v0 Instance build and deployment requires Docker**. Docker is an intentional v0 deployment substrate; Jenkins is not required.
 
-The local target is CLI + Docker, while Jenkins provides remote CI/CD concerns such as webhooks, approvals, credential integration, and build history by invoking the same CLI execution path.
+The local target is CLI + Docker. The current `deploy` command requires a pre-staged release, Docker CLI, Compose plugin, and access to the Docker daemon. Jenkins provides remote CI/CD concerns such as webhooks, approvals, credential integration, and build history while invoking the same CLI path.
 
 The general Core registry/protocol model remains separated from Docker-specific privilege. See [ADR-0013](docs/en/adr/0013-docker-v0-cli-execution.md).
 
@@ -246,6 +249,7 @@ This will validate real-world lifecycle management involving an application runt
 
 ## Documentation
 
+- [CLI / Docker v0 execution guide](docs/en/cli.md)
 - [Architecture](docs/en/architecture.md)
 - [Module Protocol](docs/en/module-protocol.md)
 - [Operation](docs/en/operation.md)

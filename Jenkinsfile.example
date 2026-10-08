@@ -2,6 +2,9 @@
  * Manafield Jenkins path configuration example.
  *
  * The canonical deployment pipeline is ./Jenkinsfile.
+ * Jenkins must be able to run the extracted manafield CLI and reach Docker
+ * (Docker CLI + Compose plugin + accessible daemon). Jenkins is optional
+ * outside this remote CI/CD frontend; the v0 deployment substrate is Docker.
  * This file is a copy/reference for the instance-specific values that are
  * commonly customized; it is not a second deployment pipeline.
  *
