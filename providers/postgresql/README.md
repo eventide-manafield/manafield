@@ -1,6 +1,6 @@
-# Manafield PostgreSQL Resource Provider — v0 Example
+# Manafield PostgreSQL Resource Provider — v0
 
-This directory contains the first concrete Resource Provider example.
+This directory contains the first concrete Resource Provider implementation.
 
 Its job is deliberately small:
 
@@ -18,8 +18,8 @@ Manafield Core only receives generic Resource metadata:
 
 ```json
 {
-  "id": "example-postgres",
-  "name": "Example PostgreSQL",
+  "id": "manafield-postgres",
+  "name": "Manafield PostgreSQL",
   "type": "postgresql",
   "provides": {
     "capabilities": [
@@ -51,13 +51,13 @@ MANAFIELD_CORE_URL
   default: http://core:8080
 
 MANAFIELD_RESOURCE_ID
-  default: example-postgres
+  default: manafield-postgres
 
 MANAFIELD_RESOURCE_NAME
-  default: Example PostgreSQL
+  default: Manafield PostgreSQL
 
 POSTGRES_HOST
-  default: postgres
+  default: manafield-postgres
 
 POSTGRES_PORT
   default: 5432
@@ -71,16 +71,16 @@ MANAFIELD_RESOURCE_CHECK_INTERVAL
 
 ## Bootstrap integration
 
-On the first Jenkins run, selecting **PostgreSQL example Resource** writes this desired Resource request into the generated Instance Definition:
+On the first Jenkins run, selecting **Manafield PostgreSQL Resource** writes this desired Resource request into the generated Instance Definition:
 
 ```yaml
 resources:
-  - id: example-postgres
+  - id: manafield-postgres
     enabled: true
     provider: postgresql
 ```
 
-The Build Plan emits that request to `ci-plan/resources.tsv`. Jenkins builds this Provider image, activates the `example-postgresql` Compose profile, and waits until Core reports the registered Resource through `GET /resources`.
+The Build Plan emits that request to `ci-plan/resources.tsv`. Jenkins builds this Provider image, activates the `postgresql` Compose profile, and waits until Core reports the registered Resource through `GET /resources`.
 
 The desired request and the live registration are intentionally separate: the Instance Definition asks for the Resource, while this Provider proves that the concrete Resource is actually available.
 
@@ -100,7 +100,7 @@ Then:
 curl http://127.0.0.1:18080/resources
 ```
 
-should eventually contain `example-postgres`.
+should eventually contain `manafield-postgres`.
 
 ## Status
 

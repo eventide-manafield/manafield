@@ -2,9 +2,9 @@
 set -eu
 
 CORE_URL="${MANAFIELD_CORE_URL:-http://core:8080}"
-RESOURCE_ID="${MANAFIELD_RESOURCE_ID:-example-postgres}"
-RESOURCE_NAME="${MANAFIELD_RESOURCE_NAME:-Example PostgreSQL}"
-POSTGRES_HOST="${POSTGRES_HOST:-postgres}"
+RESOURCE_ID="${MANAFIELD_RESOURCE_ID:-manafield-postgres}"
+RESOURCE_NAME="${MANAFIELD_RESOURCE_NAME:-Manafield PostgreSQL}"
+POSTGRES_HOST="${POSTGRES_HOST:-manafield-postgres}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 CAPABILITY_VERSION="${MANAFIELD_POSTGRES_CAPABILITY_VERSION:-1.0.0}"
 CHECK_INTERVAL="${MANAFIELD_RESOURCE_CHECK_INTERVAL:-5}"
@@ -29,7 +29,7 @@ EOF
 }
 
 resource_status() {
-  curl     --silent     --output /dev/null     --write-out '%{http_code}'     "$CORE_URL/resources/$RESOURCE_ID"     2>/dev/null || true
+  curl --silent --output /dev/null --write-out '%{http_code}'     "$CORE_URL/resources/$RESOURCE_ID" 2>/dev/null || true
 }
 
 register_resource() {
@@ -72,9 +72,6 @@ while true; do
   if pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" >/dev/null 2>&1; then
     case "$(resource_status)" in
       200)
-        ;;
-      404)
-        register_resource || true
         ;;
       *)
         register_resource || true

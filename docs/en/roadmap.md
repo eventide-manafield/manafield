@@ -114,10 +114,12 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [x] Three Discovery levels: compatible / advanced same-ID / full
 - [x] Capability version mismatch = warning + log + continue
 - [x] endpoint/config values on Instances; config schema on Definitions
-- [ ] Implement `provides.capabilities` / `requires.capabilities` in Core models
+- [x] Implement `provides.capabilities` / `requires.capabilities` in Core models
 - [ ] Capability ↔ Operation contract validation
 - [x] Capability SemVer / range policy
 - [ ] Implement concrete Binding persistence/query
+  - [x] Preserve Instance Definition / Build Plan bindings and validate target existence
+  - [x] Inject v0 Module runtime binding target environment
 - [ ] Implement Capability Discovery API
 - [ ] Binding validation / diagnostic error model
 - [ ] Dependency graph / cycle validation

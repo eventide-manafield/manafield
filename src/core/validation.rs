@@ -17,6 +17,43 @@ pub fn validate_module(module: &ModuleDescriptor) -> Result<(), ValidationError>
         return Err(ValidationError::EmptyModuleVersion);
     }
 
+    let mut provided_capability_ids = HashSet::new();
+
+    for capability in &module.provides.capabilities {
+        if capability.id.trim().is_empty() {
+            return Err(ValidationError::EmptyProvidedCapabilityId);
+        }
+
+        if capability.version.trim().is_empty() {
+            return Err(ValidationError::EmptyProvidedCapabilityVersion(
+                capability.id.clone(),
+            ));
+        }
+
+        if !provided_capability_ids.insert(capability.id.as_str()) {
+            return Err(ValidationError::DuplicateProvidedCapability(
+                capability.id.clone(),
+            ));
+        }
+    }
+
+    for (slot, requirement) in &module.requires.capabilities {
+        if slot.trim().is_empty() {
+            return Err(ValidationError::EmptyRequirementSlot);
+        }
+
+        if requirement.id.trim().is_empty() {
+            return Err(ValidationError::EmptyRequiredCapabilityId(slot.clone()));
+        }
+
+        if requirement.version.trim().is_empty() {
+            return Err(ValidationError::EmptyRequiredCapabilityVersion(
+                slot.clone(),
+                requirement.id.clone(),
+            ));
+        }
+    }
+
     let mut operation_ids = HashSet::new();
 
     for operation in &module.operations {
@@ -88,6 +125,12 @@ pub enum ValidationError {
     EmptyModuleId,
     EmptyModuleName,
     EmptyModuleVersion,
+    EmptyProvidedCapabilityId,
+    EmptyProvidedCapabilityVersion(String),
+    DuplicateProvidedCapability(String),
+    EmptyRequirementSlot,
+    EmptyRequiredCapabilityId(String),
+    EmptyRequiredCapabilityVersion(String, String),
     EmptyOperationId,
     EmptyHealthOperationId,
     DuplicateOperationId(String),
@@ -114,6 +157,28 @@ impl fmt::Display for ValidationError {
             Self::EmptyModuleId => write!(f, "module id must not be empty"),
             Self::EmptyModuleName => write!(f, "module name must not be empty"),
             Self::EmptyModuleVersion => write!(f, "module version must not be empty"),
+            Self::EmptyProvidedCapabilityId => {
+                write!(f, "provided capability id must not be empty")
+            }
+            Self::EmptyProvidedCapabilityVersion(id) => {
+                write!(f, "provided capability '{id}' version must not be empty")
+            }
+            Self::DuplicateProvidedCapability(id) => {
+                write!(f, "provided capability '{id}' is declared more than once")
+            }
+            Self::EmptyRequirementSlot => {
+                write!(f, "capability requirement slot must not be empty")
+            }
+            Self::EmptyRequiredCapabilityId(slot) => {
+                write!(
+                    f,
+                    "required capability id for slot '{slot}' must not be empty"
+                )
+            }
+            Self::EmptyRequiredCapabilityVersion(slot, id) => write!(
+                f,
+                "required capability '{id}' version for slot '{slot}' must not be empty"
+            ),
             Self::EmptyOperationId => write!(f, "operation id must not be empty"),
             Self::EmptyHealthOperationId => write!(f, "health operation id must not be empty"),
             Self::DuplicateOperationId(id) => {
@@ -167,6 +232,9 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
+    use crate::core::capability::{
+        CapabilityDescriptor, CapabilityRequirement, CapabilityRequirementSet, CapabilitySet,
+    };
     use crate::core::operation::{HttpMethod, OperationBinding, OperationContract, PayloadCodec};
     use crate::core::schema::DataSchema;
 
@@ -177,6 +245,8 @@ mod tests {
             description: None,
             version: "0.0.1".to_owned(),
             health_operation: None,
+            provides: CapabilitySet::default(),
+            requires: CapabilityRequirementSet::default(),
             operations: vec![OperationContract {
                 id: "echo".to_owned(),
                 description: None,
@@ -287,6 +357,45 @@ mod tests {
         assert!(matches!(
             validate_module(&module),
             Err(ValidationError::InvalidInputSchema { .. })
+        ));
+    }
+
+    #[test]
+    fn accepts_capability_provides_and_requires() {
+        let mut module = valid_module();
+        module.provides.capabilities.push(CapabilityDescriptor {
+            id: "manafield.identity".to_owned(),
+            version: "1.0.0".to_owned(),
+        });
+        module.requires.capabilities.insert(
+            "state".to_owned(),
+            CapabilityRequirement {
+                id: "database.postgresql".to_owned(),
+                version: "^1.0.0".to_owned(),
+            },
+        );
+
+        assert!(validate_module(&module).is_ok());
+    }
+
+    #[test]
+    fn rejects_duplicate_provided_capability_ids() {
+        let mut module = valid_module();
+        module.provides.capabilities = vec![
+            CapabilityDescriptor {
+                id: "manafield.identity".to_owned(),
+                version: "1.0.0".to_owned(),
+            },
+            CapabilityDescriptor {
+                id: "manafield.identity".to_owned(),
+                version: "1.1.0".to_owned(),
+            },
+        ];
+
+        assert!(matches!(
+            validate_module(&module),
+            Err(ValidationError::DuplicateProvidedCapability(id))
+                if id == "manafield.identity"
         ));
     }
 }

@@ -9,7 +9,7 @@ mod schema;
 mod snapshot;
 mod validation;
 
-pub use capability::CapabilitySet;
+pub use capability::{CapabilityRequirementSet, CapabilitySet};
 pub use loader::discover_modules;
 pub use module::ModuleDescriptor;
 pub use operation::{OperationBinding, OperationContract};

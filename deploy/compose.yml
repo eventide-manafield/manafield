@@ -26,17 +26,17 @@ services:
     networks:
       - modules
 
-  example-postgres:
+  manafield-postgres:
     profiles:
-      - example-postgresql
+      - postgresql
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${MANAFIELD_EXAMPLE_POSTGRES_DB:-manafield}
-      POSTGRES_USER: ${MANAFIELD_EXAMPLE_POSTGRES_USER:-manafield}
-      POSTGRES_PASSWORD: ${MANAFIELD_EXAMPLE_POSTGRES_PASSWORD:-manafield}
+      POSTGRES_DB: ${MANAFIELD_POSTGRES_DB:-manafield}
+      POSTGRES_USER: ${MANAFIELD_POSTGRES_USER:-manafield}
+      POSTGRES_PASSWORD: ${MANAFIELD_POSTGRES_PASSWORD:-manafield}
     volumes:
-      - example-postgres-data:/var/lib/postgresql
+      - manafield-postgres-data:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL
@@ -47,26 +47,26 @@ services:
     networks:
       modules:
         aliases:
-          - example-postgres
+          - manafield-postgres
 
-  example-postgres-provider:
+  manafield-postgres-provider:
     profiles:
-      - example-postgresql
+      - postgresql
     image: ${MANAFIELD_POSTGRES_PROVIDER_IMAGE:-manafield-resource-postgresql:local}
     restart: unless-stopped
     init: true
     environment:
       MANAFIELD_CORE_URL: http://core:8080
-      MANAFIELD_RESOURCE_ID: ${MANAFIELD_POSTGRES_RESOURCE_ID:-example-postgres}
-      MANAFIELD_RESOURCE_NAME: ${MANAFIELD_POSTGRES_RESOURCE_NAME:-Example PostgreSQL}
-      POSTGRES_HOST: example-postgres
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_POSTGRES_RESOURCE_ID:-manafield-postgres}
+      MANAFIELD_RESOURCE_NAME: ${MANAFIELD_POSTGRES_RESOURCE_NAME:-Manafield PostgreSQL}
+      POSTGRES_HOST: manafield-postgres
       POSTGRES_PORT: 5432
       MANAFIELD_POSTGRES_CAPABILITY_VERSION: 1.0.0
       MANAFIELD_RESOURCE_CHECK_INTERVAL: 5
     depends_on:
       core:
         condition: service_healthy
-      example-postgres:
+      manafield-postgres:
         condition: service_healthy
     read_only: true
     tmpfs:
@@ -79,7 +79,7 @@ services:
       - modules
 
 volumes:
-  example-postgres-data:
+  manafield-postgres-data:
 
 networks:
   modules:

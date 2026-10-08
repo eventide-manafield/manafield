@@ -114,10 +114,12 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [x] Discovery 3단계: compatible / advanced same-ID / full
 - [x] Capability version mismatch = warning + log + continue
 - [x] endpoint/config value는 Instance, config schema는 Definition에 배치
-- [ ] `provides.capabilities` / `requires.capabilities` Core 모델 구현
+- [x] `provides.capabilities` / `requires.capabilities` Core 모델 구현
 - [ ] Capability ↔ Operation contract validation
 - [x] Capability SemVer / range 정책
 - [ ] concrete Binding 저장/조회 구현
+  - [x] Instance Definition / Build Plan binding 보존 및 target 존재 검증
+  - [x] v0 Module runtime binding target env 주입
 - [ ] Capability Discovery API 구현
 - [ ] Binding validation / diagnostic error model
 - [ ] dependency graph / cycle validation

@@ -85,8 +85,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use crate::core::CapabilitySet;
-    use crate::core::capability::CapabilityDescriptor;
+    use crate::core::capability::{CapabilityDescriptor, CapabilityRequirementSet, CapabilitySet};
     use crate::core::operation::{HttpMethod, OperationBinding, OperationContract, PayloadCodec};
     use crate::core::schema::DataSchema;
 
@@ -97,6 +96,8 @@ mod tests {
             description: None,
             version: "0.0.1".to_owned(),
             health_operation: None,
+            provides: CapabilitySet::default(),
+            requires: CapabilityRequirementSet::default(),
             operations: vec![OperationContract {
                 id: "hello".to_owned(),
                 description: None,

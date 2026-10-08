@@ -82,9 +82,9 @@ pipeline {
                             ok: "Create Instance",
                             parameters: [
                                 booleanParam(
-                                    name: "INSTALL_EXAMPLE_POSTGRES",
+                                    name: "INSTALL_POSTGRES",
                                     defaultValue: false,
-                                    description: "Install the PostgreSQL example Resource"
+                                    description: "Install the Manafield PostgreSQL Resource"
                                 ),
                                 booleanParam(
                                     name: "INSTALL_EXAMPLE_WEB",
@@ -109,7 +109,7 @@ pipeline {
                             ]
                         )
 
-                        def installPostgres = bootstrap["INSTALL_EXAMPLE_POSTGRES"] as boolean
+                        def installPostgres = bootstrap["INSTALL_POSTGRES"] as boolean
                         def installWeb = bootstrap["INSTALL_EXAMPLE_WEB"] as boolean
                         def installAccount = bootstrap["INSTALL_EXAMPLE_ACCOUNT"] as boolean
 
@@ -144,7 +144,7 @@ pipeline {
                               cat >> "$INSTANCE_ROOT/instance.yaml" <<'EOF'
 
 resources:
-  - id: example-postgres
+  - id: manafield-postgres
     enabled: true
     provider: postgresql
 EOF
@@ -526,7 +526,7 @@ EOF
 
                       test -n "$postgres_resource_id"
                       test -n "$postgres_provider_image"
-                      compose_profiles="example-postgresql"
+                      compose_profiles="postgresql"
                     fi
 
                     mkdir -p "$RELEASE_DIR/modules"
@@ -542,7 +542,7 @@ EOF
                       "MANAFIELD_EDGE_NETWORK=$edge_network" \
                       "MANAFIELD_POSTGRES_PROVIDER_IMAGE=$postgres_provider_image" \
                       "MANAFIELD_POSTGRES_RESOURCE_ID=$postgres_resource_id" \
-                      "MANAFIELD_POSTGRES_RESOURCE_NAME=Example PostgreSQL" \
+                      "MANAFIELD_POSTGRES_RESOURCE_NAME=Manafield PostgreSQL" \
                       > "$RELEASE_DIR/release.env"
 
                     printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"
@@ -593,6 +593,23 @@ EOF
       MANAFIELD_CORE_URL: http://core:8080
       MANAFIELD_MODULE_ID: "$module_id"
       MANAFIELD_WEB_BASE_PATH: "$base_path"
+EOF
+
+                      while IFS="$tab" read -r binding_module binding_slot binding_target; do
+                        [ -n "$binding_module" ] || continue
+                        [ "$binding_module" = "$module_id" ] || continue
+
+                        binding_slot_upper="$(
+                          printf '%s' "$binding_slot" | tr '[:lower:]' '[:upper:]'
+                        )"
+
+                        printf '      MANAFIELD_BINDING_%s_TARGET: "%s"\n' \
+                          "$binding_slot_upper" \
+                          "$binding_target" \
+                          >> "$RELEASE_DIR/modules.compose.yml"
+                      done < ci-plan/module-bindings.tsv
+
+                      cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
     depends_on:
       core:
         condition: service_healthy

@@ -110,7 +110,7 @@ The Wizard is intentionally shown **only when the Instance Definition does not e
 
 The bootstrap choices are:
 
-- PostgreSQL example Resource — implemented
+- Manafield PostgreSQL Resource — implemented
 - Example Web Module — planned
 - Example Account Module — planned
 - initial administrator username / password, defaulting to `admin / admin`
@@ -121,7 +121,7 @@ Selecting only PostgreSQL appends a desired Resource request to the generated `i
 
 ```yaml
 resources:
-  - id: example-postgres
+  - id: manafield-postgres
     enabled: true
     provider: postgresql
 ```
@@ -155,7 +155,7 @@ Desired Resources are declared separately from Modules.
 
 ```yaml
 resources:
-  - id: example-postgres
+  - id: manafield-postgres
     enabled: true
     provider: postgresql
 ```
@@ -163,6 +163,43 @@ resources:
 The Build Plan preserves the generic `id + provider` request and emits `ci-plan/resources.tsv`.
 
 The Resource provider is responsible for creating or observing the concrete Resource and registering live metadata with Core. Core does not infer that a Resource exists merely because it appears in the Instance Definition.
+
+### Capability bindings
+
+A Module Instance can explicitly bind one of its Requirement slots to a concrete Instance ID.
+
+```yaml
+modules:
+  - id: manafield-account
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    bindings:
+      state: manafield-postgres
+```
+
+The Module manifest owns the Requirement declaration:
+
+```yaml
+requires:
+  capabilities:
+    state:
+      id: database.postgresql
+      version: "^1.0.0"
+```
+
+The Instance Definition owns the concrete target selection.
+
+The Build Plan preserves these bindings and emits `ci-plan/module-bindings.tsv`. The v0 Compose renderer passes the selected target to the Module as:
+
+```text
+MANAFIELD_BINDING_STATE_TARGET=manafield-postgres
+```
+
+This environment value identifies the bound Instance only. Endpoint, connection metadata, credentials, and secret delivery remain separate Resource/runtime concerns and are not encoded into the Capability contract.
 
 ### Module source types
 
@@ -236,14 +273,11 @@ The adapter boundary is intentionally provider-specific: future implementations 
 
 The current Compose stack is [compose.yml](compose.yml).
 
-Without optional profiles it starts:
+The base Compose file starts Manafield Core. Jenkins adds enabled Modules through the generated `modules.compose.yml`.
 
-- Manafield Core
-- Manafield Reference
+When the `postgresql` profile is enabled the base stack additionally starts:
 
-When the `example-postgresql` profile is enabled it additionally starts:
-
-- disposable/example PostgreSQL
+- Manafield PostgreSQL Resource
 - PostgreSQL Resource Provider
 
 The Provider registers the live Resource with Core after PostgreSQL is healthy.

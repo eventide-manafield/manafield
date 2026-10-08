@@ -85,7 +85,7 @@ Manafield Core binary는 Web 없이도 상태를 확인할 수 있는 작은 hea
 manafield health
 manafield ps
 manafield resource
-manafield resource example-postgres
+manafield resource manafield-postgres
 ```
 
 CLI command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
@@ -191,7 +191,7 @@ The Manafield Core binary includes a small headless CLI for inspecting a running
 manafield health
 manafield ps
 manafield resource
-manafield resource example-postgres
+manafield resource manafield-postgres
 ```
 
 CLI commands use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.

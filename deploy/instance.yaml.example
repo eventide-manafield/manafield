@@ -47,7 +47,7 @@ modules:
 resources:
   # Desired Resource example. The provider creates/observes the concrete Resource
   # and registers its live metadata with Core.
-  - id: example-postgres
+  - id: manafield-postgres
     enabled: false
     provider: postgresql
 

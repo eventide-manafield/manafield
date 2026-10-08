@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -149,6 +149,14 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
     }
     fs::write(directory.join("module-exposures.tsv"), module_exposures)?;
 
+    let mut module_bindings = String::new();
+    for module in &plan.modules {
+        for (slot, target) in &module.bindings {
+            module_bindings.push_str(&format!("{}\t{}\t{}\n", module.id, slot, target));
+        }
+    }
+    fs::write(directory.join("module-bindings.tsv"), module_bindings)?;
+
     let mut resources = String::new();
     for resource in &plan.resources {
         resources.push_str(&format!("{}\t{}\n", resource.id, resource.provider,));
@@ -184,6 +192,7 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
     }
 
     let mut instance_ids = HashSet::new();
+    let mut enabled_instance_ids = HashSet::new();
     let mut host_exposures = HashSet::new();
     let mut prefix_exposures = HashSet::new();
     let mut has_exposure = false;
@@ -193,6 +202,10 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
 
         if !instance_ids.insert(module.id.as_str()) {
             return Err(format!("duplicate instance id '{}'", module.id));
+        }
+
+        if module.enabled {
+            enabled_instance_ids.insert(module.id.as_str());
         }
 
         validate_module_source(&format!("modules[{}].source", module.id), &module.source)?;
@@ -254,6 +267,25 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         if !instance_ids.insert(resource.id.as_str()) {
             return Err(format!("duplicate instance id '{}'", resource.id));
         }
+
+        if resource.enabled {
+            enabled_instance_ids.insert(resource.id.as_str());
+        }
+    }
+
+    for module in definition.modules.iter().filter(|module| module.enabled) {
+        for (slot, target) in &module.bindings {
+            require_non_empty(&format!("modules[{}].bindings slot", module.id), slot)?;
+            validate_binding_slot(&module.id, slot)?;
+            require_non_empty(&format!("modules[{}].bindings.{slot}", module.id), target)?;
+
+            if !enabled_instance_ids.contains(target.as_str()) {
+                return Err(format!(
+                    "module '{}' binding slot '{}' targets unknown or disabled instance '{}'",
+                    module.id, slot, target
+                ));
+            }
+        }
     }
 
     require_non_empty(
@@ -310,6 +342,26 @@ fn require_non_empty(label: &str, value: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn validate_binding_slot(module_id: &str, slot: &str) -> Result<(), String> {
+    let mut characters = slot.chars();
+
+    let Some(first) = characters.next() else {
+        return Err(format!(
+            "modules[{module_id}].bindings slot must not be empty"
+        ));
+    };
+
+    if !(first.is_ascii_alphabetic() || first == '_')
+        || !characters.all(|character| character.is_ascii_alphanumeric() || character == '_')
+    {
+        return Err(format!(
+            "modules[{module_id}].bindings slot '{slot}' must match [A-Za-z_][A-Za-z0-9_]*"
+        ));
+    }
+
+    Ok(())
 }
 
 fn validate_target_port(module_id: &str, target_port: u16) -> Result<(), String> {
@@ -403,6 +455,8 @@ struct ModuleDefinition {
     build: ModuleBuildDefinition,
     #[serde(default)]
     exposure: Option<ExposureDefinition>,
+    #[serde(default)]
+    bindings: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -518,6 +572,7 @@ impl From<InstanceDefinition> for BuildPlan {
                         dockerfile: module.build.dockerfile,
                     },
                     exposure: module.exposure,
+                    bindings: module.bindings,
                 })
                 .collect(),
             resources: definition
@@ -551,6 +606,8 @@ struct ModulePlan {
     build: ModuleBuildPlan,
     #[serde(skip_serializing_if = "Option::is_none")]
     exposure: Option<ExposureDefinition>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    bindings: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -658,5 +715,71 @@ deployment:
 
         let error = validate_definition(&definition).unwrap_err();
         assert!(error.contains("duplicate prefix exposure"));
+    }
+
+    #[test]
+    fn accepts_binding_to_enabled_resource() {
+        let definition: InstanceDefinition = serde_yaml_ng::from_str(
+            r#"
+version: 0
+instance:
+  id: test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+modules:
+  - id: account
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    bindings:
+      state: manafield-postgres
+resources:
+  - id: manafield-postgres
+    provider: postgresql
+deployment:
+  modulesNetwork: manafield-modules
+  edgeNetwork: manafield-edge
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(validate_definition(&definition), Ok(()));
+    }
+
+    #[test]
+    fn rejects_binding_to_unknown_instance() {
+        let definition: InstanceDefinition = serde_yaml_ng::from_str(
+            r#"
+version: 0
+instance:
+  id: test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+modules:
+  - id: account
+    source:
+      type: dir
+    build:
+      type: docker
+      context: .
+      dockerfile: Dockerfile
+    bindings:
+      state: missing-postgres
+deployment:
+  modulesNetwork: manafield-modules
+  edgeNetwork: manafield-edge
+"#,
+        )
+        .unwrap();
+
+        let error = validate_definition(&definition).unwrap_err();
+        assert!(error.contains("targets unknown or disabled instance"));
     }
 }
