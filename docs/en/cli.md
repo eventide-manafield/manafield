@@ -4,9 +4,9 @@
 >
 > The Korean documentation takes precedence. See [ADR-0013](adr/0013-docker-v0-cli-execution.md).
 
-## Working copy and Release CLI — target design (NOT IMPLEMENTED)
+## Working copy and Release CLI — implementation status
 
-The proposed operator commands from [ADR-0014](adr/0014-instance-working-release.md) are **not yet supported by the binary**.
+The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all` is implemented; `use`, `module bind`, and Release-ID `deploy` are not yet implemented.**
 
 ```bash
 manafield build all
@@ -25,6 +25,28 @@ manafield deploy v1_20261008T070000Z
 - A full Release-to-Release diff engine is not required immediately, but runtime reconciliation and non-destructive idempotence are.
 
 Currently, transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**, and `manafield deploy RELEASE_DIR` only invokes Compose on a pre-staged artifact directory. Neither implements this target contract.
+
+## Build the Manafield platform directly (without Jenkins)
+
+From the Manafield source checkout, `build all` compiles **four Rust binaries**: CLI, Core server, Build Plan compatibility tool, and Traefik ingress adapter. By default, it also builds the Core runtime and official PostgreSQL Resource Provider Docker images.
+
+```bash
+cargo run --bin manafield -- build all
+# Or invoke an already built CLI:
+cargo build --locked --bin manafield
+./target/debug/manafield build all
+```
+
+The default output is `dist/platform/<version>-<Git revision>/bin/` plus `manifest.json`, recording source revision, dirty state, and any Docker image tags. Docker images remain in the local Docker daemon; they are not embedded in `dist`.
+
+```bash
+manafield build all --no-docker --output ./dist/local-binaries
+manafield build all --source /path/to/manafield --output /tmp/manafield-test
+```
+
+Output directories are never overwritten. `--no-docker` builds binaries without requiring daemon access; the default requires Docker CLI/daemon permissions. Instance YAML, external Modules, and database contents are not built or changed.
+
+The old `build WORKSPACE REVISION CORE_IMAGE` command remains available temporarily for Jenkins compatibility only.
 
 ## Separate CLI and Core binaries
 
@@ -48,6 +70,7 @@ That does not imply a full Docker-free v0 Instance deployment.
 | `manafield health` | Implemented | Query Core health |
 | `manafield ps` | Implemented | Query Core, Modules, Resources |
 | `manafield resource [id]` | Implemented | List or inspect Resources |
+| `manafield build all [--source DIR] [--output DIR] [--no-docker]` | Implemented | Produce a Manafield-only platform bundle and, by default, Core + official PostgreSQL Provider Docker images |
 | `manafield plan [INSTANCE]` | Implemented | Validate and resolve an Instance Definition |
 | `manafield deploy RELEASE_DIR` | Implemented | Docker Compose deployment of an already staged release |
 | `manafield build WORKSPACE REVISION CORE_IMAGE` | Implemented | Build Core/Module/Resource Docker images from a prepared Jenkins workspace |

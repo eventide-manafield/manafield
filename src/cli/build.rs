@@ -1,3 +1,8 @@
+mod platform;
+
+pub(super) use platform::Options as PlatformOptions;
+pub(super) use platform::run as run_platform;
+
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};

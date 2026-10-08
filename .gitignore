@@ -3,3 +3,6 @@
 .env.*
 !.env.example
 /deploy/instance.yaml
+
+# Local platform distribution output
+/dist
