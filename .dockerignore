@@ -2,7 +2,8 @@ target
 .git
 .github
 docs
-deploy
+deploy/**
+!deploy/instance.bootstrap.yaml
 examples
 .env
 .env.*
