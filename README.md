@@ -87,13 +87,15 @@ manafield ps
 manafield resource
 manafield resource manafield-postgres
 manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
+manafield build all
+manafield build all --no-docker --output ./dist/test
 manafield build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
 manafield deploy /opt/manafield/instance/releases/123
 ```
 
 `health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
 
-`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build`는 Jenkins가 준비한 workspace의 이미지 빌드를 지원합니다. `verify / rebuild`와 source checkout, release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
+`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build all`은 외부 Module을 제외한 Manafield 플랫폼 자체의 실행파일과 Docker 이미지(Core 및 공식 PostgreSQL Provider)를 생성합니다. `--no-docker`는 바이너리만 빌드합니다. 기존 `build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 명령입니다. `verify / rebuild`와 source checkout, release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
 
 Core 서버는 `manafield-core`로 실행합니다. `manafield`를 인자 없이 실행하면 CLI 도움말을 출력하며, 이전의 `manafield serve`는 더 이상 서버를 시작하지 않습니다.
 
@@ -107,7 +109,7 @@ Core의 일반 Registry / Protocol 모델은 계속 Docker-specific privilege와
 
 ### Release 작업 흐름 (향후 CLI)
 
-`build all`은 **Manafield 플랫폼 자체만 빌드**합니다. 이미 존재하는 Module/Resource를 매번 빌드하는 명령이 아닙니다. Instance의 연결과 배포는 별도로 취급합니다.
+구현된 `build all`은 **Manafield 플랫폼 자체만 빌드**합니다. 이미 존재하는 Module/Resource를 매번 빌드하는 명령이 아닙니다. Instance의 연결과 배포는 별도로 취급합니다.
 
 ```text
 manafield use A
@@ -117,7 +119,7 @@ manafield deploy B
 
 A의 불변 YAML을 temp로 불러와 Requirement Binding만 변경하고, 새 ID B의 불변 YAML로 저장해 배포하는 방식입니다. 기본 ID는 `vN_YYYYMMDDTHHMMSSZ`(UTC), 저장 위치는 `manafield/release/<id>.yaml`입니다. 기존 PostgreSQL 데이터와 영속 Volume은 Release 간에 유지합니다.
 
-**위 명령은 설계 목표이며 아직 구현되지 않았습니다.** 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
+**위의 `use` / `module bind` / Release ID 기반 `deploy`는 아직 목표 명령이며 미구현입니다.** 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
 
 ## 목표 구조
 
@@ -221,13 +223,15 @@ manafield ps
 manafield resource
 manafield resource manafield-postgres
 manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
+manafield build all
+manafield build all --no-docker --output ./dist/test
 manafield build "$WORKSPACE" "$CORE_SHA" "$CORE_IMAGE"
 manafield deploy /opt/manafield/instance/releases/123
 ```
 
 Operational commands such as `health`, `ps`, and `resource` use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
 
-`plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. Build supports a prepared workspace. Verify, rebuild, source checkout, and release staging are still migrating; **a full CLI-only from-scratch Instance build is not yet implemented.**
+`plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. `build all` creates a Manafield-only platform bundle (CLI, Core, official tools) and Docker images for Core / the official PostgreSQL Provider; `--no-docker` builds binaries only. Legacy `build WORKSPACE REVISION CORE_IMAGE` remains Jenkins-specific. Verify, rebuild, source checkout, and release staging are still migrating; **a full CLI-only from-scratch Instance build is not yet implemented.**
 
 Run `manafield-core` to start the Core server. Running `manafield` without arguments prints CLI help; `manafield serve` does not start the Core server.
 
@@ -241,7 +245,7 @@ The general Core registry/protocol model remains separated from Docker-specific 
 
 ### Release workflow (planned CLI)
 
-`build all` builds **only the Manafield platform**, not all already-published Modules/Resources. Editing Instance Bindings and deploying Releases are separate concerns.
+The implemented `build all` builds **only the Manafield platform**, not all already-published Modules/Resources. Editing Instance Bindings and deploying Releases are separate concerns.
 
 ```text
 manafield use A
@@ -251,7 +255,7 @@ manafield deploy B
 
 Load immutable YAML A as a temp working copy, edit Requirement Bindings, then snapshot it as new immutable B and apply it. Default IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC) and are stored at `manafield/release/<id>.yaml`. Reuse persistent PostgreSQL data and volumes across Releases.
 
-**These commands are planned, not currently implemented.** The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
+**The `use`, `module bind` and Release-ID `deploy` examples are planned, not yet implemented.** The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
 
 ## Highlights
 

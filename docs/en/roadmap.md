@@ -241,14 +241,15 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Design: Release ID `vN_YYYYMMDDTHHMMSSZ` (UTC), `manafield/release/<id>.yaml`, `manafield/temp/working.yaml`
 - [x] Design: Persist PostgreSQL Resource/volume/database data across Releases; YAML retries are not data restoration
 - [x] Split `manafield` CLI and `manafield-core` server into separate binaries in one distribution
-- [ ] Implement `manafield build all` for platform artifacts only; migrate external Module build responsibility out of transitional Jenkins-compatible build
+- [x] Implement `manafield build all` for platform artifacts and official Docker images only
+- [ ] Remove external Module build responsibility from transitional Jenkins-compatible build
 - [ ] Implement `manafield use`, temp working-copy management, dirty-work protection
 - [ ] Implement `manafield module bind` temp YAML editing
 - [ ] Generate Release IDs, save immutable YAML atomically, store deployment history separately
 - [ ] Implement new/existing `manafield deploy <release-id>` behavior
 - [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`
 
-**Current versus target:** `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules; `manafield deploy RELEASE_DIR` operates on pre-staged Compose directories. The target `build all` / `deploy <release-id>` is not implemented yet. See [ADR-0014](adr/0014-instance-working-release.md).
+**Current versus target:** `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules; `manafield deploy RELEASE_DIR` operates on pre-staged Compose directories. The new `build all` is implemented, but `deploy <release-id>` is not yet implemented. See [ADR-0014](adr/0014-instance-working-release.md).
 
 ## Phase 5 — CI/CD / Instance Build Plan
 

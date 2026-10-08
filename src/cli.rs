@@ -27,6 +27,11 @@ pub enum Command {
         output: Option<String>,
         ci_output_dir: Option<String>,
     },
+    BuildAll {
+        source: String,
+        output: Option<String>,
+        no_docker: bool,
+    },
     Build {
         workspace: String,
         revision: String,
@@ -134,9 +139,22 @@ fn parse_build_args<I>(mut args: I) -> Result<Command, CliError>
 where
     I: Iterator<Item = String>,
 {
-    let workspace = args.next().ok_or_else(|| {
-        CliError::Usage("build requires WORKSPACE REVISION CORE_IMAGE".to_owned())
-    })?;
+    match args.next() {
+        Some(first) if first == "all" => parse_build_all_args(args),
+        Some(first) => parse_legacy_build_args(args, first),
+        None => Err(CliError::Usage(
+            "build requires a target (try 'manafield build all')".to_owned(),
+        )),
+    }
+}
+
+// Previous Jenkins invocation kept as a compatibility adapter until its
+// Module image pipeline moves into Instance/module management.
+fn parse_legacy_build_args<I>(mut args: I, first: String) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let workspace = first;
     let revision = args
         .next()
         .ok_or_else(|| CliError::Usage("build requires REVISION".to_owned()))?;
@@ -151,6 +169,43 @@ where
             core_image,
         },
     )
+}
+
+fn parse_build_all_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let mut source: Option<String> = None;
+    let mut output: Option<String> = None;
+    let mut no_docker = false;
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--source" if source.is_none() => {
+                source = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--source requires a path".to_owned()))?,
+                );
+            }
+            "--output" if output.is_none() => {
+                output = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--output requires a path".to_owned()))?,
+                );
+            }
+            "--no-docker" if !no_docker => no_docker = true,
+            _ => {
+                return Err(CliError::Usage(format!(
+                    "unknown or repeated build all option '{arg}'"
+                )));
+            }
+        }
+    }
+    Ok(Command::BuildAll {
+        source: source.unwrap_or_else(|| ".".to_owned()),
+        output,
+        no_docker,
+    })
 }
 
 fn parse_deploy_args<I>(mut args: I) -> Result<Command, CliError>
@@ -192,6 +247,15 @@ pub fn run(command: Command) -> Result<(), CliError> {
         )
         .map_err(|error| CliError::Execution(error.to_string())),
         Command::Deploy { release_dir } => deploy::run(&release_dir),
+        Command::BuildAll {
+            source,
+            output,
+            no_docker,
+        } => build::run_platform(build::PlatformOptions {
+            source,
+            output,
+            no_docker,
+        }),
         Command::Build {
             workspace,
             revision,
@@ -330,7 +394,9 @@ pub fn print_help() {
            resource [ID]     List Resources or show one Resource\n\
            plan [INSTANCE]   Resolve an Instance Definition into a Build Plan\n\
                              options: --output PATH --ci-output DIR\n\
-           build WORKSPACE REVISION CORE_IMAGE  Build Core, Modules and Resource images\n\
+           build all         Build the Manafield platform distribution\n\
+                             options: --source DIR --output DIR --no-docker\n\
+           build WORKSPACE REVISION CORE_IMAGE  Legacy Jenkins image builder\n\
            deploy RELEASE    Deploy a staged release through Docker Compose\n\
            help              Show this help\n\
            version           Show version\n\
@@ -661,6 +727,42 @@ mod tests {
                 ci_output_dir: None,
             }
         );
+    }
+
+    #[test]
+    fn parses_platform_build_all() {
+        assert_eq!(
+            parse_args(args(&[
+                "build",
+                "all",
+                "--source",
+                "/src",
+                "--output",
+                "/tmp/dist",
+                "--no-docker"
+            ]))
+            .unwrap(),
+            Command::BuildAll {
+                source: "/src".to_owned(),
+                output: Some("/tmp/dist".to_owned()),
+                no_docker: true
+            }
+        );
+        assert_eq!(
+            parse_args(args(&["build", "all"])).unwrap(),
+            Command::BuildAll {
+                source: ".".to_owned(),
+                output: None,
+                no_docker: false
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_or_duplicate_platform_options() {
+        assert!(parse_args(args(&["build", "all", "--no-cache"])).is_err());
+        assert!(parse_args(args(&["build", "all", "--output"])).is_err());
+        assert!(parse_args(args(&["build", "all", "--no-docker", "--no-docker"])).is_err());
     }
 
     #[test]

@@ -4,9 +4,9 @@
 >
 > 한국어 문서를 우선합니다. 상세한 구조 결정은 [ADR-0013](adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
-## 작업본 및 Release CLI — 목표 설계 (미구현)
+## 작업본 및 Release CLI — 구현 / 미구현 구분
 
-[ADR-0014](adr/0014-instance-working-release.md)의 제안된 사용자 명령 형식은 다음과 같아. **아직 실행 가능한 명령어는 아니야.**
+[ADR-0014](adr/0014-instance-working-release.md)의 명령 구조야. **`build all`은 구현됐고, `use` / `module bind` / Release ID 기반 `deploy`는 미구현이야.**
 
 ```bash
 manafield build all
@@ -25,6 +25,28 @@ manafield deploy v1_20261008T070000Z
 - Release 간 전체 diff 엔진은 당장 필수가 아니지만, 배포 엔진의 멱등성·기존 Resource 식별·비파괴 변경 처리는 필요함
 
 현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능으로 **외부 Module까지 빌드**하며, `manafield deploy RELEASE_DIR`는 이미 준비된 Compose 산출물만 실행한다. 위 목표 명령과 섞어 생각하면 안 돼.
+
+## 플랫폼 전체 빌드 — Jenkins 없이 실행 가능
+
+소스 저장소 루트에서 실행하면 CLI, Core, Build Plan 호환 도구, Traefik ingress adapter **4개 실행파일**을 생성하고, Docker가 준비돼 있으면 Core/공식 PostgreSQL Provider 이미지를 빌드해.
+
+```bash
+cargo run --bin manafield -- build all
+# 또는 먼저 CLI를 만든 뒤:
+cargo build --locked --bin manafield
+./target/debug/manafield build all
+```
+
+생성 결과는 기본적으로 `dist/platform/<버전>-<Git 커밋>` 아래 `bin/`과 `manifest.json`으로 묶여. `manifest.json`에는 플랫폼 버전, 소스 리비전, dirty 여부, 빌드된 Docker 이미지 태그가 기록돼. **이미지는 Docker daemon에 남으며 dist 안에 이미지 데이터가 들어가지는 않아.**
+
+```bash
+manafield build all --no-docker --output ./dist/local-binaries
+manafield build all --source /path/to/manafield --output /tmp/manafield-test
+```
+
+출력 경로가 이미 존재하면 덮어쓰지 않고 오류로 종료해. `--no-docker`는 Rust 실행파일만 만들고 Docker daemon 접근은 요구하지 않아. 기본 실행은 Docker CLI/daemon 접근 권한이 필요해. Instance YAML, Module 이미지, DB 데이터는 다루지 않아.
+
+현재 Jenkins의 기존 `build WORKSPACE REVISION CORE_IMAGE` 호출은 호환을 위해 유지하지만, 새 플랫폼 `build all`의 책임과는 분리돼 있어.
 
 ## CLI / Core 바이너리 분리
 
@@ -48,6 +70,7 @@ Core의 독립적인 API / Registry / validation과 `manafield plan`은 Docker �
 | `manafield health` | 구현 | Core API 상태 조회 |
 | `manafield ps` | 구현 | Core 및 등록된 Module/Resource 조회 |
 | `manafield resource [id]` | 구현 | Resource 목록 또는 단일 Resource 조회 |
+| `manafield build all [--source DIR] [--output DIR] [--no-docker]` | 구현 | Manafield 플랫폼 실행파일 배포 묶음 생성. 기본값은 Docker 이미지(Core/공식 PostgreSQL Provider)도 빌드 |
 | `manafield plan [INSTANCE]` | 구현 | Instance Definition 검증 및 Build Plan 생성 |
 | `manafield deploy RELEASE_DIR` | 구현 | 준비된 release에 한해 Docker Compose 배포 |
 | `manafield build WORKSPACE REVISION CORE_IMAGE` | 구현 | Jenkins가 준비한 workspace의 Core/Module/Resource Docker 이미지 빌드 |
