@@ -91,5 +91,9 @@ An immutable YAML snapshot allows retrying or re-applying an earlier desired con
 
 - Split the `manafield` CLI binary from `manafield-core`, shipping both together, with shared management/deployment logic.
 - Redesign the `build` command family for **Manafield platform artifacts only**. The current Jenkins-compatibility `manafield build WORKSPACE REVISION CORE_IMAGE` also builds external Modules, which conflicts with this target.
-- Implement working-copy `use`, `module bind`, immutable Release YAML storage, `deploy <release-id>`, and persistent Resource reuse.
+- Working-copy `use` and `module bind` are implemented in CLI v0. Immutable Release YAML creation, `deploy <release-id>`, and persistent Resource reuse remain future work.
 - Maintain existing Jenkins/CLI `plan`, legacy `build`, and `deploy RELEASE_DIR` during the migration; do not represent them as already following this new contract.
+
+## CLI implementation status (2026-10-08)
+
+`manafield module bind A B C` updates only temp working YAML. If missing, the working copy is initialized from the last deployed Release (`release_id` in `manafield/state/active-release.json`) or initial `instance.yaml`. Immutable Release YAML and live runtime are untouched. YAML serialization may not preserve comments/formatting; full Capability compatibility validation remains future work.

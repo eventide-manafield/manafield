@@ -244,8 +244,8 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Implement `manafield build all` for platform artifacts and official Docker images only
 - [ ] Remove external Module build responsibility from transitional Jenkins-compatible build
 - [x] Implement `manafield use` selection, persisted temp context and intentional discard of prior unsaved edits
-- [ ] Auto-initialize missing temp for `module bind` from active Release or initial instance.yaml
-- [ ] Implement `manafield module bind` temp YAML editing
+- [x] Auto-initialize missing temp for `module bind` from active Release or initial instance.yaml
+- [x] Implement `manafield module bind` temp YAML editing
 - [ ] Generate Release IDs, save immutable YAML atomically, store deployment history separately
 - [ ] Implement new/existing `manafield deploy <release-id>` behavior
 - [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`

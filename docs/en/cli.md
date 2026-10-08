@@ -6,7 +6,7 @@
 
 ## Working copy and Release CLI — implementation status
 
-The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all` and `use` are implemented; `module bind` and Release-ID `deploy` are not yet implemented.**
+The workflow from [ADR-0014](adr/0014-instance-working-release.md) is being implemented. **`build all`, `use` and `module bind` are implemented; Release-ID `deploy` is not yet implemented.**
 
 ```bash
 manafield build all
@@ -37,7 +37,23 @@ The Instance root comes from `--instance-root`, then `MANAFIELD_INSTANCE_ROOT`, 
 
 Explicit `use A` discards prior unsaved temp edits. A missing or malformed Release must leave the previous working copy intact. Running `use` without an ID shows the selected base and whether its YAML was edited. No Docker commands or live Instance changes occur.
 
-A future mutating `module bind` without `use` should start from existing temp, else active Release, else initial `instance.yaml`; this auto-initialization and Binding mutation are **not yet implemented**.
+Without an explicit `use`, `module bind` now starts from existing temp, else the last deployed Release recorded in `manafield/state/active-release.json`, else initial `instance.yaml`; if none exists it reports an error. The planned active state JSON schema is `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}`; recording it on successful deployment remains future work.
+
+## Edit Module Bindings — no Docker required
+
+```bash
+manafield module bind echo state main-postgres --instance-root /path/to/instance
+manafield use --instance-root /path/to/instance
+```
+
+`module bind A B C` updates `modules[].bindings.B: C` in the **temp working YAML only**. A must be a unique Module ID; C must be a unique enabled Module or Resource Instance ID in the Instance Definition. B matches `[A-Za-z_][A-Za-z0-9_]*`.
+
+- Missing temp: initialize from active Release, or initial `<instance-root>/instance.yaml`; never silently create an empty YAML
+- Missing/disabled target or malformed YAML: report an error **without** producing new temp state
+- Repeated binds preserve earlier Binding values; no live runtime or Docker mutation
+- Working YAML is `manafield/temp/working.yaml`; selection context is `manafield/temp/context.json`
+- **Comments and formatting may be rewritten by the YAML serializer.** Review the result when manually editing configuration
+- Full Requirement/Capability compatibility checks are outside this command's scope and will be handled by the validation/deployment flow
 
 ## Build the Manafield platform directly (without Jenkins)
 
@@ -83,6 +99,7 @@ That does not imply a full Docker-free v0 Instance deployment.
 | `manafield health` | Implemented | Query Core health |
 | `manafield ps` | Implemented | Query Core, Modules, Resources |
 | `manafield resource [id]` | Implemented | List or inspect Resources |
+| `manafield module bind A B C [--instance-root DIR]` | Implemented | Edit Module Requirement Binding in temp YAML only |
 | `manafield use [RELEASE_ID] [--instance-root DIR]` | Implemented | Select an immutable YAML into a working copy or inspect current selection; explicit switching discards unsaved edits |
 | `manafield build all [--source DIR] [--output DIR] [--no-docker]` | Implemented | Produce a Manafield-only platform bundle and, by default, Core + official PostgreSQL Provider Docker images |
 | `manafield plan [INSTANCE]` | Implemented | Validate and resolve an Instance Definition |

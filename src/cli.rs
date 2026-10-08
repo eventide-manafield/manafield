@@ -21,6 +21,12 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
+    ModuleBind {
+        consumer: String,
+        slot: String,
+        target: String,
+        instance_root: Option<String>,
+    },
     Use {
         release_id: Option<String>,
         instance_root: Option<String>,
@@ -65,6 +71,7 @@ where
         )),
         "health" => ensure_no_more(args, Command::Health),
         "use" => parse_use_args(args),
+        "module" => parse_module_args(args),
         "ps" => ensure_no_more(args, Command::Ps),
         "resource" | "resources" => {
             let id = args.next();
@@ -84,6 +91,50 @@ where
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
     }
+}
+
+fn parse_module_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let Some(operation) = args.next() else {
+        return Err(CliError::Usage(
+            "module requires a subcommand (bind)".to_owned(),
+        ));
+    };
+    if operation != "bind" {
+        return Err(CliError::Usage(format!(
+            "unknown module command '{operation}'"
+        )));
+    }
+    let mut positional = Vec::new();
+    let mut instance_root = None;
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--instance-root" if instance_root.is_none() => {
+                instance_root = Some(args.next().ok_or_else(|| {
+                    CliError::Usage("--instance-root requires a directory".to_owned())
+                })?);
+            }
+            flag if flag.starts_with('-') => {
+                return Err(CliError::Usage(format!(
+                    "unknown/repeated module option '{flag}'"
+                )));
+            }
+            value => positional.push(value.to_owned()),
+        }
+    }
+    if positional.len() != 3 {
+        return Err(CliError::Usage(
+            "module bind requires CONSUMER SLOT TARGET [--instance-root DIR]".to_owned(),
+        ));
+    }
+    Ok(Command::ModuleBind {
+        consumer: positional.remove(0),
+        slot: positional.remove(0),
+        target: positional.remove(0),
+        instance_root,
+    })
 }
 
 fn parse_use_args<I>(mut args: I) -> Result<Command, CliError>
@@ -272,6 +323,12 @@ where
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
         Command::Health => print_health(),
+        Command::ModuleBind {
+            consumer,
+            slot,
+            target,
+            instance_root,
+        } => workspace::bind(instance_root.as_deref(), &consumer, &slot, &target),
         Command::Use {
             release_id,
             instance_root,
@@ -431,6 +488,8 @@ pub fn print_help() {
            manafield [COMMAND]\n\
          \n\
          Commands:\n\
+           module bind A B C  Set consumer A requirement slot B to Instance C\n\
+                             option: --instance-root DIR\n\
            use [RELEASE_ID]  Select a Release as editable YAML (or show selection)\n\
                              option: --instance-root DIR\n\
            health            Show Core health\n\
@@ -771,6 +830,31 @@ mod tests {
                 ci_output_dir: None,
             }
         );
+    }
+
+    #[test]
+    fn parses_module_bind() {
+        assert_eq!(
+            parse_args(args(&[
+                "module",
+                "bind",
+                "echo",
+                "state",
+                "main-postgres",
+                "--instance-root",
+                "/tmp/i"
+            ]))
+            .unwrap(),
+            Command::ModuleBind {
+                consumer: "echo".to_owned(),
+                slot: "state".to_owned(),
+                target: "main-postgres".to_owned(),
+                instance_root: Some("/tmp/i".to_owned()),
+            }
+        );
+        assert!(parse_args(args(&["module", "bind", "echo", "state"])).is_err());
+        assert!(parse_args(args(&["module", "unknown"])).is_err());
+        assert!(parse_args(args(&["module", "bind", "echo", "state", "db", "extra"])).is_err());
     }
 
     #[test]

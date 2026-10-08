@@ -119,7 +119,7 @@ manafield deploy B
 
 A의 불변 YAML을 temp로 불러와 Requirement Binding만 변경하고, 새 ID B의 불변 YAML로 저장해 배포하는 방식입니다. 기본 ID는 `vN_YYYYMMDDTHHMMSSZ`(UTC), 저장 위치는 `manafield/release/<id>.yaml`입니다. 기존 PostgreSQL 데이터와 영속 Volume은 Release 간에 유지합니다.
 
-**위의 `use` / `module bind` / Release ID 기반 `deploy`는 아직 목표 명령이며 미구현입니다.** 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
+**`use`와 `module bind`는 구현됐고, Release ID 기반 `deploy`는 아직 미구현입니다.** 현재 Jenkins 호환 `build WORKSPACE ...`와 `deploy RELEASE_DIR`는 다른 동작을 합니다. [ADR-0014](docs/kr/adr/0014-instance-working-release.md) · [CLI 가이드](docs/kr/cli.md)
 
 ## 목표 구조
 
@@ -255,7 +255,7 @@ manafield deploy B
 
 Load immutable YAML A as a temp working copy, edit Requirement Bindings, then snapshot it as new immutable B and apply it. Default IDs follow `vN_YYYYMMDDTHHMMSSZ` (UTC) and are stored at `manafield/release/<id>.yaml`. Reuse persistent PostgreSQL data and volumes across Releases.
 
-**The `use`, `module bind` and Release-ID `deploy` examples are planned, not yet implemented.** The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
+**`use` and `module bind` are implemented; Release-ID `deploy` is not yet implemented.** The Jenkins-compatible `build WORKSPACE ...` and `deploy RELEASE_DIR` commands have different semantics. [ADR-0014](docs/en/adr/0014-instance-working-release.md) · [CLI guide](docs/en/cli.md)
 
 ## Highlights
 
