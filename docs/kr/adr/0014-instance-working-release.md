@@ -40,12 +40,12 @@ manafield module bind echo-prod state main-postgres
 manafield deploy B
 ```
 
-- `use A`는 기존 불변 Release A의 YAML을 **수정 가능한 temp 작업본**으로 불러오고 기준 Release를 기록한다. 실행 중인 배포에는 아무 변화가 없다. 저장하지 않은 작업이 있으면 조용히 덮어쓰지 않는다.
-- `module bind` 및 추후 설정 편집 명령은 **temp 작업본만 변경**한다. `instance.yaml`을 직접 편집하는 경로도 지원한다. 작업본을 사용 중이라면 CLI 편집과 수동 편집은 같은 작업본을 대상으로 한다.
+- `use A`는 기존 불변 Release A의 YAML을 **수정 가능한 temp 작업본**으로 불러오고 기준 Release를 기록한다. 실행 중인 배포에는 아무 변화가 없다. **명시적으로 `use A`를 입력하면 이전 temp의 미저장 변경은 확인 없이 폐기한다.** (해당 명령이 작업 기준 전환 의사를 뜻함)
+- `module bind` 및 추후 설정 편집 명령은 **temp 작업본만 변경**한다. 명령 실행 전 작업본이 없으면 기존 temp → active Release → 초기 `instance.yaml` 순서로 작업 기준을 구성한다. 아무 원본도 없으면 임의의 빈 YAML을 만들지 않고 초기화를 안내한다. 조회 명령은 작업본을 만들지 않는다. `instance.yaml`을 직접 편집하는 경로도 지원한다. 작업본을 사용 중이라면 CLI 편집과 수동 편집은 같은 작업본을 대상으로 한다.
 - `deploy B`에서 B가 **미사용 Release ID**라면, 작업본을 검증하고 B의 불변 YAML로 먼저 저장한 뒤 해당 Release 배포를 시도한다. 배포 실패 후에도 B 스냅샷은 남아 재시도할 수 있다.
 - B가 **기존 Release ID**라면 이미 저장된 B를 그대로 재배포한다. 이때 작업본에 미저장 변경이 있다면 이를 묵살하거나 B를 덮어쓰지 않고 충돌 오류를 낸다.
 - ID 없이 `deploy`하면 신규 Release ID를 자동 발급하는 방식도 지원 대상으로 둔다. 생성된 ID를 출력한다.
-- `use A`는 배포/롤백 명령이 아니다. `deploy A`처럼 기존 Release를 지정해야 실제 목표 구성이 바뀐다.
+- `use A`는 배포/롤백 명령이 아니다. 선택된 Release는 `manafield/temp/context.json`의 `base_release`에 보존하고, 현재 배포된 Release는 별도 `manafield/state/active-release.json`에 기록한다. CLI 재시작만으로 temp 내용을 버리지 않는다. `deploy A`처럼 기존 Release를 지정해야 실제 목표 구성이 바뀐다.
 
 명령 표기는 **목표 설계**이며, 현재 CLI에 구현돼 있다는 뜻이 아니다. 명시적인 `release create` 명령은 필수가 아니다. 필요한 경우 나중에 '저장만 하고 배포하지 않기' 기능으로 추가할 수 있다.
 
@@ -59,13 +59,16 @@ Instance마다 사유 영역에 다음을 둔다. 사용자 기준 루트는 `<i
     ├── release/
     │   ├── v1_20261008T070000Z.yaml
     │   └── v2_20261008T080000Z.yaml
-    └── temp/
-        └── working.yaml
+    ├── temp/
+    │   ├── working.yaml
+    │   └── context.json
+    └── state/
+        └── active-release.json
 ```
 
 - ID 기본형: `v<양의 정수>_<UTC 타임스탬프 YYYYMMDDTHHMMSSZ>` (예: `v2_20261008T080000Z`).
 - 숫자는 해당 Instance의 단조 증가 순번이며, 동일 ID를 재사용하거나 덮어쓰지 않는다. 충돌 시 새 순번을 발급한다.
-- 작업본은 재실행에도 남을 수 있는 사유 파일이며, 비밀값은 포함하지 않는다. 실제 Secret은 별도 Secret Store/경로로 관리한다.
+- 작업본은 재실행에도 남을 수 있는 사유 파일이며, 비밀값은 포함하지 않는다. 명시적 `use A`는 이전 작업본을 덮어쓰지만, 유효하지 않거나 존재하지 않는 A를 지정한 경우에는 기존 작업본을 유지한다. 실제 Secret은 별도 Secret Store/경로로 관리한다.
 - Release YAML에는 연결 대상 Instance ID와 구체적 버전/소스 참조를 고정한다. 동작 재현을 위해 빌드 결과의 이미지 digest/manifest가 필요한 경우 별도 불변 메타데이터로 참조할 수 있다. **Release ID는 Platform/Module 버전 번호가 아니다.**
 - 스냅샷 작성은 임시 파일과 원자적 rename 등으로 중간 쓰기 파일을 Release로 노출하지 않도록 한다. 성공/실패 배포 이력은 불변 Release YAML 자체를 수정하지 않고 별도 기록한다.
 

@@ -243,7 +243,8 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] `manafield` CLI와 `manafield-core` 서버를 별도 바이너리로 분리해 동일 배포 묶음에 포함
 - [x] `manafield build all` 플랫폼 전용 배포 묶음 + Docker 이미지 빌드 CLI 구현
 - [ ] 현재 Jenkins 호환 `build WORKSPACE ...`에서 외부 Module 빌드 책임 완전히 분리 및 legacy 제거
-- [ ] `manafield use` / temp 작업본 관리·미저장 변경 보호 구현
+- [x] `manafield use` 불변 Release 선택, temp 작업본 저장·기준 정보 영속화 및 명시적 변경 폐기 구현
+- [ ] `module bind` 미선택 시 기존 temp / active Release / 초기 instance.yaml 자동 생성 구현
 - [ ] `manafield module bind` 작업본 YAML 편집 구현
 - [ ] Release ID 발급·원자적 불변 YAML 확정·배포 이력 분리 구현
 - [ ] `manafield deploy <release-id>` 신규/기존 ID 의미 구현
