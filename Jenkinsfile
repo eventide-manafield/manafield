@@ -445,6 +445,8 @@ EOF
         stage("Materialize Resource Bindings") {
             steps {
                 sh '''
+                    # Never print credentials or their generation commands to Jenkins logs.
+                    set +x
                     set -eu
 
                     : > postgresql-bindings.tsv
@@ -540,7 +542,7 @@ EOF
 
                     if [ -s postgresql-bindings.tsv ]; then
                       echo "Materialized PostgreSQL bindings:"
-                      awk -F '\t' '{ printf "  %s.%s -> %s (database=%s schema=%s role=%s)\n", $1, $2, $3, $6, $7, $8 }' \
+                      awk -F '\t' '{ print "  " $1 "." $2 " -> " $3 " (database=" $6 " schema=" $7 " role=" $8 ")" }' \
                         postgresql-bindings.tsv
                     fi
                 '''
