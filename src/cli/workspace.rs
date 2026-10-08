@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::CliError;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-struct Context {
+pub(super) struct Context {
     schema_version: u32,
     base_release: String,
     source: String,
@@ -26,7 +26,7 @@ pub(super) fn run(root: Option<&str>, selected: Option<&str>) -> Result<(), CliE
     }
 }
 
-fn instance_root(root: Option<&str>) -> PathBuf {
+pub(super) fn instance_root(root: Option<&str>) -> PathBuf {
     match root {
         Some(root) => PathBuf::from(root),
         None => env::var("MANAFIELD_INSTANCE_ROOT")
@@ -35,7 +35,7 @@ fn instance_root(root: Option<&str>) -> PathBuf {
     }
 }
 
-fn valid_release_id(id: &str) -> bool {
+pub(super) fn valid_release_id(id: &str) -> bool {
     // v<positive-integer>_YYYYMMDDTHHMMSSZ, no path separators or traversal.
     let Some((number, timestamp)) = id.strip_prefix('v').and_then(|x| x.split_once('_')) else {
         return false;
@@ -52,7 +52,17 @@ fn valid_release_id(id: &str) -> bool {
             .all(|(i, ch)| i == 8 || i == 15 || ch.is_ascii_digit())
 }
 
-fn select(root: &Path, release: &str) -> Result<(), CliError> {
+pub(super) fn select(root: &Path, release: &str) -> Result<(), CliError> {
+    select_impl(root, release, true)
+}
+
+/// Adopt a newly committed snapshot as the working baseline without describing
+/// it as discarded user work. This supports retrying failed deployments.
+pub(super) fn adopt_snapshot(root: &Path, release: &str) -> Result<(), CliError> {
+    select_impl(root, release, false)
+}
+
+fn select_impl(root: &Path, release: &str, explicit_switch: bool) -> Result<(), CliError> {
     if !valid_release_id(release) {
         return Err(CliError::Usage(format!(
             "invalid Release ID '{release}' (expected vN_YYYYMMDDTHHMMSSZ)"
@@ -128,10 +138,12 @@ fn select(root: &Path, release: &str) -> Result<(), CliError> {
         )));
     }
 
-    println!("Selected Release {release} for editing.");
-    println!("Working copy: {}", working.display());
-    println!("Previous unsaved working changes, if any, were discarded.");
-    println!("Running Instance was not modified.");
+    if explicit_switch {
+        println!("Selected Release {release} for editing.");
+        println!("Working copy: {}", working.display());
+        println!("Previous unsaved working changes, if any, were discarded.");
+        println!("Running Instance was not modified.");
+    }
     Ok(())
 }
 
@@ -220,7 +232,7 @@ fn yaml_value(raw: &[u8]) -> Result<serde_yaml_ng::Value, CliError> {
     Ok(value)
 }
 
-fn get_workspace(root: &Path) -> Result<(Vec<u8>, Context, bool), CliError> {
+pub(super) fn get_workspace(root: &Path) -> Result<(Vec<u8>, Context, bool), CliError> {
     let temp = root.join("manafield/temp");
     let working = temp.join("working.yaml");
     let context_file = temp.join("context.json");
@@ -282,6 +294,27 @@ fn get_workspace(root: &Path) -> Result<(Vec<u8>, Context, bool), CliError> {
         ))
     })?;
     Ok((raw, context, false))
+}
+
+/// Detect edits relative to the currently selected base Release or initial instance.yaml.
+pub(super) fn has_dirty_working_copy(root: &Path) -> Result<bool, CliError> {
+    let temp = root.join("manafield/temp");
+    let working = temp.join("working.yaml");
+    let context_file = temp.join("context.json");
+    reject_symlinks(&[&working, &context_file])?;
+    if !working.exists() && !context_file.exists() {
+        return Ok(false);
+    }
+    if !working.is_file() || !context_file.is_file() {
+        return Err(CliError::Execution(
+            "inconsistent working copy and context".into(),
+        ));
+    }
+    let context = load_context(&context_file)?;
+    let source = source_path(root, &context)?;
+    let original = fs::read(source).map_err(|e| CliError::Execution(e.to_string()))?;
+    let edited = fs::read(working).map_err(|e| CliError::Execution(e.to_string()))?;
+    Ok(original != edited)
 }
 
 fn reject_symlinks(paths: &[&Path]) -> Result<(), CliError> {

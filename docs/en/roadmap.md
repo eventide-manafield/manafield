@@ -246,8 +246,11 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Implement `manafield use` selection, persisted temp context and intentional discard of prior unsaved edits
 - [x] Auto-initialize missing temp for `module bind` from active Release or initial instance.yaml
 - [x] Implement `manafield module bind` temp YAML editing
-- [ ] Generate Release IDs, save immutable YAML atomically, store deployment history separately
-- [ ] Implement new/existing `manafield deploy <release-id>` behavior
+- [x] Generate Release IDs and atomically publish immutable YAML; store latest deployment attempt separately
+- [ ] Persist full attempt history and pin image/source artifact identities
+- [x] Implement new/existing `manafield deploy <release-id>` and verify pre-staged Build Plan equivalence
+- [ ] Prepare all Instance sources, Module installations and staged deployment artifacts directly from CLI
+- [ ] Verify all Module/Resource health and ingress publication in the new deployment flow
 - [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`
 
 **Current versus target:** `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules; `manafield deploy RELEASE_DIR` operates on pre-staged Compose directories. The new `build all` is implemented, but `deploy <release-id>` is not yet implemented. See [ADR-0014](adr/0014-instance-working-release.md).
