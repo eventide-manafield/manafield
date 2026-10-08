@@ -3,6 +3,7 @@ use std::error::Error;
 use std::fmt;
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::path::Path;
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -19,6 +20,11 @@ pub enum Command {
     Health,
     Ps,
     Resource(Option<String>),
+    Plan {
+        input: String,
+        output: Option<String>,
+        ci_output_dir: Option<String>,
+    },
     Help,
     Version,
 }
@@ -48,10 +54,66 @@ where
 
             Ok(Command::Resource(id))
         }
+        "plan" => parse_plan_args(args),
         "help" | "-h" | "--help" => ensure_no_more(args, Command::Help),
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
     }
+}
+
+fn parse_plan_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let mut input = None;
+    let mut output = None;
+    let mut ci_output_dir = None;
+
+    while let Some(argument) = args.next() {
+        match argument.as_str() {
+            "--output" => {
+                if output.is_some() {
+                    return Err(CliError::Usage(
+                        "--output may only be specified once".to_owned(),
+                    ));
+                }
+
+                output = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--output requires a path".to_owned()))?,
+                );
+            }
+            "--ci-output" => {
+                if ci_output_dir.is_some() {
+                    return Err(CliError::Usage(
+                        "--ci-output may only be specified once".to_owned(),
+                    ));
+                }
+
+                ci_output_dir =
+                    Some(args.next().ok_or_else(|| {
+                        CliError::Usage("--ci-output requires a path".to_owned())
+                    })?);
+            }
+            option if option.starts_with('-') => {
+                return Err(CliError::Usage(format!("unknown plan option '{option}'")));
+            }
+            value => {
+                if input.is_some() {
+                    return Err(CliError::Usage(format!(
+                        "unexpected argument '{value}' after Instance Definition"
+                    )));
+                }
+                input = Some(value.to_owned());
+            }
+        }
+    }
+
+    Ok(Command::Plan {
+        input: input.unwrap_or_else(|| "instance.yaml".to_owned()),
+        output,
+        ci_output_dir,
+    })
 }
 
 fn ensure_no_more<I>(mut args: I, command: Command) -> Result<Command, CliError>
@@ -73,6 +135,16 @@ pub fn run(command: Command) -> Result<(), CliError> {
         Command::Health => print_health(),
         Command::Ps => print_ps(),
         Command::Resource(id) => print_resource(id.as_deref()),
+        Command::Plan {
+            input,
+            output,
+            ci_output_dir,
+        } => manafield::build_plan::resolve(
+            Path::new(&input),
+            output.as_deref().map(Path::new),
+            ci_output_dir.as_deref().map(Path::new),
+        )
+        .map_err(|error| CliError::Execution(error.to_string())),
         Command::Help => {
             print_help();
             Ok(())
@@ -205,6 +277,8 @@ pub fn print_help() {
            health            Show Core health\n\
            ps                Show Core, Module, and Resource summary\n\
            resource [ID]     List Resources or show one Resource\n\
+           plan [INSTANCE]   Resolve an Instance Definition into a Build Plan\n\
+                             options: --output PATH --ci-output DIR\n\
            help              Show this help\n\
            version           Show version\n\
          \n\
@@ -440,6 +514,7 @@ fn decode_chunked(input: &[u8]) -> Result<Vec<u8>, String> {
 #[derive(Debug)]
 pub enum CliError {
     Usage(String),
+    Execution(String),
     InvalidCoreUrl(String),
     Request { url: String, source: String },
     HttpStatus { url: String, status: u16 },
@@ -449,7 +524,9 @@ pub enum CliError {
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Usage(message) | Self::InvalidCoreUrl(message) => write!(f, "{message}"),
+            Self::Usage(message) | Self::Execution(message) | Self::InvalidCoreUrl(message) => {
+                write!(f, "{message}")
+            }
             Self::Request { url, source } => {
                 write!(f, "failed to request Core API '{url}': {source}")
             }
@@ -488,6 +565,38 @@ mod tests {
         assert_eq!(
             parse_args(args(&["resource", "main-db"])).unwrap(),
             Command::Resource(Some("main-db".to_owned()))
+        );
+    }
+
+    #[test]
+    fn parses_plan_with_outputs() {
+        assert_eq!(
+            parse_args(args(&[
+                "plan",
+                "/tmp/instance.yaml",
+                "--output",
+                "/tmp/build-plan.json",
+                "--ci-output",
+                "/tmp/ci-plan",
+            ]))
+            .unwrap(),
+            Command::Plan {
+                input: "/tmp/instance.yaml".to_owned(),
+                output: Some("/tmp/build-plan.json".to_owned()),
+                ci_output_dir: Some("/tmp/ci-plan".to_owned()),
+            }
+        );
+    }
+
+    #[test]
+    fn plan_defaults_to_instance_yaml() {
+        assert_eq!(
+            parse_args(args(&["plan"])).unwrap(),
+            Command::Plan {
+                input: "instance.yaml".to_owned(),
+                output: None,
+                ci_output_dir: None,
+            }
         );
     }
 

@@ -15,6 +15,8 @@ Runtime Provider는 일반 Module이 아닙니다. Module을 생성하고 시작
 
 Core는 특정 Runtime이 없어도 Registry, Operation Discovery, Validation 등 기본 기능을 수행할 수 있어야 합니다.
 
+이 결정은 모든 배포 방식이 v0에서 동등하게 지원되어야 한다는 뜻은 아닙니다. 지원되는 v0 전체 Instance 구축/배포 baseline은 Docker로 고정하며, 자세한 내용은 [ADR-0013](0013-docker-v0-cli-execution.md)을 따릅니다.
+
 ## Reason
 
 - Core와 실행 기술 분리

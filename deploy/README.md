@@ -2,6 +2,20 @@
 
 This directory contains deployment-composition examples for a Manafield instance.
 
+## v0 execution baseline
+
+A supported full Manafield v0 Instance build/deployment requires Docker.
+
+The canonical local execution path is the `manafield` CLI + Docker. Jenkins is an optional remote CI/CD frontend that should call the same CLI/reusable execution logic rather than own Manafield-specific semantics.
+
+```text
+Local terminal ─┐
+                ├─> manafield CLI ─> Docker
+Jenkins ────────┘
+```
+
+See [ADR-0013](../docs/en/adr/0013-docker-v0-cli-execution.md).
+
 The Instance Definition answers:
 
 > **Which Core, Runtime Providers, and Modules belong to this Manafield instance?**
@@ -40,7 +54,7 @@ A real instance may freely mix:
 
 Source visibility does not change the Manafield Protocol contract. CI/CD simply needs the appropriate credentials for private sources.
 
-Secrets still do not belong in a private `instance.yaml`; inject them through CI/runtime secret mechanisms instead.
+Secrets still do not belong in a private `instance.yaml`; inject them through executor/runtime credential mechanisms instead.
 
 See [ADR-0007](../docs/en/adr/0007-public-platform-private-instance.md) for the architectural decision.
 
@@ -88,23 +102,23 @@ deployment:
     output: ./dynamic/manafield.yml
 ```
 
-The **Build Plan Resolver** consumes this file and produces a CI-executor-neutral JSON plan.
+The **Build Plan Resolver** consumes this file and produces an executor-neutral JSON plan.
 
-Run it with:
+The canonical CLI entrypoint is:
 
 ```bash
-cargo run --features build-plan --bin manafield-build-plan -- \
-  deploy/instance.yaml.example \
-  build-plan.json
+manafield plan deploy/instance.yaml.example \
+  --output build-plan.json \
+  --ci-output ci-plan
 ```
 
-Without the second path, the resolver prints the plan to stdout.
+Without `--output`, the resolver prints the JSON plan to stdout. The standalone `manafield-build-plan` binary remains a compatibility wrapper while Jenkins stages move toward the main CLI.
 
 See [build-plan.example.json](build-plan.example.json) for the current normalized output.
 
 ### First-run bootstrap
 
-If Jenkins can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not exist yet, the Pipeline enters a one-time Bootstrap Wizard before resolving the Build Plan.
+The current Jenkins frontend implements a one-time Bootstrap Wizard when it can see `INSTANCE_ROOT` but `<INSTANCE_ROOT>/instance.yaml` does not exist yet.
 
 The Wizard is intentionally shown **only when the Instance Definition does not exist**. Existing instances continue directly to normal builds.
 
@@ -113,9 +127,8 @@ The bootstrap choices are:
 - Manafield PostgreSQL Resource — implemented
 - Example Web Module — planned
 - Example Account Module — planned
-- initial administrator username / password, defaulting to `admin / admin`
 
-Selecting Example Account implies both PostgreSQL and Example Web.
+Selecting Example Account implies both PostgreSQL and Example Web. Initial administrator creation is intentionally a separate explicit setup flow; v0 documentation no longer assumes an automatic `admin / admin` seed.
 
 Selecting only PostgreSQL appends a desired Resource request to the generated `instance.yaml`:
 
@@ -126,7 +139,7 @@ resources:
     provider: postgresql
 ```
 
-That entry does **not** mean Core already knows the Resource exists. The Build Plan carries the desired Resource request to Jenkins; Jenkins starts PostgreSQL plus the PostgreSQL Resource Provider; the Provider waits for the database to become healthy and then registers the live Resource Instance with Core through `POST /resources`.
+That entry does **not** mean Core already knows the Resource exists. The Build Plan carries the desired Resource request to the deployment executor. In the current Jenkins + Docker frontend, Jenkins starts PostgreSQL plus the PostgreSQL Resource Provider; the Provider waits for the database to become healthy and then registers the live Resource Instance with Core through `POST /resources`.
 
 Example Web / Account remain unavailable for now. Selecting either stops before writing `instance.yaml` with a clear diagnostic. Leaving all example options unchecked creates the current minimal bootstrap definition from `deploy/instance.bootstrap.yaml`.
 
@@ -248,7 +261,7 @@ source:
 
 A `dir` source does not store an arbitrary host path in `instance.yaml`.
 
-The Jenkins executor receives a separate `LOCAL_MODULES_ROOT` parameter and scans its direct child directories. A local Module is discovered when this file exists:
+The current Jenkins frontend receives a separate `LOCAL_MODULES_ROOT` parameter and scans its direct child directories. A local Module is discovered when this file exists:
 
 ```text
 <LOCAL_MODULES_ROOT>/<module-id>/manafield.module.json
@@ -256,11 +269,11 @@ The Jenkins executor receives a separate `LOCAL_MODULES_ROOT` parameter and scan
 
 The child directory name is the Module ID used by the Instance Definition.
 
-Jenkins copies the discovered directory into its workspace before building it, then derives a content-based `dir-...` revision for image tagging. The source directory itself is not used as the Docker build workspace.
+The current Jenkins frontend copies the discovered directory into its workspace before building it, then derives a content-based `dir-...` revision for image tagging. The source directory itself is not used as the Docker build workspace.
 
-This keeps host-local path policy in the CI/runtime environment rather than in the portable Instance Definition.
+This keeps host-local path policy in the executor environment rather than in the portable Instance Definition.
 
-Jenkins will execute the generated Build Plan instead of owning Manafield's deployment model.
+This source-resolution behavior is expected to move behind reusable `manafield` CLI/executor logic over time; Jenkins should orchestrate that logic rather than own it.
 
 ### Ingress Adapter v0
 
@@ -377,11 +390,13 @@ Manafield Reference 127.0.0.1:18081
 
 The containers use a read-only root filesystem, drop Linux capabilities, and enable `no-new-privileges`. Core does not receive Docker socket access.
 
-A later Jenkins Pipeline can inject exact image tags directly as environment variables and run Compose with `--no-build`, so a committed deployment `.env` is not required.
+The deployment executor can inject exact image tags directly as environment variables and run Compose with `--no-build`, so a committed deployment `.env` is not required. The current Jenkins frontend performs this work; the behavior is expected to move behind reusable CLI/executor logic.
 
 ## Jenkins Pipeline
 
-The repository root contains a `Jenkinsfile` implementing the first Instance Build Plan pipeline.
+The repository root contains a `Jenkinsfile` implementing the first remote CI/CD frontend for Instance builds.
+
+Jenkins is not required by the Manafield model. The current migration direction is to reduce Pipeline stages to `manafield` CLI calls plus Jenkins-specific concerns such as triggers, credentials, approvals, workspace management, and build history. The Resolve Build Plan stage already uses `manafield plan`.
 
 Jenkins parameters:
 

@@ -12,7 +12,9 @@ Manafield는 **큰 경계와 책임은 장기 구조를 기준으로 먼저 설�
 
 - 나중에 분리하기 비싼 경계는 지금 정의합니다.
 - 아직 필요하지 않은 기능은 빈 인터페이스나 최소 구현으로 남길 수 있습니다.
-- Core는 특정 Runtime이나 UI가 없어도 동작할 수 있어야 합니다.
+- Core는 특정 Runtime이나 UI가 없어도 독립 기능을 수행할 수 있어야 합니다.
+- 지원되는 v0 전체 Instance 구축/배포는 Docker를 요구합니다.
+- Jenkins 없이도 `manafield` CLI + Docker로 같은 Instance를 구축할 수 있어야 합니다.
 - 강한 권한은 가능한 한 작은 구성요소에만 부여합니다.
 - 주요 Architecture 결정은 ADR로 기록합니다.
 
@@ -225,6 +227,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] ADR-0010 — Capability 기반 Dependency Resolution
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [x] ADR-0012 — 교체 가능한 Homepage Module / Web Shell 분리
+- [x] ADR-0013 — Docker-required v0 Deployment / CLI-first Execution
 - [ ] Runtime Protocol이 구체화되면 후속 ADR 추가
 - [ ] Module package format이 구체화되면 후속 ADR 추가
 - [ ] Permission / trust model이 구체화되면 후속 ADR 추가
@@ -240,6 +243,10 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] Instance Definition v0
 - [x] 공개 플랫폼과 Private Instance Configuration 분리 원칙
 - [x] Build Plan Resolver v0
+- [x] Built-in CLI `manafield plan`으로 Build Plan Resolver 통합
+- [x] Jenkins Resolve Build Plan stage를 `manafield plan` 호출로 전환
+- [x] CLI + Docker를 canonical Instance execution path로 확정
+- [x] Jenkins를 optional remote CI/CD frontend로 정의
 - [x] Jenkins 단일 Pipeline skeleton
 - [x] resolved Build Plan 기반 동적 Module Compose service 생성
 - [x] `instance.yaml` 부재 시 `instance.bootstrap.yaml` 기반 first-run bootstrap
@@ -252,7 +259,9 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Core / Runtime Provider / Module image tagging
 - [ ] Deploy 후 Health / Protocol verification
 - [ ] CI credential store 기반 Secret 주입
-- [ ] Jenkins 외 executor에서도 Build Plan 재사용 가능한 구조 검증
+- [ ] Jenkins의 Checkout / Build / Materialize / Stage / Deploy / Verify 로직을 CLI/reusable executor로 단계적 이동
+- [ ] `manafield build / deploy / verify / rebuild` CLI surface 구현
+- [ ] Jenkins 없이 CLI + Docker만으로 전체 Instance rebuild 검증
 
 ### Ingress Adapters
 
@@ -278,4 +287,4 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Remote Runtime Provider
 - [ ] Kubernetes Runtime Provider
 
-Kubernetes는 의도적으로 먼 목표로 둡니다. Docker는 초기 Runtime Provider 구현이며, Manafield Core 자체의 필수 의존성은 아닙니다.
+Kubernetes는 의도적으로 먼 목표로 둡니다. Core의 일반 모델은 Docker-specific privilege와 분리하지만, **지원되는 Manafield v0 전체 Instance 구축/배포에는 Docker가 필요합니다.** Docker 없는 Runtime은 v0 호환성 목표가 아니라 장기 확장 영역입니다.

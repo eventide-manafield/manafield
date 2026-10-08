@@ -79,18 +79,29 @@ flowchart TB
 
 ## 기본 CLI
 
-Manafield Core binary는 Web 없이도 상태를 확인할 수 있는 작은 headless CLI를 함께 제공합니다.
+Manafield binary는 Web 없이도 상태를 확인하고 Instance 작업을 수행할 수 있는 CLI를 함께 제공합니다.
 
 ```bash
 manafield health
 manafield ps
 manafield resource
 manafield resource manafield-postgres
+manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
 ```
 
-CLI command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
+`health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
+
+`plan`은 Instance Definition을 로컬에서 검증하고 Build Plan으로 해석합니다. 이후 build / deploy / verify 단계도 Jenkinsfile의 전용 로직이 아니라 `manafield` CLI의 재사용 가능한 실행 경로로 점진적으로 이동합니다.
 
 인자 없이 `manafield`를 실행하거나 `manafield serve`를 사용하면 Core server가 실행됩니다.
+
+### v0 구축 기준
+
+Manafield v0의 **전체 Instance 구축과 배포에는 Docker가 필요합니다.** Docker는 v0에서 의도적으로 채택한 deployment substrate이며, Jenkins는 필수 구성요소가 아닙니다.
+
+로컬에서는 `manafield` CLI + Docker만으로 같은 Instance를 구축할 수 있어야 하고, Jenkins는 webhook, approval, credential integration, build history 같은 원격 CI/CD 기능을 제공하면서 같은 CLI 실행 경로를 호출하는 방향으로 발전합니다.
+
+Core의 일반 Registry / Protocol 모델은 계속 Docker-specific privilege와 분리합니다. 자세한 결정은 [ADR-0013](docs/kr/adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
 ## 목표 구조
 
@@ -100,7 +111,7 @@ CLI command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0
 - **Runtime Provider** — Module 실행 환경은 Core와 분리된 Provider가 담당합니다.
 - **Capability-based dependencies** — Module identity와 기능 호환성 계약을 분리합니다.
 - **Resource Providers** — PostgreSQL 같은 공용 기반 자원을 Module과 분리해 공급할 수 있도록 설계합니다.
-- **Docker Provider first** — Docker는 첫 Runtime Provider 구현이며 Core의 필수 의존성은 아닙니다.
+- **Docker-required v0 deployment** — 전체 v0 Instance 구축/배포는 Docker를 요구하되 Core의 일반 모델과 Docker-specific privilege는 분리합니다.
 - **Optional Web Views** — Module이 필요할 때만 Web UI를 제공합니다.
 - **Isolated Modules** — Core 프로세스와 Module 실행환경을 분리합니다.
 - **Privilege boundary** — Docker 같은 강한 권한은 Core가 아니라 별도 Runtime Provider 프로세스에 둡니다.
@@ -185,18 +196,29 @@ This is the current development baseline and does **not** yet define an official
 
 ## Built-in CLI
 
-The Manafield Core binary includes a small headless CLI for inspecting a running Core without a Web UI.
+The Manafield binary includes a headless CLI for inspecting a running Core and performing Instance work.
 
 ```bash
 manafield health
 manafield ps
 manafield resource
 manafield resource manafield-postgres
+manafield plan instance.yaml --output build-plan.json --ci-output ci-plan
 ```
 
-CLI commands use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
+Operational commands such as `health`, `ps`, and `resource` use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
+
+`plan` validates and resolves an Instance Definition locally. Build, deploy, and verify behavior will gradually move from Jenkins-specific stages into reusable `manafield` CLI execution paths.
 
 Running `manafield` without arguments, or using `manafield serve`, starts the Core server.
+
+### v0 Deployment Baseline
+
+A **full Manafield v0 Instance build and deployment requires Docker**. Docker is an intentional v0 deployment substrate; Jenkins is not required.
+
+The local target is CLI + Docker, while Jenkins provides remote CI/CD concerns such as webhooks, approvals, credential integration, and build history by invoking the same CLI execution path.
+
+The general Core registry/protocol model remains separated from Docker-specific privilege. See [ADR-0013](docs/en/adr/0013-docker-v0-cli-execution.md).
 
 ## Highlights
 
@@ -206,7 +228,7 @@ Running `manafield` without arguments, or using `manafield serve`, starts the Co
 - **Runtime Providers** separated from Core
 - **Capability-based dependencies** separated from concrete Module identity
 - **Resource Providers** for shared infrastructure such as PostgreSQL
-- **Docker Provider first**, without making Docker a Core dependency
+- **Docker-required v0 deployment**, while keeping Docker-specific privilege outside the general Core model
 - **Optional Web Contributions**
 - **Isolated Module execution**
 - **Privilege boundaries** for powerful runtime control

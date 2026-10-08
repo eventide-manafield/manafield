@@ -19,5 +19,6 @@ ADRs focus on **long-lived boundaries and responsibilities** rather than transie
 | [0010](0010-capability-dependency-resolution.md) | Capability-Based Requirement Resolution | Accepted |
 | [0011](0011-official-web-shell.md) | Official Web Shell / Same-Origin Module Composition | Accepted |
 | [0012](0012-replaceable-homepage-module.md) | Replaceable Homepage Module / Web Shell Separation | Accepted |
+| [0013](0013-docker-v0-cli-execution.md) | Docker-required v0 Deployment / CLI-first Execution | Accepted |
 
 Add new ADRs sequentially as long-term decisions are made.

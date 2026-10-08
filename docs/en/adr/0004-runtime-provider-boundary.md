@@ -15,6 +15,8 @@ A Runtime Provider is not an ordinary Module. It is a privileged system componen
 
 Core must remain useful without any specific Runtime Provider for Registry, Operation discovery, validation, and similar base functions.
 
+This does not require every deployment technology to receive equal v0 support. The supported full v0 Instance build/deployment baseline is Docker; see [ADR-0013](0013-docker-v0-cli-execution.md).
+
 ## Reason
 
 - separates Core from execution technology

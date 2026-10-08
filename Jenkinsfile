@@ -163,25 +163,25 @@ EOF
                 sh '''
                     set -eu
 
-                    rm -rf ci-plan build-plan.json manafield-build-plan
+                    rm -rf ci-plan build-plan.json manafield-cli
 
                     docker build \
-                      --target build-plan-runtime \
-                      --tag "manafield-build-plan:$CORE_SHA" \
+                      --target core-runtime \
+                      --tag "manafield-cli:$CORE_SHA" \
                       .
 
-                    resolver_container="$(docker create "manafield-build-plan:$CORE_SHA")"
-                    trap 'docker rm -f "$resolver_container" >/dev/null 2>&1 || true' EXIT
+                    cli_container="$(docker create "manafield-cli:$CORE_SHA")"
+                    trap 'docker rm -f "$cli_container" >/dev/null 2>&1 || true' EXIT
 
                     docker cp \
-                      "$resolver_container:/usr/local/bin/manafield-build-plan" \
-                      ./manafield-build-plan
+                      "$cli_container:/usr/local/bin/manafield" \
+                      ./manafield-cli
 
-                    chmod +x ./manafield-build-plan
-                    ./manafield-build-plan \
+                    chmod +x ./manafield-cli
+                    ./manafield-cli plan \
                       "$INSTANCE_ROOT/instance.yaml" \
-                      build-plan.json \
-                      ci-plan
+                      --output build-plan.json \
+                      --ci-output ci-plan
 
                     test -s ci-plan/modules.tsv
                     grep -q '^manafield-reference	' ci-plan/modules.tsv

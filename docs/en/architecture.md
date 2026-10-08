@@ -169,15 +169,18 @@ flowchart LR
 
 An official Web View may be provided separately, but the Core and Modules should remain usable without it.
 
-The Core binary also provides a small built-in CLI as a default headless operational surface.
+The Manafield binary provides a CLI both as the default headless operational surface and as the Instance execution entrypoint.
 
 ```text
 manafield health
 manafield ps
 manafield resource [id]
+manafield plan [instance.yaml]
 ```
 
-The CLI is a Core API client; it does not inspect Docker or interpret concrete Resource implementations directly. A future contract may allow Modules to contribute CLI command metadata while preserving the rule that arbitrary Module code is not loaded into the Core process.
+Operational commands such as `health`, `ps`, and `resource` remain Core API clients and do not inspect Docker or concrete Resource implementations directly. `plan` and future `build / deploy / verify` commands operate on the Instance Definition and deployment executor.
+
+A future contract may allow Modules to contribute CLI command metadata while preserving the rule that arbitrary Module code is not loaded into the Core process.
 
 ## 5. High-level Architecture
 
@@ -282,6 +285,10 @@ Manafield Core is not tied to a specific execution technology.
 Actual Module creation, start, stop, removal, and runtime control are delegated to a **Runtime Provider**. A Runtime Provider is not an ordinary Module; it is a privileged system component that controls an execution environment.
 
 Core must remain useful without a Runtime Provider for Registry, Operation discovery, validation, and similar base capabilities.
+
+However, a **supported full Manafield v0 Instance build/deployment requires Docker**. This does not make Core itself Docker-dependent; it fixes Docker as the baseline v0 deployment runtime.
+
+The canonical Instance execution entrypoint is the `manafield` CLI. Jenkins is treated as the first official remote CI/CD frontend that invokes that CLI. See [ADR-0013](adr/0013-docker-v0-cli-execution.md).
 
 ```mermaid
 flowchart LR

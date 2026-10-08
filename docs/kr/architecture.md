@@ -169,15 +169,18 @@ flowchart LR
 
 공식 Web View를 별도로 제공할 수 있지만, Core와 Module은 Web 없이도 동작할 수 있어야 합니다.
 
-Core binary는 기본 headless 운영 surface로 작은 CLI를 함께 제공합니다.
+Manafield binary는 기본 headless 운영 surface이자 Instance 실행 entrypoint로 CLI를 함께 제공합니다.
 
 ```text
 manafield health
 manafield ps
 manafield resource [id]
+manafield plan [instance.yaml]
 ```
 
-이 CLI는 Docker나 Resource 구현을 직접 해석하지 않고 Core API를 사용하는 client입니다. 향후 Module이 CLI command metadata를 선언해 기능을 확장하는 방식은 별도 contract로 설계할 수 있지만, Module 코드를 Core process에 직접 로드하지 않는 원칙은 유지합니다.
+`health`, `ps`, `resource` 같은 운영 command는 Docker나 Resource 구현을 직접 해석하지 않고 Core API를 사용합니다. 반면 `plan`과 앞으로 추가할 `build / deploy / verify` 계열 command는 Instance Definition과 deployment executor를 다룹니다.
+
+Module이 CLI command metadata를 선언해 기능을 확장하는 방식은 별도 contract로 설계할 수 있지만, Module 코드를 Core process에 직접 로드하지 않는 원칙은 유지합니다.
 
 ## 5. 상위 구조
 
@@ -282,6 +285,10 @@ Manafield Core는 특정 실행 기술에 종속되지 않습니다.
 Module을 실제로 생성하고 시작하고 중지하고 제거하는 역할은 **Runtime Provider**가 담당합니다. Runtime Provider는 일반 Module이 아니라 실행 환경을 제어하는 privileged system component입니다.
 
 Core는 Runtime Provider가 없어도 Registry, Operation Discovery, Validation 같은 기본 기능을 수행할 수 있어야 합니다.
+
+다만 **지원되는 Manafield v0 전체 Instance 구축/배포 환경에는 Docker가 필요합니다.** 이는 Core가 Docker에 종속된다는 뜻이 아니라, v0 deployment executor의 기준 runtime을 Docker로 고정한다는 뜻입니다.
+
+Instance 실행의 canonical entrypoint는 `manafield` CLI이며, Jenkins는 이 CLI를 원격에서 호출하는 첫 공식 CI/CD frontend로 취급합니다. 자세한 결정은 [ADR-0013](adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
 ```mermaid
 flowchart LR

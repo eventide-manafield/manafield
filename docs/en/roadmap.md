@@ -12,7 +12,9 @@ Manafield defines **long-term boundaries and responsibilities early, while imple
 
 - Define boundaries now when they would be expensive to extract later.
 - Future capabilities may remain as interfaces or minimal implementations until needed.
-- Core must remain usable without a specific Runtime or UI.
+- Core must remain usable for independent functions without a specific Runtime or UI.
+- A supported full v0 Instance build/deployment requires Docker.
+- The same Instance must be buildable through `manafield` CLI + Docker without Jenkins.
 - Powerful privileges should be constrained to the smallest practical component.
 - Major architecture decisions are recorded as ADRs.
 
@@ -225,6 +227,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] ADR-0010 — Capability-Based Dependency Resolution
 - [x] ADR-0011 — Official Web Shell / Same-Origin Module Composition
 - [x] ADR-0012 — Replaceable Homepage Module / Web Shell Separation
+- [x] ADR-0013 — Docker-required v0 Deployment / CLI-first Execution
 - [ ] Add follow-up ADR when Runtime Protocol becomes concrete
 - [ ] Add follow-up ADR when Module package format becomes concrete
 - [ ] Add follow-up ADR when Permission / trust model becomes concrete
@@ -240,6 +243,10 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [x] Instance Definition v0
 - [x] Separate public platform code from private Instance Configuration
 - [x] Build Plan Resolver v0
+- [x] Integrate the Build Plan Resolver as built-in CLI `manafield plan`
+- [x] Move the Jenkins Resolve Build Plan stage to `manafield plan`
+- [x] Define CLI + Docker as the canonical Instance execution path
+- [x] Define Jenkins as an optional remote CI/CD frontend
 - [x] Single Jenkins Pipeline skeleton
 - [x] Generate dynamic Module Compose services from the resolved Build Plan
 - [x] First-run bootstrap from `instance.bootstrap.yaml` when `instance.yaml` is absent
@@ -252,7 +259,9 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Core / Runtime Provider / Module image tagging
 - [ ] Post-deploy Health / Protocol verification
 - [ ] Secret injection through CI credential storage
-- [ ] Validate Build Plan portability beyond Jenkins
+- [ ] Gradually move Jenkins Checkout / Build / Materialize / Stage / Deploy / Verify semantics into CLI/reusable executors
+- [ ] Implement `manafield build / deploy / verify / rebuild` CLI surfaces
+- [ ] Validate a full Instance rebuild using only CLI + Docker, without Jenkins
 
 ### Ingress Adapters
 
@@ -278,4 +287,4 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Remote Runtime Provider
 - [ ] Kubernetes Runtime Provider
 
-Kubernetes is intentionally a distant target. Docker is the first Runtime Provider implementation, not a required dependency of Manafield Core.
+Kubernetes is intentionally a distant target. The general Core model remains separated from Docker-specific privilege, but a **supported full Manafield v0 Instance build/deployment requires Docker**. Docker-free runtimes are future extension points, not v0 compatibility targets.

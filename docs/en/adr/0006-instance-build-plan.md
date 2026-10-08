@@ -29,11 +29,13 @@ Deploy
 Health Verification
 ```
 
-Jenkins is the first CI executor, but the Manafield deployment model itself is not Jenkins-specific.
+Jenkins is the first remote CI/CD frontend, but the Manafield deployment model itself is not Jenkins-specific.
 
-The Instance Definition declares which Core, Runtime Providers, and Modules belong to the instance. A resolver turns that definition into a Build Plan, and the Jenkins Pipeline executes the plan.
+The Instance Definition declares which Core, Runtime Providers, and Modules belong to the instance. The `manafield` CLI resolves that definition into a Build Plan and evolves into the canonical entrypoint for v0 Docker-backed build/deploy execution.
 
-Adding Modules does not create additional Jenkins Jobs.
+The Jenkins Pipeline should call that CLI where practical and focus on CI concerns such as webhooks, approvals, credential integration, and build history. Adding Modules does not create additional Jenkins Jobs.
+
+CLI-first execution and the Docker v0 baseline follow [ADR-0013](0013-docker-v0-cli-execution.md).
 
 ## Module Source / Build Contract
 
@@ -95,7 +97,7 @@ Broader changes such as Core or shared Protocol changes may trigger wider verifi
 - decouples Jenkins Job count from Module count
 - models a Manafield instance as one deployment unit
 - separates Module implementation languages from the CI Pipeline
-- keeps Instance Definition / Build Plan portable to other CI/CD executors
+- keeps the same Instance execution semantics usable through CLI + Docker without Jenkins
 - allows incremental build / deployment
 - provides one place to observe deployment state for the whole instance
 
@@ -105,5 +107,5 @@ Broader changes such as Core or shared Protocol changes may trigger wider verifi
 - Module repositories must provide a standard build contract
 - Jenkins contains one Pipeline per Manafield instance
 - Manafield needs an Instance Definition schema and Build Plan resolver
-- secrets are injected from CI credential storage rather than committed to repositories or Instance Definitions
+- secrets are injected through executor-specific credential integration rather than committed to repositories or Instance Definitions; Jenkins Credentials Store may be the first adapter
 - deployment success includes Health / Protocol verification, not merely process or container startup

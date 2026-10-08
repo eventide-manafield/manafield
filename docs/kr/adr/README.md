@@ -19,5 +19,6 @@ ADR은 구현 세부사항보다 **오래 유지할 경계와 책임**을 남기
 | [0010](0010-capability-dependency-resolution.md) | Capability 기반 Requirement Resolution | Accepted |
 | [0011](0011-official-web-shell.md) | Official Web Shell / Same-Origin Module Composition | Accepted |
 | [0012](0012-replaceable-homepage-module.md) | 교체 가능한 Homepage Module / Web Shell 분리 | Accepted |
+| [0013](0013-docker-v0-cli-execution.md) | Docker-required v0 Deployment / CLI-first Execution | Accepted |
 
 새로운 장기 결정이 생기면 번호를 이어 추가합니다.
