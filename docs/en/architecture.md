@@ -178,7 +178,7 @@ manafield resource [id]
 manafield plan [instance.yaml]
 ```
 
-Operational commands such as `health`, `ps`, and `resource` remain Core API clients and do not inspect Docker or concrete Resource implementations directly. `plan` and future `build / deploy / verify` commands operate on the Instance Definition and deployment executor.
+Operational commands such as `health`, `ps`, and `resource` remain Core API clients. `plan` resolves an Instance Definition; the implemented `deploy RELEASE_DIR` invokes Docker Compose for a staged release. Build, verify, rebuild, and staging are still being migrated, so a full CLI-only bootstrap is not yet supported.
 
 A future contract may allow Modules to contribute CLI command metadata while preserving the rule that arbitrary Module code is not loaded into the Core process.
 

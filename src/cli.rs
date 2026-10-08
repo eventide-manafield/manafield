@@ -1,3 +1,6 @@
+mod build;
+mod deploy;
+
 use std::env;
 use std::error::Error;
 use std::fmt;
@@ -24,6 +27,14 @@ pub enum Command {
         input: String,
         output: Option<String>,
         ci_output_dir: Option<String>,
+    },
+    Build {
+        workspace: String,
+        revision: String,
+        core_image: String,
+    },
+    Deploy {
+        release_dir: String,
     },
     Help,
     Version,
@@ -55,6 +66,8 @@ where
             Ok(Command::Resource(id))
         }
         "plan" => parse_plan_args(args),
+        "deploy" => parse_deploy_args(args),
+        "build" => parse_build_args(args),
         "help" | "-h" | "--help" => ensure_no_more(args, Command::Help),
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
@@ -116,6 +129,41 @@ where
     })
 }
 
+fn parse_build_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let workspace = args.next().ok_or_else(|| {
+        CliError::Usage("build requires WORKSPACE REVISION CORE_IMAGE".to_owned())
+    })?;
+    let revision = args
+        .next()
+        .ok_or_else(|| CliError::Usage("build requires REVISION".to_owned()))?;
+    let core_image = args
+        .next()
+        .ok_or_else(|| CliError::Usage("build requires CORE_IMAGE".to_owned()))?;
+    ensure_no_more(
+        args,
+        Command::Build {
+            workspace,
+            revision,
+            core_image,
+        },
+    )
+}
+
+fn parse_deploy_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let release_dir = args
+        .next()
+        .filter(|value| !value.is_empty() && !value.starts_with('-'))
+        .ok_or_else(|| CliError::Usage("deploy requires a staged release directory".to_owned()))?;
+
+    ensure_no_more(args, Command::Deploy { release_dir })
+}
+
 fn ensure_no_more<I>(mut args: I, command: Command) -> Result<Command, CliError>
 where
     I: Iterator<Item = String>,
@@ -145,6 +193,12 @@ pub fn run(command: Command) -> Result<(), CliError> {
             ci_output_dir.as_deref().map(Path::new),
         )
         .map_err(|error| CliError::Execution(error.to_string())),
+        Command::Deploy { release_dir } => deploy::run(&release_dir),
+        Command::Build {
+            workspace,
+            revision,
+            core_image,
+        } => build::run(&workspace, &revision, &core_image),
         Command::Help => {
             print_help();
             Ok(())
@@ -279,6 +333,8 @@ pub fn print_help() {
            resource [ID]     List Resources or show one Resource\n\
            plan [INSTANCE]   Resolve an Instance Definition into a Build Plan\n\
                              options: --output PATH --ci-output DIR\n\
+           build WORKSPACE REVISION CORE_IMAGE  Build Core, Modules and Resource images\n\
+           deploy RELEASE    Deploy a staged release through Docker Compose\n\
            help              Show this help\n\
            version           Show version\n\
          \n\
@@ -598,6 +654,50 @@ mod tests {
                 ci_output_dir: None,
             }
         );
+    }
+
+    #[test]
+    fn parses_build_arguments() {
+        assert_eq!(
+            parse_args(args(&[
+                "build",
+                "/tmp/workspace",
+                "abcdef",
+                "manafield-core:abcdef"
+            ]))
+            .unwrap(),
+            Command::Build {
+                workspace: "/tmp/workspace".to_owned(),
+                revision: "abcdef".to_owned(),
+                core_image: "manafield-core:abcdef".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_deploy_release_directory() {
+        assert_eq!(
+            parse_args(args(&["deploy", "/tmp/release 123"])).unwrap(),
+            Command::Deploy {
+                release_dir: "/tmp/release 123".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn deploy_requires_exactly_one_release_directory() {
+        assert!(matches!(
+            parse_args(args(&["deploy"])),
+            Err(CliError::Usage(_))
+        ));
+        assert!(matches!(
+            parse_args(args(&["deploy", "/tmp/release", "extra"])),
+            Err(CliError::Usage(_))
+        ));
+        assert!(matches!(
+            parse_args(args(&["deploy", "--unexpected"])),
+            Err(CliError::Usage(_))
+        ));
     }
 
     #[test]
