@@ -1,14 +1,10 @@
-mod api;
-mod cli;
-mod core;
-
 use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use axum::Router;
-use cli::Command;
-use core::{RegistryService, discover_modules};
+use manafield::api;
+use manafield::core::{RegistryService, discover_modules};
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -18,31 +14,11 @@ const DEFAULT_MODULES_DIR: &str = "modules";
 
 #[tokio::main]
 async fn main() {
-    let command = match cli::parse_args(std::env::args().skip(1)) {
-        Ok(command) => command,
-        Err(error) => {
-            eprintln!("manafield: {error}");
-            eprintln!();
-            cli::print_help();
-            std::process::exit(2);
-        }
-    };
+    init_tracing();
 
-    match command {
-        Command::Serve => {
-            init_tracing();
-
-            if let Err(error) = serve().await {
-                eprintln!("manafield: {error}");
-                std::process::exit(1);
-            }
-        }
-        command => {
-            if let Err(error) = cli::run(command) {
-                eprintln!("manafield: {error}");
-                std::process::exit(1);
-            }
-        }
+    if let Err(error) = serve().await {
+        eprintln!("manafield-core: {error}");
+        std::process::exit(1);
     }
 }
 

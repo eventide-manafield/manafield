@@ -240,7 +240,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [x] 설계: `use A` → temp YAML 편집 → `deploy B`에서 새 불변 Release YAML 확정 및 적용
 - [x] 설계: Release ID `vN_YYYYMMDDTHHMMSSZ` (UTC), `manafield/release/<id>.yaml`, `manafield/temp/working.yaml`
 - [x] 설계: 기존 PostgreSQL Resource/Volume/데이터는 Release 간에 유지하며 YAML 재배포는 데이터 복원이 아님
-- [ ] `manafield` CLI와 `manafield-core` 서버를 별도 바이너리로 분리해 동일 배포 묶음에 포함
+- [x] `manafield` CLI와 `manafield-core` 서버를 별도 바이너리로 분리해 동일 배포 묶음에 포함
 - [ ] `manafield build all`을 플랫폼 자체만 빌드하도록 구현; 현재 Jenkins 호환 Build의 외부 Module 빌드 책임 분리
 - [ ] `manafield use` / temp 작업본 관리·미저장 변경 보호 구현
 - [ ] `manafield module bind` 작업본 YAML 편집 구현

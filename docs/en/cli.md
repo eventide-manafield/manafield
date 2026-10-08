@@ -26,6 +26,10 @@ manafield deploy v1_20261008T070000Z
 
 Currently, transitional `manafield build WORKSPACE REVISION CORE_IMAGE` **does build external Modules**, and `manafield deploy RELEASE_DIR` only invokes Compose on a pre-staged artifact directory. Neither implements this target contract.
 
+## Separate CLI and Core binaries
+
+`manafield` is the CLI and `manafield-core` is the HTTP server; they are separate executables shipped in the same Docker Core image/distribution. Run `manafield-core` to start the API. The CLI defaults to help. Jenkins can still extract the CLI from `/usr/local/bin/manafield`.
+
 ## Prerequisites
 
 A supported **full Manafield v0 Instance build and deployment requires Docker**:
@@ -39,7 +43,8 @@ That does not imply a full Docker-free v0 Instance deployment.
 
 | Command | Status | Purpose |
 | --- | --- | --- |
-| `manafield serve` | Implemented | Run Core API (also the no-argument default) |
+| `manafield-core` | Implemented | Run Core API as a separate binary |
+| `manafield` (no args) | Implemented | Print CLI help |
 | `manafield health` | Implemented | Query Core health |
 | `manafield ps` | Implemented | Query Core, Modules, Resources |
 | `manafield resource [id]` | Implemented | List or inspect Resources |

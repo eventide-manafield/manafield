@@ -19,7 +19,6 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Serve,
     Health,
     Ps,
     Resource(Option<String>),
@@ -47,11 +46,13 @@ where
     let mut args = args.into_iter();
 
     let Some(command) = args.next() else {
-        return Ok(Command::Serve);
+        return Ok(Command::Help);
     };
 
     match command.as_str() {
-        "serve" => ensure_no_more(args, Command::Serve),
+        "serve" => Err(CliError::Usage(
+            "Core is a separate executable; run manafield-core".to_owned(),
+        )),
         "health" => ensure_no_more(args, Command::Health),
         "ps" => ensure_no_more(args, Command::Ps),
         "resource" | "resources" => {
@@ -177,9 +178,6 @@ where
 
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
-        Command::Serve => Err(CliError::Usage(
-            "serve must be handled by the server entrypoint".to_owned(),
-        )),
         Command::Health => print_health(),
         Command::Ps => print_ps(),
         Command::Resource(id) => print_resource(id.as_deref()),
@@ -187,7 +185,7 @@ pub fn run(command: Command) -> Result<(), CliError> {
             input,
             output,
             ci_output_dir,
-        } => manafield::build_plan::resolve(
+        } => crate::build_plan::resolve(
             Path::new(&input),
             output.as_deref().map(Path::new),
             ci_output_dir.as_deref().map(Path::new),
@@ -327,7 +325,6 @@ pub fn print_help() {
            manafield [COMMAND]\n\
          \n\
          Commands:\n\
-           serve             Run Manafield Core (default when no command is given)\n\
            health            Show Core health\n\
            ps                Show Core, Module, and Resource summary\n\
            resource [ID]     List Resources or show one Resource\n\
@@ -337,6 +334,8 @@ pub fn print_help() {
            deploy RELEASE    Deploy a staged release through Docker Compose\n\
            help              Show this help\n\
            version           Show version\n\
+         \n\
+         Core server: run manafield-core separately\n\
          \n\
          Environment:\n\
            MANAFIELD_CORE_URL  Core API base URL for CLI commands\n\
@@ -607,8 +606,16 @@ mod tests {
     }
 
     #[test]
-    fn no_arguments_defaults_to_serve() {
-        assert_eq!(parse_args(args(&[])).unwrap(), Command::Serve);
+    fn no_arguments_prints_help() {
+        assert_eq!(parse_args(args(&[])).unwrap(), Command::Help);
+    }
+
+    #[test]
+    fn serve_command_points_to_separate_binary() {
+        assert!(matches!(
+            parse_args(args(&["serve"])),
+            Err(CliError::Usage(_))
+        ));
     }
 
     #[test]

@@ -190,7 +190,7 @@ Module이 CLI command metadata를 선언해 기능을 확장하는 방식은 별
 
 각 Release ID는 `vN_YYYYMMDDTHHMMSSZ`(UTC) 형식이며 경로는 `<instance-root>/manafield/release/<id>.yaml`입니다. Resource ID와 PostgreSQL 영속 데이터는 Release마다 재생성하지 않습니다. 전체 Release 차이 비교 엔진은 필수는 아니지만 배포 시 기존 상태를 식별하고 안전하게 적용해야 합니다.
 
-**CLI와 Core 서버는 별도 실행파일로 하나의 배포 패키지에 포함**하는 것이 목표입니다. 현행 바이너리와 CLI 명령어는 과도기 구현입니다. [ADR-0014](adr/0014-instance-working-release.md), [CLI 가이드](cli.md)를 참고합니다.
+**CLI와 Core 서버는 별도 실행파일로 하나의 배포 패키지에 포함**하는 것이 목표입니다. 바이너리 분리는 구현했으며, CLI의 `build all` / `deploy <release-id>` 등 목표 명령은 아직 구현되지 않았습니다. [ADR-0014](adr/0014-instance-working-release.md), [CLI 가이드](cli.md)를 참고합니다.
 
 ## 5. 상위 구조
 

@@ -22,8 +22,9 @@ FROM source AS core-builder
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --locked --release --bin manafield \
-    && cp /src/target/release/manafield /tmp/manafield
+    cargo build --locked --release --bin manafield --bin manafield-core \
+    && cp /src/target/release/manafield /tmp/manafield \
+    && cp /src/target/release/manafield-core /tmp/manafield-core
 
 FROM source AS build-plan-builder
 
@@ -47,6 +48,7 @@ RUN apt-get update \
     && mkdir -p /var/lib/manafield/modules
 
 COPY --from=core-builder /tmp/manafield /usr/local/bin/manafield
+COPY --from=core-builder /tmp/manafield-core /usr/local/bin/manafield-core
 
 ENV MANAFIELD_BIND=0.0.0.0:8080 \
     MANAFIELD_MODULES_DIR=/var/lib/manafield/modules \
@@ -61,7 +63,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
     CMD ["curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/health"]
 
-ENTRYPOINT ["/usr/local/bin/manafield"]
+ENTRYPOINT ["/usr/local/bin/manafield-core"]
 
 FROM debian:bookworm-slim AS build-plan-runtime
 

@@ -79,7 +79,7 @@ flowchart TB
 
 ## 기본 CLI
 
-Manafield binary는 Web 없이도 상태를 확인하고 Instance 작업을 수행할 수 있는 CLI를 함께 제공합니다.
+Manafield는 별도 실행파일인 `manafield` CLI와 `manafield-core` 서버를 같은 배포 묶음으로 제공합니다. CLI는 상태 조회와 Instance 작업을 담당하고, Core 서버는 API/Registry를 담당합니다.
 
 ```bash
 manafield health
@@ -95,7 +95,7 @@ manafield deploy /opt/manafield/instance/releases/123
 
 `plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build`는 Jenkins가 준비한 workspace의 이미지 빌드를 지원합니다. `verify / rebuild`와 source checkout, release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
 
-인자 없이 `manafield`를 실행하거나 `manafield serve`를 사용하면 Core server가 실행됩니다.
+Core 서버는 `manafield-core`로 실행합니다. `manafield`를 인자 없이 실행하면 CLI 도움말을 출력하며, 이전의 `manafield serve`는 더 이상 서버를 시작하지 않습니다.
 
 ### v0 구축 기준
 
@@ -213,7 +213,7 @@ This is the current development baseline and does **not** yet define an official
 
 ## Built-in CLI
 
-The Manafield binary includes a headless CLI for inspecting a running Core and performing Instance work.
+The distribution now ships separate `manafield` CLI and `manafield-core` server executables. The CLI performs operational queries and Instance tasks; the Core server owns the API/Registry.
 
 ```bash
 manafield health
@@ -229,7 +229,7 @@ Operational commands such as `health`, `ps`, and `resource` use the Core API. Th
 
 `plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. Build supports a prepared workspace. Verify, rebuild, source checkout, and release staging are still migrating; **a full CLI-only from-scratch Instance build is not yet implemented.**
 
-Running `manafield` without arguments, or using `manafield serve`, starts the Core server.
+Run `manafield-core` to start the Core server. Running `manafield` without arguments prints CLI help; `manafield serve` does not start the Core server.
 
 ### v0 Deployment Baseline
 
