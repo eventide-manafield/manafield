@@ -6,6 +6,9 @@ RESOURCE_ID="${MANAFIELD_RESOURCE_ID:-manafield-postgres}"
 RESOURCE_NAME="${MANAFIELD_RESOURCE_NAME:-Manafield PostgreSQL}"
 POSTGRES_HOST="${POSTGRES_HOST:-manafield-postgres}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+POSTGRES_DB="${POSTGRES_DB:-manafield}"
+POSTGRES_USER="${POSTGRES_USER:-manafield}"
+ALLOCATIONS_FILE="${MANAFIELD_POSTGRES_ALLOCATIONS_FILE:-/run/manafield/postgresql/allocations.tsv}"
 CAPABILITY_VERSION="${MANAFIELD_POSTGRES_CAPABILITY_VERSION:-1.0.0}"
 CHECK_INTERVAL="${MANAFIELD_RESOURCE_CHECK_INTERVAL:-5}"
 
@@ -29,7 +32,7 @@ EOF
 }
 
 resource_status() {
-  curl --silent --output /dev/null --write-out '%{http_code}'     "$CORE_URL/resources/$RESOURCE_ID" 2>/dev/null || true
+  curl     --silent     --output /dev/null     --write-out '%{http_code}'     "$CORE_URL/resources/$RESOURCE_ID"     2>/dev/null || true
 }
 
 register_resource() {
@@ -63,13 +66,95 @@ register_resource() {
   trap - EXIT
 }
 
+valid_postgres_identifier() {
+  printf '%s' "$1" | grep -Eq '^[a-z_][a-z0-9_]*$'
+}
+
+provision_allocation() {
+  database="$1"
+  username="$2"
+  password_file="$3"
+
+  if ! valid_postgres_identifier "$database"; then
+    echo "Invalid PostgreSQL database identifier '$database'" >&2
+    return 1
+  fi
+
+  if ! valid_postgres_identifier "$username"; then
+    echo "Invalid PostgreSQL role identifier '$username'" >&2
+    return 1
+  fi
+
+  if [ ! -r "$password_file" ]; then
+    echo "PostgreSQL binding password file is not readable: $password_file" >&2
+    return 1
+  fi
+
+  password="$(tr -d '\r\n' < "$password_file")"
+
+  case "$password" in
+    ""|*[!0-9a-f]*)
+      echo "PostgreSQL binding password must be a non-empty lowercase hex secret" >&2
+      return 1
+      ;;
+  esac
+
+  role_exists="$(
+    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$username'"       | tr -d '[:space:]'
+  )"
+
+  if [ "$role_exists" = "1" ]; then
+    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -v ON_ERROR_STOP=1       -c "ALTER ROLE \"$username\" WITH LOGIN PASSWORD '$password'"       >/dev/null
+  else
+    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -v ON_ERROR_STOP=1       -c "CREATE ROLE \"$username\" WITH LOGIN PASSWORD '$password'"       >/dev/null
+  fi
+
+  database_exists="$(
+    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'"       | tr -d '[:space:]'
+  )"
+
+  if [ "$database_exists" != "1" ]; then
+    createdb       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       --owner="$username"       "$database"
+  fi
+
+  psql     -h "$POSTGRES_HOST"     -p "$POSTGRES_PORT"     -U "$POSTGRES_USER"     -d "$POSTGRES_DB"     -v ON_ERROR_STOP=1     -c "ALTER DATABASE \"$database\" OWNER TO \"$username\""     >/dev/null
+
+  echo "Provisioned PostgreSQL allocation '$database' for role '$username'"
+}
+
+provision_allocations() {
+  if [ ! -s "$ALLOCATIONS_FILE" ]; then
+    echo "No PostgreSQL allocations requested"
+    return 0
+  fi
+
+  tab="$(printf '\t')"
+
+  while IFS="$tab" read -r allocation_resource database username password_file; do
+    [ -n "$allocation_resource" ] || continue
+    [ "$allocation_resource" = "$RESOURCE_ID" ] || continue
+
+    provision_allocation "$database" "$username" "$password_file"
+  done < "$ALLOCATIONS_FILE"
+}
+
 echo "PostgreSQL Resource Provider starting"
 echo "Resource: $RESOURCE_ID"
 echo "PostgreSQL: $POSTGRES_HOST:$POSTGRES_PORT"
 echo "Manafield Core: $CORE_URL"
 
+allocations_provisioned=false
+
 while true; do
   if pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" >/dev/null 2>&1; then
+    if [ "$allocations_provisioned" = "false" ]; then
+      if provision_allocations; then
+        allocations_provisioned=true
+      else
+        echo "PostgreSQL allocation provisioning failed; will retry" >&2
+      fi
+    fi
+
     case "$(resource_status)" in
       200)
         ;;

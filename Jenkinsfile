@@ -490,6 +490,109 @@ EOF
             }
         }
 
+        stage("Materialize Resource Bindings") {
+            steps {
+                sh '''
+                    set -eu
+
+                    : > postgresql-bindings.tsv
+
+                    if [ ! -s ci-plan/module-bindings.tsv ]; then
+                      echo "No concrete Module bindings require materialization."
+                      exit 0
+                    fi
+
+                    tab="$(printf '\t')"
+
+                    postgres_identifier() {
+                      raw="$1"
+                      normalized="$(
+                        printf '%s' "$raw" \
+                          | tr '[:upper:].-' '[:lower:]__' \
+                          | sed 's/[^a-z0-9_]/_/g'
+                      )"
+
+                      if [ "${#normalized}" -gt 55 ]; then
+                        digest="$(printf '%s' "$normalized" | sha256sum | cut -c1-8)"
+                        normalized="$(printf '%s' "$normalized" | cut -c1-46)_$digest"
+                      fi
+
+                      printf '%s' "$normalized"
+                    }
+
+                    while IFS="$tab" read -r module_id binding_slot binding_target; do
+                      [ -n "$module_id" ] || continue
+
+                      provider="$(
+                        awk -F '\t' -v id="$binding_target" \
+                          '$1 == id { print $2; exit }' \
+                          ci-plan/resources.tsv
+                      )"
+
+                      # Module-to-Module bindings do not need Resource materialization.
+                      [ -n "$provider" ] || continue
+
+                      case "$provider" in
+                        postgresql)
+                          safe_module="$(
+                            awk -F '\t' -v id="$module_id" \
+                              '$1 == id { print $2; exit }' \
+                              module-sources.tsv
+                          )"
+                          test -n "$safe_module"
+
+                          identifier="$(postgres_identifier "mf_${safe_module}_${binding_slot}")"
+                          database="$identifier"
+                          username="$identifier"
+
+                          secret_dir="$INSTANCE_ROOT/secrets/postgresql/$binding_target"
+                          secret_file="$secret_dir/$identifier.password"
+
+                          mkdir -p "$secret_dir"
+                          chmod 0700 "$INSTANCE_ROOT/secrets" \
+                            "$INSTANCE_ROOT/secrets/postgresql" \
+                            "$secret_dir" \
+                            2>/dev/null || true
+
+                          if [ ! -f "$secret_file" ]; then
+                            umask 077
+                            password="$(
+                              od -An -N24 -tx1 /dev/urandom | tr -d ' \n'
+                            )"
+                            test -n "$password"
+                            printf '%s\n' "$password" > "$secret_file"
+                          fi
+
+                          # Parent directories are 0700 on the host. The file itself is
+                          # read-only so non-root Module containers can consume the bind mount.
+                          chmod 0444 "$secret_file"
+
+                          printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                            "$module_id" \
+                            "$binding_slot" \
+                            "$binding_target" \
+                            "manafield-postgres" \
+                            "5432" \
+                            "$database" \
+                            "$username" \
+                            "$secret_file" \
+                            >> postgresql-bindings.tsv
+                          ;;
+                        *)
+                          echo "No connection materializer for Resource provider '$provider' (binding $module_id.$binding_slot -> $binding_target)"
+                          ;;
+                      esac
+                    done < ci-plan/module-bindings.tsv
+
+                    if [ -s postgresql-bindings.tsv ]; then
+                      echo "Materialized PostgreSQL bindings:"
+                      awk -F '\t' '{ printf "  %s.%s -> %s (%s/%s)\n", $1, $2, $3, $6, $7 }' \
+                        postgresql-bindings.tsv
+                    fi
+                '''
+            }
+        }
+
         stage("Stage Release") {
             steps {
                 script {
@@ -531,6 +634,26 @@ EOF
 
                     mkdir -p "$RELEASE_DIR/modules"
 
+                    : > "$RELEASE_DIR/postgresql-allocations.tsv"
+
+                    if [ "$postgres_count" -eq 1 ]; then
+                      mkdir -p "$INSTANCE_ROOT/secrets/postgresql"
+                      chmod 0700 "$INSTANCE_ROOT/secrets"                         "$INSTANCE_ROOT/secrets/postgresql"                         2>/dev/null || true
+                    fi
+
+                    if [ -s postgresql-bindings.tsv ]; then
+                      tab="$(printf '\t')"
+
+                      while IFS="$tab" read -r module_id binding_slot binding_target binding_host binding_port database username secret_file; do
+                        [ -n "$module_id" ] || continue
+
+                        secret_name="$(basename "$secret_file")"
+                        provider_secret_file="/run/manafield/postgresql/secrets/$binding_target/$secret_name"
+
+                        printf '%s\t%s\t%s\t%s\n'                           "$binding_target"                           "$database"                           "$username"                           "$provider_secret_file"                           >> "$RELEASE_DIR/postgresql-allocations.tsv"
+                      done < postgresql-bindings.tsv
+                    fi
+
                     cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
                     cp build-plan.json "$RELEASE_DIR/build-plan.json"
                     cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
@@ -543,6 +666,8 @@ EOF
                       "MANAFIELD_POSTGRES_PROVIDER_IMAGE=$postgres_provider_image" \
                       "MANAFIELD_POSTGRES_RESOURCE_ID=$postgres_resource_id" \
                       "MANAFIELD_POSTGRES_RESOURCE_NAME=Manafield PostgreSQL" \
+                      "MANAFIELD_POSTGRES_ALLOCATIONS_FILE_HOST=$RELEASE_DIR/postgresql-allocations.tsv" \
+                      "MANAFIELD_POSTGRES_SECRETS_PATH=$INSTANCE_ROOT/secrets/postgresql" \
                       > "$RELEASE_DIR/release.env"
 
                     printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"
@@ -595,6 +720,9 @@ EOF
       MANAFIELD_WEB_BASE_PATH: "$base_path"
 EOF
 
+                      binding_mounts="$RELEASE_DIR/.binding-mounts-$safe_id"
+                      : > "$binding_mounts"
+
                       while IFS="$tab" read -r binding_module binding_slot binding_target; do
                         [ -n "$binding_module" ] || continue
                         [ "$binding_module" = "$module_id" ] || continue
@@ -607,7 +735,74 @@ EOF
                           "$binding_slot_upper" \
                           "$binding_target" \
                           >> "$RELEASE_DIR/modules.compose.yml"
+
+                        binding_host="$(
+                          awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                            '$1 == module && $2 == slot { print $4; exit }' \
+                            postgresql-bindings.tsv
+                        )"
+
+                        if [ -n "$binding_host" ]; then
+                          binding_port="$(
+                            awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                              '$1 == module && $2 == slot { print $5; exit }' \
+                              postgresql-bindings.tsv
+                          )"
+                          binding_database="$(
+                            awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                              '$1 == module && $2 == slot { print $6; exit }' \
+                              postgresql-bindings.tsv
+                          )"
+                          binding_username="$(
+                            awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                              '$1 == module && $2 == slot { print $7; exit }' \
+                              postgresql-bindings.tsv
+                          )"
+                          binding_secret_file="$(
+                            awk -F '\t' -v module="$module_id" -v slot="$binding_slot" \
+                              '$1 == module && $2 == slot { print $8; exit }' \
+                              postgresql-bindings.tsv
+                          )"
+                          binding_secret_target="/run/manafield/bindings/$binding_slot/password"
+
+                          printf '      MANAFIELD_BINDING_%s_ENDPOINT_HOST: "%s"\n' \
+                            "$binding_slot_upper" "$binding_host" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '      MANAFIELD_BINDING_%s_ENDPOINT_PORT: "%s"\n' \
+                            "$binding_slot_upper" "$binding_port" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '      MANAFIELD_BINDING_%s_CONFIG_DATABASE: "%s"\n' \
+                            "$binding_slot_upper" "$binding_database" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '      MANAFIELD_BINDING_%s_CONFIG_USERNAME: "%s"\n' \
+                            "$binding_slot_upper" "$binding_username" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '      MANAFIELD_BINDING_%s_SECRET_PASSWORD_FILE: "%s"\n' \
+                            "$binding_slot_upper" "$binding_secret_target" \
+                            >> "$RELEASE_DIR/modules.compose.yml"
+
+                          printf '%s\t%s\n' \
+                            "$binding_secret_file" \
+                            "$binding_secret_target" \
+                            >> "$binding_mounts"
+                        fi
                       done < ci-plan/module-bindings.tsv
+
+                      if [ -s "$binding_mounts" ]; then
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+    volumes:
+EOF
+                        while IFS="$tab" read -r binding_secret_file binding_secret_target; do
+                          cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+      - type: bind
+        source: $binding_secret_file
+        target: $binding_secret_target
+        read_only: true
+EOF
+                        done < "$binding_mounts"
+                      fi
+
+                      rm -f "$binding_mounts"
 
                       cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
     depends_on:
@@ -803,65 +998,3 @@ EOF
                     while [ "$attempts" -gt 0 ]; do
                       if docker exec "$core_container" \
                            curl --fail --silent --show-error \
-                           http://127.0.0.1:8080/health >/tmp/manafield-core-health.json \
-                        && verify_expected_modules \
-                        && verify_expected_resources
-                      then
-                        cat /tmp/manafield-core-health.json
-                        echo
-                        cat /tmp/manafield-modules.json
-                        echo
-                        if [ -f /tmp/manafield-resources.json ]; then
-                          cat /tmp/manafield-resources.json
-                          echo
-                        fi
-                        break
-                      fi
-
-                      attempts=$((attempts - 1))
-
-                      if [ "$attempts" -eq 0 ]; then
-                        echo "Manafield deployment verification timed out." >&2
-                        exit 1
-                      fi
-
-                      sleep 2
-                    done
-
-                    ln -sfn "releases/$BUILD_NUMBER" "$INSTANCE_ROOT/current"
-                '''
-            }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts(
-                artifacts: "build-plan.json,resolved-images.env,ingress-traefik.yml,local-modules.tsv,module-sources.tsv,resource-providers.tsv,ci-plan/**",
-                allowEmptyArchive: true
-            )
-        }
-
-        failure {
-            sh '''
-                if [ -n "${RELEASE_DIR:-}" ] && [ -f "$RELEASE_DIR/compose.yml" ]; then
-                  if [ -f "$RELEASE_DIR/compose-profiles.txt" ]; then
-                    compose_profiles="$(cat "$RELEASE_DIR/compose-profiles.txt")"
-                    if [ -n "$compose_profiles" ]; then
-                      export COMPOSE_PROFILES="$compose_profiles"
-                    fi
-                  fi
-
-                  compose_args="--env-file $RELEASE_DIR/release.env --file $RELEASE_DIR/compose.yml"
-
-                  if [ -f "$RELEASE_DIR/modules.compose.yml" ]; then
-                    compose_args="$compose_args --file $RELEASE_DIR/modules.compose.yml"
-                  fi
-
-                  docker compose $compose_args \
-                    logs --tail=100 --no-color || true
-                fi
-            '''
-        }
-    }
-}

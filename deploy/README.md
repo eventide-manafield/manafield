@@ -201,6 +201,18 @@ MANAFIELD_BINDING_STATE_TARGET=manafield-postgres
 
 This environment value identifies the bound Instance only. Endpoint, connection metadata, credentials, and secret delivery remain separate Resource/runtime concerns and are not encoded into the Capability contract.
 
+For a PostgreSQL Resource binding, the current v0 deployment adapter materializes a Module-scoped database and role, then injects generic slot-scoped runtime values such as:
+
+```text
+MANAFIELD_BINDING_STATE_ENDPOINT_HOST
+MANAFIELD_BINDING_STATE_ENDPOINT_PORT
+MANAFIELD_BINDING_STATE_CONFIG_DATABASE
+MANAFIELD_BINDING_STATE_CONFIG_USERNAME
+MANAFIELD_BINDING_STATE_SECRET_PASSWORD_FILE
+```
+
+The password itself is persisted outside release artifacts under the private Instance root and mounted read-only into the Module. The PostgreSQL Resource Provider receives only an allocation manifest plus access to the private secret directory, provisions the requested database/role idempotently, and remains outside the application SQL data path.
+
 ### Module source types
 
 Module sources are explicit.

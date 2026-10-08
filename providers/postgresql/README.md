@@ -106,4 +106,6 @@ should eventually contain `manafield-postgres`.
 
 This is a bootstrap/reference implementation, not the final Resource Provider lifecycle protocol.
 
-Create/remove policy, secret injection, Resource health state, connection metadata delivery, allocation, and Binding integration remain future work.
+The current v0 deployment path can additionally consume a generated allocation manifest for explicit Module bindings. For each PostgreSQL-bound Requirement slot, the deployment adapter can persist a private password file, request a Module-scoped database/role, and inject slot-scoped endpoint/config/secret-file metadata into the consumer Module.
+
+Resource removal policy, allocation cleanup, credential rotation, richer Resource health state, and a provider-neutral secret materialization protocol remain future work.
