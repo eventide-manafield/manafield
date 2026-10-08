@@ -94,5 +94,9 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 
 - 별도 `manafield` CLI와 `manafield-core` 서버 바이너리 + 공통 관리/배포 코드로 분리
 - `build` 명령군을 **Manafield 플랫폼만** 빌드하도록 재설계. 현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능이며 외부 Module 이미지를 함께 빌드하므로 목표 계약과 다르다
-- 작업본 관리(`use`, `module bind`), 불변 Release YAML 저장, `deploy <release-id>`와 Resource reuse 구현
+- 작업본 관리(`use`, `module bind`)는 CLI v0에서 구현됨. 불변 Release YAML 저장, `deploy <release-id>`와 Resource reuse는 향후 구현
 - 기존 Jenkins 파이프라인은 전환 과정의 frontend로 유지; 현행 `plan`/CLI `build`/CLI `deploy RELEASE_DIR`를 새 명령과 혼동하지 않도록 문서화
+
+## CLI 구현 현황 (2026-10-08)
+
+`manafield module bind A B C`는 temp YAML 편집만 수행한다. 작업본이 없다면 마지막 배포 Release(`manafield/state/active-release.json`의 `release_id`), 없으면 초기 `instance.yaml`을 읽어 생성한다. 원본 Release와 실행 환경은 변경하지 않는다. 현재 YAML serializer는 주석과 서식을 보존하지 않을 수 있으며, Capability 계약 적합성 검증은 후속 로직으로 남는다.
