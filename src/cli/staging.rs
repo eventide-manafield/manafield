@@ -390,7 +390,9 @@ fn prepare_inside(
         },
     )
     .map_err(|e| fail(e.to_string()))?;
+    let core_port = core_host_port(project)?;
     let mut vars = vec![
+        format!("MANAFIELD_CORE_PORT={core_port}"),
         format!("MANAFIELD_CORE_IMAGE={core_image}"),
         format!("MANAFIELD_MODULES_PATH={}", modules_dir.display()),
         format!("MANAFIELD_MODULES_NETWORK={modules_network}"),
@@ -431,6 +433,23 @@ fn field<'a>(value: &'a Value, key: &str) -> Result<&'a str, CliError> {
         .and_then(Value::as_str)
         .ok_or_else(|| fail(format!("missing {key} in Build Plan")))
 }
+fn core_host_port(project: &str) -> Result<u16, CliError> {
+    if let Ok(configured) = std::env::var("MANAFIELD_CORE_PORT") {
+        let value = configured
+            .parse::<u16>()
+            .map_err(|e| fail(format!("MANAFIELD_CORE_PORT must be a valid TCP port: {e}")))?;
+        if value < 1024 {
+            return Err(fail("MANAFIELD_CORE_PORT must be at least 1024"));
+        }
+        return Ok(value);
+    }
+    // Stable per Instance, distinct from the Jenkins default of 18080.
+    let hash = project.bytes().fold(2166136261u32, |acc, b| {
+        (acc ^ u32::from(b)).wrapping_mul(16777619)
+    });
+    Ok((20_000 + hash % 20_000) as u16)
+}
+
 fn compose_project_name(id: &str) -> Result<String, CliError> {
     if id.is_empty()
         || id.len() > 40
@@ -605,6 +624,13 @@ mod tests {
             "manafield-manafield-bootstrap"
         );
         assert!(compose_project_name("../unsafe").is_err());
+        let port = core_host_port("manafield-demo").unwrap();
+        assert!((20_000..40_000).contains(&port));
+        assert_ne!(core_host_port("manafield-demo").unwrap(), 18080);
+        assert_ne!(
+            core_host_port("manafield-demo").unwrap(),
+            core_host_port("manafield-other").unwrap()
+        );
         assert!(module_source_dir(Path::new("/tmp"), "../etc").is_err());
     }
 }
