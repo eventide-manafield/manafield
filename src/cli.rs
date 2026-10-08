@@ -1,3 +1,4 @@
+mod build;
 mod deploy;
 
 use std::env;
@@ -27,7 +28,14 @@ pub enum Command {
         output: Option<String>,
         ci_output_dir: Option<String>,
     },
-    Deploy { release_dir: String },
+    Build {
+        workspace: String,
+        revision: String,
+        core_image: String,
+    },
+    Deploy {
+        release_dir: String,
+    },
     Help,
     Version,
 }
@@ -59,6 +67,7 @@ where
         }
         "plan" => parse_plan_args(args),
         "deploy" => parse_deploy_args(args),
+        "build" => parse_build_args(args),
         "help" | "-h" | "--help" => ensure_no_more(args, Command::Help),
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
@@ -120,6 +129,29 @@ where
     })
 }
 
+fn parse_build_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let workspace = args.next().ok_or_else(|| {
+        CliError::Usage("build requires WORKSPACE REVISION CORE_IMAGE".to_owned())
+    })?;
+    let revision = args
+        .next()
+        .ok_or_else(|| CliError::Usage("build requires REVISION".to_owned()))?;
+    let core_image = args
+        .next()
+        .ok_or_else(|| CliError::Usage("build requires CORE_IMAGE".to_owned()))?;
+    ensure_no_more(
+        args,
+        Command::Build {
+            workspace,
+            revision,
+            core_image,
+        },
+    )
+}
+
 fn parse_deploy_args<I>(mut args: I) -> Result<Command, CliError>
 where
     I: Iterator<Item = String>,
@@ -162,6 +194,11 @@ pub fn run(command: Command) -> Result<(), CliError> {
         )
         .map_err(|error| CliError::Execution(error.to_string())),
         Command::Deploy { release_dir } => deploy::run(&release_dir),
+        Command::Build {
+            workspace,
+            revision,
+            core_image,
+        } => build::run(&workspace, &revision, &core_image),
         Command::Help => {
             print_help();
             Ok(())
@@ -296,6 +333,7 @@ pub fn print_help() {
            resource [ID]     List Resources or show one Resource\n\
            plan [INSTANCE]   Resolve an Instance Definition into a Build Plan\n\
                              options: --output PATH --ci-output DIR\n\
+           build WORKSPACE REVISION CORE_IMAGE  Build Core, Modules and Resource images\n\
            deploy RELEASE    Deploy a staged release through Docker Compose\n\
            help              Show this help\n\
            version           Show version\n\
@@ -614,6 +652,24 @@ mod tests {
                 input: "instance.yaml".to_owned(),
                 output: None,
                 ci_output_dir: None,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_build_arguments() {
+        assert_eq!(
+            parse_args(args(&[
+                "build",
+                "/tmp/workspace",
+                "abcdef",
+                "manafield-core:abcdef"
+            ]))
+            .unwrap(),
+            Command::Build {
+                workspace: "/tmp/workspace".to_owned(),
+                revision: "abcdef".to_owned(),
+                core_image: "manafield-core:abcdef".to_owned(),
             }
         );
     }
