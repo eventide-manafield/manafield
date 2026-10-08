@@ -701,10 +701,10 @@ EOF
                         test "$(wc -c < "$management_file")" -eq 64
                         chmod 0444 "$management_file"
 
-                        printf '      MANAFIELD_ACCOUNT_MANAGEMENT_TOKEN_FILE: "/run/manafield/management/token"\\n' \\
+                        printf '      MANAFIELD_ACCOUNT_MANAGEMENT_TOKEN_FILE: "/run/manafield/management/token"\\n' \
                           >> "$RELEASE_DIR/modules.compose.yml"
-                        printf '%s\\t%s\\n' \\
-                          "$management_file" "/run/manafield/management/token" \\
+                        printf '%s\\t%s\\n' \
+                          "$management_file" "/run/manafield/management/token" \
                           >> "$binding_mounts"
                       fi
 
