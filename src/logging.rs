@@ -96,6 +96,20 @@ fn record(event: &Event<'_>) -> LogRecord {
     }
 }
 
+/// Authorization rule for future authenticated log viewers. The caller MUST
+/// provide permissions resolved server-side for an authenticated identity.
+/// This is deliberately NOT exposed via an unprotected Core endpoint.
+pub fn visible_with_permissions(entry: &LogRecord, grants: &[String]) -> bool {
+    let is_audit = entry.event.as_deref().is_some_and(|event| event.starts_with("audit."));
+    if is_audit {
+        return grants.iter().any(|p| p == "*" || p == "log.*" || p == "log.audit.*" || p == "log.audit.read");
+    }
+    let source_permission = format!("log.read.{}", entry.source);
+    grants.iter().any(|p| {
+        p == "*" || p == "log.*" || p == "log.read" || p == "log.read.*" || p == &source_permission
+    })
+}
+
 pub struct LogLayer {
     file: Option<Mutex<File>>,
     db: Option<SyncSender<LogRecord>>,
@@ -175,6 +189,21 @@ mod tests {
         assert_eq!(r.console_line(), "(warn)[account] Session revoked");
         assert!(serde_json::to_string(&r).unwrap().contains(r#""event":"session.revoked""#));
     }
+    #[test]
+    fn log_visibility_is_default_deny_and_audit_requires_explicit_permission() {
+        let ordinary = LogRecord {
+            timestamp_ms: 1, level:"info".into(), source:"account".into(), event:None,
+            message:"login".into(), fields:BTreeMap::new()
+        };
+        let audit = LogRecord {event:Some("audit.session.revoked".into()), ..ordinary.clone()};
+        assert!(!visible_with_permissions(&ordinary,&[]));
+        assert!(!visible_with_permissions(&ordinary,&["log.read.manage".into()]));
+        assert!(visible_with_permissions(&ordinary,&["log.read.account".into()]));
+        assert!(!visible_with_permissions(&audit,&["log.read.*".into()]));
+        assert!(visible_with_permissions(&audit,&["log.audit.read".into()]));
+        assert!(visible_with_permissions(&audit,&["log.*".into()]));
+    }
+
     #[test]
     fn sensitive_field_names_are_filtered() {
         for name in ["password", "access_token", "request_cookie", "authorization", "DB_DSN"] {
