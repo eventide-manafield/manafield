@@ -165,6 +165,35 @@ manafield deploy --snapshot-only --instance-root /path/to/instance
 
 영속 Resource를 보호하기 위해 새 경로에서는 `--remove-orphans`를 사용하지 않아. **Jenkins의 예전 `deploy RELEASE_DIR` 경로에는 이 변경이 적용되지 않았어.** 그리고 Build Plan 일치는 이미지 digest 고정을 보장하지 않으므로, 모듈 소스 revision 및 이미지 고정은 추가 과제로 남아 있어.
 
+## Manage 바인딩 스냅샷 (Jenkins 배포 연결)
+
+현재 Core Registry의 `/modules`는 선언된 Requirement/Capability를 제공하지만, 실제 활성 Instance의 `modules[].bindings`를 반환하지는 않습니다. CLI는 배포 후보의 검증된 Build Plan에서 **Module ID와 Binding slot→target ID만** 뽑아 별도의 읽기 전용 스냅샷으로 내보낼 수 있습니다.
+
+```bash
+manafield bindings export \
+  --plan /path/to/release/build-plan.json \
+  --output /path/to/release/manage-bindings.json
+```
+
+출력 형식:
+
+```json
+{
+  "modules": {
+    "example-module": {"state": "main-postgres"},
+    "another-module": {}
+  }
+}
+```
+
+CLI는 **새 파일만 생성**하며, 기존 파일을 임의로 덮어쓰지 않습니다. 출력에는 Module/Resource의 설정, 환경변수, 토큰, 인증정보가 들어가지 않습니다.
+
+기존 Jenkins 배포 경로는 Stage Release에서 **후보 스냅샷**을 만들고, Deploy 및 Verify Deployment가 성공해 모든 예정 Module이 Registry에 등록된 뒤에야 `$INSTANCE_ROOT/manage-assets/bindings.json`으로 원자적으로 게시합니다. 검증 실패 시 후보 스냅샷을 게시하지 않습니다. 디렉터리 자체를 `manafield-manage-web` 컨테이너에 read-only로 마운트하므로 파일을 원자적으로 교체해도 Manage가 재시작 없이 최신 내용을 읽습니다.
+
+`custom.css`는 같은 **Instance 전용** `manage-assets` 디렉터리에서 선택적으로 제공하며 공개 GitHub 저장소에 포함하지 않습니다.
+
+> **주의:** CLI 명령 자체는 Build Plan의 데이터를 투영할 뿐, 그 Release가 실제 활성인지 판단하지 않습니다. **활성 상태 게시 시점은 배포 실행 주체(Jenkins)가 검증 이후에 결정해야 합니다.** 또한 공개 웹에 Manage를 노출하면 모듈 ID, 바인딩 대상 및 버전 등 인스턴스 구조가 공개될 수 있으므로 배포 범위와 접근 정책을 고려해야 합니다.
+
 ## 준비된 release 배포
 
 ```bash
