@@ -17,32 +17,51 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> io::Result<Option<Self>> {
-        let secret_file = std::env::var("MANAFIELD_LOG_POSTGRES_DSN_FILE").ok()
+        let secret_file = std::env::var("MANAFIELD_LOG_POSTGRES_DSN_FILE")
+            .ok()
             .filter(|value| !value.trim().is_empty());
-        let schema = std::env::var("MANAFIELD_LOG_POSTGRES_SCHEMA").ok()
+        let schema = std::env::var("MANAFIELD_LOG_POSTGRES_SCHEMA")
+            .ok()
             .filter(|value| !value.trim().is_empty());
         match (secret_file, schema) {
             (None, None) => Ok(None),
             (Some(file), Some(schema)) => {
                 if !valid_schema(&schema) {
-                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "invalid log PostgreSQL schema"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "invalid log PostgreSQL schema",
+                    ));
                 }
                 let dsn = std::fs::read_to_string(Path::new(&file))?;
                 if dsn.trim().is_empty() {
-                    return Err(io::Error::new(io::ErrorKind::InvalidInput, "empty PostgreSQL log DSN file"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "empty PostgreSQL log DSN file",
+                    ));
                 }
-                Ok(Some(Self { dsn: dsn.trim().to_owned(), schema }))
+                Ok(Some(Self {
+                    dsn: dsn.trim().to_owned(),
+                    schema,
+                }))
             }
-            _ => Err(io::Error::new(io::ErrorKind::InvalidInput,
-                "log PostgreSQL binding requires both DSN_FILE and SCHEMA")),
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "log PostgreSQL binding requires both DSN_FILE and SCHEMA",
+            )),
         }
     }
 }
 
 fn valid_schema(schema: &str) -> bool {
     schema.len() <= 63
-        && schema.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
-        && schema.as_bytes().iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
+        && schema
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_lowercase)
+        && schema
+            .as_bytes()
+            .iter()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
 }
 
 fn connect(config: &Config) -> Result<Client, postgres::Error> {
@@ -74,10 +93,17 @@ fn insert(client: &mut Client, schema: &str, value: &LogRecord) -> Result<(), po
          VALUES ($1,$2,$3,$4,$5,$6::jsonb)"
     );
     let fields = serde_json::to_string(&value.fields).unwrap_or_default();
-    client.execute(&sql, &[
-        &(value.timestamp_ms as i64), &value.level, &value.source,
-        &value.event, &value.message, &fields,
-    ])?;
+    client.execute(
+        &sql,
+        &[
+            &(value.timestamp_ms as i64),
+            &value.level,
+            &value.source,
+            &value.event,
+            &value.message,
+            &fields,
+        ],
+    )?;
     Ok(())
 }
 
@@ -92,7 +118,9 @@ pub fn run(config: Config, queue: Receiver<LogRecord>) {
             match connect(&config) {
                 Ok(connected) => client = Some(connected),
                 Err(_) => {
-                    eprintln!("(warn)[logging] optional PostgreSQL log sink unavailable; console/file logging continues");
+                    eprintln!(
+                        "(warn)[logging] optional PostgreSQL log sink unavailable; console/file logging continues"
+                    );
                     retry_after = Some(Instant::now() + Duration::from_secs(10));
                     continue;
                 }
@@ -101,7 +129,9 @@ pub fn run(config: Config, queue: Receiver<LogRecord>) {
         if let Some(ref mut live) = client
             && insert(live, &config.schema, &event).is_err()
         {
-            eprintln!("(warn)[logging] PostgreSQL log insert failed; console/file logging continues");
+            eprintln!(
+                "(warn)[logging] PostgreSQL log insert failed; console/file logging continues"
+            );
             client = None;
             retry_after = Some(Instant::now() + Duration::from_secs(10));
         }
@@ -114,8 +144,18 @@ mod tests {
 
     #[test]
     fn only_safe_postgres_identifiers_accepted() {
-        for valid in ["mf_core_logs", "logs", "a1"] { assert!(valid_schema(valid)); }
-        for invalid in ["", "0abc", "schema;drop", "public.core", "\"other\"", "A", "a-b"] {
+        for valid in ["mf_core_logs", "logs", "a1"] {
+            assert!(valid_schema(valid));
+        }
+        for invalid in [
+            "",
+            "0abc",
+            "schema;drop",
+            "public.core",
+            "\"other\"",
+            "A",
+            "a-b",
+        ] {
             assert!(!valid_schema(invalid));
         }
     }
