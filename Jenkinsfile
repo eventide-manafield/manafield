@@ -711,6 +711,7 @@ EOF
       MANAFIELD_MANAGE_SSO_AUTHORIZATION_URL: "https://manafield.studio/account/oauth/authorize"
       MANAFIELD_MANAGE_SSO_TOKEN_URL: "http://module-manafield-account-core:8080/account/oauth/token"
       MANAFIELD_MANAGE_SSO_USERINFO_URL: "http://module-manafield-account-core:8080/account/oauth/userinfo"
+      MANAFIELD_MANAGE_SSO_END_SESSION_URL: "http://module-manafield-account-core:8080/account/oauth/end-session"
       MANAFIELD_MANAGE_SSO_CLIENT_ID: "manafield-manage-web"
       MANAFIELD_MANAGE_SSO_REDIRECT_URL: "https://manage.manafield.studio/auth/callback"
 EOF
