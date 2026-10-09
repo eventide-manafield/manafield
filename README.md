@@ -169,6 +169,19 @@ flowchart TB
     Misskey --> Storage
 ```
 
+## 공개 모듈 저장소
+
+Manafield 본체와 별도로 개발·배포되는 공개 모듈 및 모듈 제품군입니다.
+실제 Instance에서는 필요한 모듈만 선택해 설치할 수 있으며, 모듈 버전과 배포 주기는 Core와 독립적입니다.
+
+- [Manafield Web](https://github.com/eventide-manafield/manafield-web) — 선택적으로 설치하는 공식 Web Shell.
+- [Manafield Manage](https://github.com/eventide-manafield/manafield-manage) — 모듈·리소스 상태를 관측하는 관리 웹 모듈 제품군. Lifecycle / Monitor 등은 향후 확장 예정입니다.
+
+**개발·검증용 레거시:**
+- [Manafield Module Reference](https://github.com/eventide-manafield/manafield-module-reference) — Module Protocol 검증용 예제. 실제 공개 모듈로 검증 범위가 대체되면 장기적으로 철거할 예정이며, 지금은 유지합니다.
+
+각 모듈의 구체적인 설치 방법과 구현 상태는 해당 저장소의 README를 참고합니다. 이 목록에는 비공개 모듈 저장소를 포함하지 않습니다.
+
 ## 문서
 
 한국어 문서를 기준으로 유지하며, 영어 문서는 이를 바탕으로 동기화합니다.
@@ -289,6 +302,18 @@ A major milestone is to:
 > **Run and manage Misskey as a Manafield Service Module.**
 
 This will validate real-world lifecycle management involving an application runtime, database, cache, storage, networking, health checks, and a Web service.
+
+## Public Module Repositories
+
+Public modules and module families are developed and released independently from Manafield Core. An Instance installs only the modules it needs.
+
+- [Manafield Web](https://github.com/eventide-manafield/manafield-web) — optional official Web Shell.
+- [Manafield Manage](https://github.com/eventide-manafield/manafield-manage) — administrative observation modules. Lifecycle and monitoring extensions are planned, not yet implemented.
+
+**Legacy / testing:**
+- [Manafield Module Reference](https://github.com/eventide-manafield/manafield-module-reference) — Module Protocol reference module. Retained for now, planned to be retired once real public modules cover its verification purpose.
+
+See each repository's README for current features and installation details. Private module repositories are not listed here.
 
 ## Documentation
 
