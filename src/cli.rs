@@ -1,4 +1,5 @@
 mod build;
+mod bindings;
 mod deploy;
 mod release;
 mod staging;
