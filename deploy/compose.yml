@@ -9,6 +9,7 @@ services:
       MANAFIELD_BIND: 0.0.0.0:8080
       MANAFIELD_MODULES_DIR: /var/lib/manafield/modules
       RUST_LOG: ${MANAFIELD_LOG:-manafield=info}
+      MANAFIELD_LOG_FILE: /var/lib/manafield/logs/core.jsonl
     ports:
       - "127.0.0.1:${MANAFIELD_CORE_PORT:-18080}:8080"
     volumes:
@@ -16,6 +17,9 @@ services:
         source: ${MANAFIELD_MODULES_PATH:-./modules}
         target: /var/lib/manafield/modules
         read_only: true
+      - type: volume
+        source: manafield-core-logs
+        target: /var/lib/manafield/logs
     read_only: true
     tmpfs:
       - /tmp
@@ -92,6 +96,7 @@ services:
       - modules
 
 volumes:
+  manafield-core-logs:
   manafield-postgres-data:
 
 networks:
