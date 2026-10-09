@@ -1,4 +1,3 @@
-mod bindings;
 mod build;
 mod deploy;
 mod release;
@@ -10,7 +9,8 @@ use std::error::Error;
 use std::fmt;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command as ProcessCommand;
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -24,6 +24,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
+    Extension {
+        namespace: String,
+        arguments: Vec<String>,
+    },
     ExportBindings {
         plan: String,
         output: String,
@@ -105,6 +109,15 @@ where
         "build" => parse_build_args(args),
         "help" | "-h" | "--help" => ensure_no_more(args, Command::Help),
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
+        other
+            if valid_extension_namespace(other)
+                && env::var_os("MANAFIELD_CLI_EXTENSIONS_DIR").is_some() =>
+        {
+            Ok(Command::Extension {
+                namespace: other.to_owned(),
+                arguments: args.collect(),
+            })
+        }
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
     }
 }
@@ -443,9 +456,53 @@ where
     }
 }
 
+// Plugins are opt-in executable adapters from a *trusted directory* and are
+// executed without a shell. A Module may offer CLI features without extending
+// the Rust Core with its domain-specific operations.
+fn valid_extension_namespace(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 64
+        && bytes[0].is_ascii_lowercase()
+        && bytes
+            .iter()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
+}
+
+fn run_extension(namespace: &str, arguments: &[String]) -> Result<(), CliError> {
+    let directory = env::var_os("MANAFIELD_CLI_EXTENSIONS_DIR").ok_or_else(|| {
+        CliError::Usage("set MANAFIELD_CLI_EXTENSIONS_DIR to a trusted plugin directory".into())
+    })?;
+    if !valid_extension_namespace(namespace) {
+        return Err(CliError::Usage("invalid CLI extension namespace".into()));
+    }
+    let executable = PathBuf::from(directory).join(format!("manafield-{namespace}"));
+    let info = std::fs::symlink_metadata(&executable)
+        .map_err(|_| CliError::Usage(format!("CLI extension '{namespace}' is not installed")))?;
+    if !info.file_type().is_file() {
+        return Err(CliError::Usage(
+            "CLI extension must be a regular file (not a symlink)".into(),
+        ));
+    }
+    let status = ProcessCommand::new(&executable)
+        .args(arguments)
+        .status()
+        .map_err(|e| CliError::Execution(format!("cannot run CLI extension '{namespace}': {e}")))?;
+    if !status.success() {
+        return Err(CliError::Execution(format!(
+            "CLI extension '{namespace}' exited with {status}"
+        )));
+    }
+    Ok(())
+}
+
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
         Command::Health => print_health(),
+        Command::Extension {
+            namespace,
+            arguments,
+        } => run_extension(&namespace, &arguments),
         Command::ExportBindings { plan, output } => bindings::export(&plan, &output),
         Command::ModuleBind {
             consumer,
@@ -1207,6 +1264,24 @@ mod tests {
             parse_args(args(&["deploy", "--unexpected"])),
             Err(CliError::Usage(_))
         ));
+    }
+
+    #[test]
+    fn validates_extension_namespace() {
+        for accepted in ["account", "echo", "my-module", "v2"] {
+            assert!(valid_extension_namespace(accepted), "{accepted}");
+        }
+        for rejected in [
+            "",
+            "-bad",
+            "Account",
+            "../bad",
+            "echo/../../bin/sh",
+            "abc.def",
+            "📦",
+        ] {
+            assert!(!valid_extension_namespace(rejected), "{rejected}");
+        }
     }
 
     #[test]

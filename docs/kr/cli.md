@@ -55,6 +55,23 @@ manafield use --instance-root /path/to/instance
 - 현 단계는 YAML 파싱/직렬화 방식이라 **원본 작업본의 주석과 서식은 보존되지 않을 수 있어**. 수동 편집이 필요하다면 결과를 확인해줘
 - Requirement의 Capability 버전/적합성 검사는 이 명령만으로 완결되지 않으며 후속 검증 및 배포 로직에서 수행해야 해
 
+## 확장 가능한 Module CLI (Operator 환경)
+
+Manafield CLI는 Rust Core의 도메인 지식을 늘리지 않고 외부 Module이 새 명령 Namespace를 제공할 수 있도록 **명시적으로 활성화된 CLI 확장 디렉터리**를 지원합니다.
+
+예: `manafield account role list`는 신뢰할 수 있는 `$MANAFIELD_CLI_EXTENSIONS_DIR/manafield-account` 실행 파일에 `role list`를 전달합니다.
+
+```bash
+export MANAFIELD_CLI_EXTENSIONS_DIR="$HOME/.local/libexec/manafield"
+manafield account role list
+```
+
+- 이 환경변수가 설정되지 않은 경우 미등록 명령은 기존처럼 거부합니다.
+- 확장은 `manafield-<namespace>` 실행 파일로, 직접 실행하며 별도의 셸 해석이 없습니다. 심볼릭 링크는 거부합니다.
+- 확장 디렉터리에는 관리자만 신뢰하는 실행 파일을 배치하세요. **임의의 Module 웹 UI가 CLI 실행 파일을 자동으로 설치하도록 하지 않습니다.**
+- 확장은 Core 내부 API가 아니라 **호스트 Operator CLI에서만 실행**됩니다. Docker Runtime 권한은 사용하는 어댑터에 필요한 만큼 별도 부여합니다.
+- Account Role v0는 `manafield-account` 어댑터를 통해 컨테이너 내부의 `manafield-account-role role ...` 명령을 사용합니다. 아직 권한 검증이나 임의 명령을 HTTP로 원격 실행하는 API는 제공하지 않습니다.
+
 ## 플랫폼 전체 빌드 — Jenkins 없이 실행 가능
 
 소스 저장소 루트에서 실행하면 CLI, Core, Build Plan 호환 도구, Traefik ingress adapter **4개 실행파일**을 생성하고, Docker가 준비돼 있으면 Core/공식 PostgreSQL Provider 이미지를 빌드해.
