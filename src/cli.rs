@@ -1,5 +1,4 @@
 mod build;
-mod bindings;
 mod deploy;
 mod release;
 mod staging;
@@ -24,7 +23,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
-    ExportBindings { plan: String, output: String },
+    ExportBindings {
+        plan: String,
+        output: String,
+    },
     ModuleBind {
         consumer: String,
         slot: String,
@@ -124,9 +126,10 @@ where
                 })?);
             }
             "--output" if output.is_none() => {
-                output = Some(args.next().ok_or_else(|| {
-                    CliError::Usage("--output requires a path".into())
-                })?);
+                output = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--output requires a path".into()))?,
+                );
             }
             other => {
                 return Err(CliError::Usage(format!(
@@ -929,7 +932,15 @@ mod tests {
     #[test]
     fn parses_bindings_export() {
         assert_eq!(
-            parse_args(args(&["bindings", "export", "--plan", "build-plan.json", "--output", "bindings.json"])).unwrap(),
+            parse_args(args(&[
+                "bindings",
+                "export",
+                "--plan",
+                "build-plan.json",
+                "--output",
+                "bindings.json"
+            ]))
+            .unwrap(),
             Command::ExportBindings {
                 plan: "build-plan.json".to_owned(),
                 output: "bindings.json".to_owned(),
@@ -938,9 +949,14 @@ mod tests {
         for invalid in [
             vec!["bindings", "export", "--plan", "plan.json"],
             vec!["bindings", "export", "--output", "bindings.json"],
-            vec!["bindings", "export", "--plan", "a", "--output", "b", "--plan", "c"],
+            vec![
+                "bindings", "export", "--plan", "a", "--output", "b", "--plan", "c",
+            ],
         ] {
-            assert!(matches!(parse_args(args(&invalid)), Err(CliError::Usage(_))));
+            assert!(matches!(
+                parse_args(args(&invalid)),
+                Err(CliError::Usage(_))
+            ));
         }
     }
 
