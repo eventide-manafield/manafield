@@ -251,6 +251,37 @@ mod tests {
         assert!(parse(["--limit".into(), "0".into()].into_iter()).is_err());
         assert!(parse(["--since".into(), "1x".into()].into_iter()).is_err());
     }
+    #[cfg(unix)]
+    #[test]
+    fn private_jsonl_reader_rejects_world_readable_and_symlink_files() {
+        use std::io::Write;
+        use std::os::unix::fs::PermissionsExt;
+        let name = format!(
+            "manafield-log-test-{}-{}",
+            std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        );
+        let directory = std::env::temp_dir().join(name);
+        std::fs::create_dir(&directory).unwrap();
+        let file = directory.join("core.jsonl");
+        let mut handle = std::fs::OpenOptions::new()
+            .write(true).create_new(true).mode(0o600).open(&file).unwrap();
+        let event = LogRecord {
+            timestamp_ms: 1, level: "warn".into(), source: "core".into(),
+            event: None, message: "hello".into(), fields:Default::default(),
+        };
+        writeln!(handle, "{}", serde_json::to_string(&event).unwrap()).unwrap();
+        drop(handle);
+        let opts = Options::default();
+        assert_eq!(read(&file, &opts).unwrap(), vec![event]);
+        let link = directory.join("link.jsonl");
+        std::os::unix::fs::symlink(&file, &link).unwrap();
+        assert!(read(&link, &opts).is_err());
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(read(&file, &opts).is_err());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     #[test]
     fn severity_and_audit_filters() {
         let event = LogRecord {
