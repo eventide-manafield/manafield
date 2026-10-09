@@ -195,7 +195,7 @@ pub fn read(file: &Path, options: &Options) -> std::io::Result<Vec<LogRecord>> {
     }
     #[cfg(unix)]
     {
-        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        use std::os::unix::fs::PermissionsExt;
         if meta.permissions().mode() & 0o077 != 0 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn private_jsonl_reader_rejects_world_readable_and_symlink_files() {
         use std::io::Write;
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
         let name = format!(
             "manafield-log-test-{}-{}",
             std::process::id(),
