@@ -451,8 +451,8 @@ EOF
 
                     : > postgresql-bindings.tsv
 
-                    if [ ! -s ci-plan/module-bindings.tsv ]; then
-                      echo "No concrete Module bindings require materialization."
+                    if [ ! -s ci-plan/module-bindings.tsv ] && [ ! -s ci-plan/core-bindings.tsv ]; then
+                      echo "No Resource bindings require materialization."
                       exit 0
                     fi
 
@@ -539,6 +539,46 @@ EOF
                           ;;
                       esac
                     done < ci-plan/module-bindings.tsv
+
+                    # Core is a first-class Resource consumer for logging, but
+                    # has no Module manifest or module-sources.tsv entry.
+                    if [ -s ci-plan/core-bindings.tsv ]; then
+                      while IFS="$tab" read -r binding_slot binding_target; do
+                        [ "$binding_slot" = "loggingState" ] || {
+                          echo "Unknown Core binding slot '$binding_slot'." >&2
+                          exit 1
+                        }
+                        provider="$(
+                          awk -F '\t' -v id="$binding_target" \
+                            '$1 == id { print $2; exit }' ci-plan/resources.tsv
+                        )"
+                        [ "$provider" = "postgresql" ] || {
+                          echo "Core logging requires a PostgreSQL Resource." >&2
+                          exit 1
+                        }
+
+                        identifier="$(postgres_identifier "mf_manafield_core_logging")"
+                        secret_dir="$INSTANCE_ROOT/secrets/postgresql/$binding_target"
+                        secret_file="$secret_dir/$identifier.password"
+                        mkdir -p "$secret_dir"
+                        chmod 0700 "$INSTANCE_ROOT/secrets" \
+                          "$INSTANCE_ROOT/secrets/postgresql" "$secret_dir" \
+                          2>/dev/null || true
+
+                        if [ ! -f "$secret_file" ]; then
+                          umask 077
+                          password="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \\n')"
+                          test -n "$password"
+                          printf '%s\\n' "$password" > "$secret_file"
+                        fi
+                        chmod 0444 "$secret_file"
+                        printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
+                          "manafield-core" "$binding_slot" "$binding_target" \
+                          "manafield-postgres" "5432" "manafield" \
+                          "$identifier" "$identifier" "$secret_file" \
+                          >> postgresql-bindings.tsv
+                      done < ci-plan/core-bindings.tsv
+                    fi
 
                     if [ -s postgresql-bindings.tsv ]; then
                       echo "Materialized PostgreSQL bindings:"
