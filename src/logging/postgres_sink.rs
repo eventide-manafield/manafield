@@ -87,11 +87,17 @@ fn connect(config: &Config) -> Result<Client, postgres::Error> {
     Ok(client)
 }
 
-fn insert(client: &mut Client, schema: &str, value: &LogRecord) -> Result<(), postgres::Error> {
-    let sql = format!(
+fn insert_sql(schema: &str) -> String {
+    // postgres::types::ToSql for String accepts TEXT, not JSONB.
+    // Cast the wire parameter to TEXT before converting it to JSONB in SQL.
+    format!(
         "INSERT INTO {schema}.core_log_events (timestamp_ms,level,source,event,message,fields)
-         VALUES ($1,$2,$3,$4,$5,$6::jsonb)"
-    );
+         VALUES ($1,$2,$3,$4,$5,$6::text::jsonb)"
+    )
+}
+
+fn insert(client: &mut Client, schema: &str, value: &LogRecord) -> Result<(), postgres::Error> {
+    let sql = insert_sql(schema);
     let fields = serde_json::to_string(&value.fields).unwrap_or_default();
     client.execute(
         &sql,
@@ -234,6 +240,19 @@ mod tests {
             &mut pending,
             Instant::now(),
         ));
+    }
+
+    #[test]
+    fn jsonb_fields_bind_as_text_before_server_side_jsonb_cast() {
+        use postgres::types::{ToSql, Type};
+
+        // The previous $6::jsonb inferred JSONB for the Rust String value,
+        // so postgres-types rejected it before executing the INSERT.
+        assert!(!<String as ToSql>::accepts(&Type::JSONB));
+        assert!(<String as ToSql>::accepts(&Type::TEXT));
+
+        let sql = insert_sql("mf_manafield_core_logging");
+        assert!(sql.contains("VALUES ($1,$2,$3,$4,$5,$6::text::jsonb)"));
     }
 
     #[test]
