@@ -711,10 +711,14 @@ EOF
                         chmod 0700 "$dsn_dir"
                         dsn_file="$dsn_dir/postgres.dsn"
                         temporary="$dsn_dir/.postgres.dsn.$BUILD_NUMBER.tmp"
-                        umask 077
-                        printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' \
-                          "$username" "$password" "$host" "$port" "$database" \
-                          > "$temporary"
+                        # Keep private-file umask inside a subshell. Otherwise
+                        # all subsequent Module directories become root-only.
+                        (
+                          umask 077
+                          printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' \
+                            "$username" "$password" "$host" "$port" "$database" \
+                            > "$temporary"
+                        )
                         chmod 0444 "$temporary"
                         mv -f "$temporary" "$dsn_file"
 
@@ -745,7 +749,9 @@ EOF
 
                       test -f "$manifest"
                       mkdir -p "$destination"
+                      chmod 0755 "$destination"
                       cp "$manifest" "$destination/manafield.module.json"
+                      chmod 0644 "$destination/manafield.module.json"
 
                       exposure_type="$(
                         awk -F '\t' -v id="$module_id" '$1 == id { print $2; exit }' \
@@ -817,8 +823,10 @@ EOF
                         chmod 0700 "$INSTANCE_ROOT/secrets" "$management_dir"
 
                         if [ ! -f "$management_file" ]; then
-                          umask 077
-                          od -An -N32 -tx1 /dev/urandom | tr -d ' \\n' > "$management_file"
+                          (
+                            umask 077
+                            od -An -N32 -tx1 /dev/urandom | tr -d '[:space:]' > "$management_file"
+                          )
                         fi
                         test "$(wc -c < "$management_file")" -eq 64
                         chmod 0444 "$management_file"
@@ -841,8 +849,10 @@ EOF
                         chmod 0700 "$INSTANCE_ROOT/secrets" "$management_dir"
 
                         if [ ! -f "$management_file" ]; then
-                          umask 077
-                          od -An -N32 -tx1 /dev/urandom | tr -d ' \\n' > "$management_file"
+                          (
+                            umask 077
+                            od -An -N32 -tx1 /dev/urandom | tr -d '[:space:]' > "$management_file"
+                          )
                         fi
                         test "$(wc -c < "$management_file")" -eq 64
                         chmod 0444 "$management_file"
