@@ -84,6 +84,7 @@ async fn register_module(
         .await
         .map_err(registry_error_status)?;
 
+    tracing::info!(event = "audit.module.registered", module_id = %module.id, "Module registered");
     encode_response(&headers, &module, StatusCode::CREATED)
 }
 
@@ -98,6 +99,7 @@ async fn remove_module(
         .await
         .map_err(registry_error_status)?;
 
+    tracing::info!(event = "audit.module.removed", module_id = %id, "Module removed");
     encode_response(&headers, &removed, StatusCode::OK)
 }
 
@@ -133,6 +135,7 @@ async fn register_resource(
         .await
         .map_err(registry_error_status)?;
 
+    tracing::info!(event = "audit.resource.registered", resource_id = %resource.id, "Resource registered");
     encode_response(&headers, &resource, StatusCode::CREATED)
 }
 
@@ -147,6 +150,7 @@ async fn remove_resource(
         .await
         .map_err(registry_error_status)?;
 
+    tracing::info!(event = "audit.resource.removed", resource_id = %id, "Resource removed");
     encode_response(&headers, &removed, StatusCode::OK)
 }
 

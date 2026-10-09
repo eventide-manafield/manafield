@@ -451,8 +451,8 @@ EOF
 
                     : > postgresql-bindings.tsv
 
-                    if [ ! -s ci-plan/module-bindings.tsv ]; then
-                      echo "No concrete Module bindings require materialization."
+                    if [ ! -s ci-plan/module-bindings.tsv ] && [ ! -s ci-plan/core-bindings.tsv ]; then
+                      echo "No Resource bindings require materialization."
                       exit 0
                     fi
 
@@ -539,6 +539,46 @@ EOF
                           ;;
                       esac
                     done < ci-plan/module-bindings.tsv
+
+                    # Core is a first-class Resource consumer for logging, but
+                    # has no Module manifest or module-sources.tsv entry.
+                    if [ -s ci-plan/core-bindings.tsv ]; then
+                      while IFS="$tab" read -r binding_slot binding_target; do
+                        [ "$binding_slot" = "loggingState" ] || {
+                          echo "Unknown Core binding slot '$binding_slot'." >&2
+                          exit 1
+                        }
+                        provider="$(
+                          awk -F '\t' -v id="$binding_target" \
+                            '$1 == id { print $2; exit }' ci-plan/resources.tsv
+                        )"
+                        [ "$provider" = "postgresql" ] || {
+                          echo "Core logging requires a PostgreSQL Resource." >&2
+                          exit 1
+                        }
+
+                        identifier="$(postgres_identifier "mf_manafield_core_logging")"
+                        secret_dir="$INSTANCE_ROOT/secrets/postgresql/$binding_target"
+                        secret_file="$secret_dir/$identifier.password"
+                        mkdir -p "$secret_dir"
+                        chmod 0700 "$INSTANCE_ROOT/secrets" \
+                          "$INSTANCE_ROOT/secrets/postgresql" "$secret_dir" \
+                          2>/dev/null || true
+
+                        if [ ! -f "$secret_file" ]; then
+                          umask 077
+                          password="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
+                          test -n "$password"
+                          printf '%s\n' "$password" > "$secret_file"
+                        fi
+                        chmod 0444 "$secret_file"
+                        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                          "manafield-core" "$binding_slot" "$binding_target" \
+                          "manafield-postgres" "5432" "manafield" \
+                          "$identifier" "$identifier" "$secret_file" \
+                          >> postgresql-bindings.tsv
+                      done < ci-plan/core-bindings.tsv
+                    fi
 
                     if [ -s postgresql-bindings.tsv ]; then
                       echo "Materialized PostgreSQL bindings:"
@@ -637,6 +677,59 @@ EOF
                       "MANAFIELD_POSTGRES_ALLOCATIONS_FILE_HOST=$RELEASE_DIR/postgresql-allocations.tsv" \
                       "MANAFIELD_POSTGRES_SECRETS_PATH=$INSTANCE_ROOT/secrets/postgresql" \
                       > "$RELEASE_DIR/release.env"
+
+                    # Bridge the declared Core loggingState Resource binding into
+                    # a private DSN file. No credentials enter public Build Plans
+                    # or Jenkins logs; the Postgres Provider owns schema allocation.
+                    if [ -s ci-plan/core-bindings.tsv ]; then
+                      tab="$(printf '\t')"
+                      core_dsn_written=false
+                      while IFS="$tab" read -r consumer slot target host port database schema username secret_file; do
+                        [ "$consumer" = "manafield-core" ] || continue
+                        [ "$slot" = "loggingState" ] || exit 1
+                        if [ "$core_dsn_written" = true ]; then
+                          echo "Multiple Core logging PostgreSQL bindings are not supported." >&2
+                          exit 1
+                        fi
+                        expected_target="$(
+                          awk -F '\t' '$1 == "loggingState" { print $2; exit }' ci-plan/core-bindings.tsv
+                        )"
+                        [ "$target" = "$expected_target" ] || {
+                          echo "Materialized Core log Resource differs from Instance binding." >&2
+                          exit 1
+                        }
+                        test -f "$secret_file"
+                        password="$(head -n 1 "$secret_file")"
+                        test "${#password}" -eq 48
+                        case "$password" in *[!a-f0-9]*|'')
+                          echo "Invalid generated Core logging database credential." >&2
+                          exit 1
+                          ;; esac
+
+                        dsn_dir="$INSTANCE_ROOT/secrets/core-logging"
+                        mkdir -p "$dsn_dir"
+                        chmod 0700 "$dsn_dir"
+                        dsn_file="$dsn_dir/postgres.dsn"
+                        temporary="$dsn_dir/.postgres.dsn.$BUILD_NUMBER.tmp"
+                        umask 077
+                        printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' \
+                          "$username" "$password" "$host" "$port" "$database" \
+                          > "$temporary"
+                        chmod 0444 "$temporary"
+                        mv -f "$temporary" "$dsn_file"
+
+                        printf '%s\n' \
+                          "MANAFIELD_LOG_POSTGRES_DSN_FILE=/run/manafield/logging/postgres.dsn" \
+                          "MANAFIELD_LOG_POSTGRES_SCHEMA=$schema" \
+                          "MANAFIELD_LOG_DSN_FILE_HOST=$dsn_file" \
+                          >> "$RELEASE_DIR/release.env"
+                        core_dsn_written=true
+                      done < postgresql-bindings.tsv
+                      if [ "$core_dsn_written" != true ]; then
+                        echo "Core loggingState binding was not materialized; refusing incomplete Release." >&2
+                        exit 1
+                      fi
+                    fi
 
                     printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"
 

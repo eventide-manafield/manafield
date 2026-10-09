@@ -77,6 +77,12 @@ flowchart TB
 
 이 버전은 현재 개발 기준이며, 아직 공식적인 **MSRV(Minimum Supported Rust Version)** 를 의미하지는 않습니다.
 
+## Core Logging (v0)
+
+Core는 `(warn)[source] 메시지` 형식의 기본 콘솔 로그를 남기며, 공식 Docker 배포에서는 별도의 영구 볼륨에 구조화된 JSONL을 기록합니다. 운영자는 `docker exec manafield-core-1 /usr/local/bin/manafield log --level warn` 같은 방식으로 필터링할 수 있습니다.
+
+선택적 PostgreSQL 로그 Mirror는 `core.bindings.loggingState`에 PostgreSQL Resource를 지정하면 Jenkins에서 전용 DB Role/Schema가 자동 할당됩니다. Role별 기본 거부 정책도 제공하지만 **인증된 Role 기반 웹 로그 뷰어는 다음 통합 작업**입니다. [Logging 설계 및 현재 지원 범위](docs/kr/logging.md)를 참고하세요.
+
 ## 기본 CLI
 
 Manafield는 별도 실행파일인 `manafield` CLI와 `manafield-core` 서버를 같은 배포 묶음으로 제공합니다. CLI는 상태 조회와 Instance 작업을 담당하고, Core 서버는 API/Registry를 담당합니다.

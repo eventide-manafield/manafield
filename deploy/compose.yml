@@ -8,13 +8,23 @@ services:
     environment:
       MANAFIELD_BIND: 0.0.0.0:8080
       MANAFIELD_MODULES_DIR: /var/lib/manafield/modules
-      RUST_LOG: ${MANAFIELD_LOG:-manafield=info}
+      RUST_LOG: ${MANAFIELD_LOG:-manafield=info,manafield_core=info}
+      MANAFIELD_LOG_FILE: /var/lib/manafield/logs/core.jsonl
+      MANAFIELD_LOG_POSTGRES_DSN_FILE: ${MANAFIELD_LOG_POSTGRES_DSN_FILE:-}
+      MANAFIELD_LOG_POSTGRES_SCHEMA: ${MANAFIELD_LOG_POSTGRES_SCHEMA:-}
     ports:
       - "127.0.0.1:${MANAFIELD_CORE_PORT:-18080}:8080"
     volumes:
       - type: bind
         source: ${MANAFIELD_MODULES_PATH:-./modules}
         target: /var/lib/manafield/modules
+        read_only: true
+      - type: volume
+        source: manafield-core-logs
+        target: /var/lib/manafield/logs
+      - type: bind
+        source: ${MANAFIELD_LOG_DSN_FILE_HOST:-/dev/null}
+        target: /run/manafield/logging/postgres.dsn
         read_only: true
     read_only: true
     tmpfs:
@@ -92,6 +102,7 @@ services:
       - modules
 
 volumes:
+  manafield-core-logs:
   manafield-postgres-data:
 
 networks:

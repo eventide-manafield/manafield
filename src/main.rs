@@ -7,14 +7,16 @@ use manafield::api;
 use manafield::core::{RegistryService, discover_modules};
 use tokio::net::TcpListener;
 use tracing::info;
-use tracing_subscriber::EnvFilter;
 
 const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8080";
 const DEFAULT_MODULES_DIR: &str = "modules";
 
 #[tokio::main]
 async fn main() {
-    init_tracing();
+    if let Err(error) = manafield::logging::init() {
+        eprintln!("manafield-core: cannot initialize logging: {error}");
+        std::process::exit(1);
+    }
 
     if let Err(error) = serve().await {
         eprintln!("manafield-core: {error}");
@@ -62,13 +64,6 @@ async fn load_registry() -> Result<RegistryService, Box<dyn Error>> {
     );
 
     Ok(registry)
-}
-
-fn init_tracing() {
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("manafield=info"));
-
-    tracing_subscriber::fmt().with_env_filter(filter).init();
 }
 
 async fn shutdown_signal() {

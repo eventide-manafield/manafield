@@ -162,6 +162,14 @@ fn write_ci_plan(plan: &BuildPlan, directory: &Path) -> Result<(), Box<dyn std::
     }
     fs::write(directory.join("module-bindings.tsv"), module_bindings)?;
 
+    // Keep Core's optional state binding separate from Module bindings: Core
+    // has no Module manifest nor module-sources.tsv entry.
+    let mut core_bindings = String::new();
+    for (slot, target) in &plan.core.bindings {
+        core_bindings.push_str(&format!("{slot}\t{target}\n"));
+    }
+    fs::write(directory.join("core-bindings.tsv"), core_bindings)?;
+
     let mut resources = String::new();
     for resource in &plan.resources {
         resources.push_str(&format!("{}\t{}\n", resource.id, resource.provider,));
@@ -275,6 +283,23 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
 
         if resource.enabled {
             enabled_instance_ids.insert(resource.id.as_str());
+        }
+    }
+
+    // v0 Core logger accepts only a PostgreSQL Resource for its optional
+    // loggingState slot. Other Core settings remain independent of Modules.
+    for (slot, target) in &definition.core.bindings {
+        if slot != "loggingState" {
+            return Err(format!("unknown Core binding slot '{slot}'"));
+        }
+        if !definition
+            .resources
+            .iter()
+            .any(|r| r.enabled && r.id == *target && r.provider == "postgresql")
+        {
+            return Err(format!(
+                "core.bindings.loggingState must target an enabled PostgreSQL Resource, got '{target}'"
+            ));
         }
     }
 
@@ -452,6 +477,8 @@ struct InstanceMetadata {
 #[derive(Debug, Deserialize)]
 struct CoreDefinition {
     source: SourceDefinition,
+    #[serde(default)]
+    bindings: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -587,6 +614,7 @@ impl From<InstanceDefinition> for BuildPlan {
             instance_id: definition.instance.id,
             core: CorePlan {
                 source: definition.core.source,
+                bindings: definition.core.bindings,
             },
             runtime_providers: definition
                 .runtime_providers
@@ -627,6 +655,8 @@ impl From<InstanceDefinition> for BuildPlan {
 #[derive(Debug, Serialize)]
 struct CorePlan {
     source: SourceDefinition,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    bindings: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -685,6 +715,40 @@ deployment:
 "#
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn core_logging_binding_requires_enabled_postgresql_resource() {
+        let basic = r#"
+version: 0
+instance:
+  id: test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+  bindings:
+    loggingState: postgres
+resources:
+  - id: postgres
+    provider: postgresql
+deployment:
+  modulesNetwork: modules
+  edgeNetwork: edge
+"#;
+        validate_yaml(basic).unwrap();
+        let value: InstanceDefinition = serde_yaml_ng::from_str(basic).unwrap();
+        let plan = BuildPlan::from(value);
+        assert_eq!(plan.core.bindings.get("loggingState").unwrap(), "postgres");
+        assert!(validate_yaml(&basic.replace("provider: postgresql", "provider: redis")).is_err());
+        assert!(validate_yaml(&basic.replace("loggingState", "unknownSlot")).is_err());
+        assert!(
+            validate_yaml(&basic.replace(
+                "provider: postgresql",
+                "provider: postgresql\n    enabled: false"
+            ))
+            .is_err()
+        );
     }
 
     #[test]

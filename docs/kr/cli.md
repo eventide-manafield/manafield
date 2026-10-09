@@ -72,6 +72,21 @@ manafield account role list
 - 확장은 Core 내부 API가 아니라 **호스트 Operator CLI에서만 실행**됩니다. Docker Runtime 권한은 사용하는 어댑터에 필요한 만큼 별도 부여합니다.
 - Account Role v0는 `manafield-account` 어댑터를 통해 컨테이너 내부의 `manafield-account-role role ...` 명령을 사용합니다. 아직 권한 검증이나 임의 명령을 HTTP로 원격 실행하는 API는 제공하지 않습니다.
 
+## Core 로그 조회 (Operator 전용)
+
+`manafield log`는 Core API 호출이 아니라 **비공개 JSONL 로그 파일**을 읽는 운영자 명령입니다. 공식 Docker 배포에서는 읽기 권한이 있는 Core 컨테이너 안에서 실행합니다.
+
+```bash
+docker exec manafield-core-1 /usr/local/bin/manafield log
+docker exec manafield-core-1 /usr/local/bin/manafield log --level warn --limit 50
+docker exec manafield-core-1 /usr/local/bin/manafield log --source api --since 1h
+docker exec manafield-core-1 /usr/local/bin/manafield log --audit --json
+```
+
+필터: `--level trace|debug|info|warn|error` (최소 레벨), `--source NAME`, `--since 15m|1h|7d`, `--limit 1..10000`, `--audit`, `--json`, `--file PATH`. 기본 최근 100개. 환경변수 `MANAFIELD_LOG_FILE`로 입력 경로를 지정할 수 있습니다. 비공개 권한을 확인하지 못하면 조회를 거부하고 원격 사용자로부터 임의 Identity를 받아 권한을 가장하지 않습니다.
+
+기본 콘솔 로그와 선택적 PostgreSQL 저장, Role별 로그 조회 정책과 미구현 범위는 [Core Logging](logging.md)을 참고하세요.
+
 ## 플랫폼 전체 빌드 — Jenkins 없이 실행 가능
 
 소스 저장소 루트에서 실행하면 CLI, Core, Build Plan 호환 도구, Traefik ingress adapter **4개 실행파일**을 생성하고, Docker가 준비돼 있으면 Core/공식 PostgreSQL Provider 이미지를 빌드해.
