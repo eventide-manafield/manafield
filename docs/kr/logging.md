@@ -52,7 +52,7 @@ MANAFIELD_LOG_POSTGRES_SCHEMA=mf_core_logs
 
 `DSN_FILE`은 비밀 정보가 담긴 파일의 경로로만 전달하고, **환경변수 값에 비밀번호/DSN을 직접 넣거나 로그에 출력하지 않습니다**. 운영자가 Resource Provider에서 발급한 최소 권한 DB role과 그 role 소유 Schema를 연결해야 합니다. Core는 할당되지 않은 Schema를 생성하지 않으며 해당 Schema 내 `core_log_events` 테이블만 초기화합니다.
 
-DB Mirror는 최대 1024개 bounded channel과 별도 스레드로 동작합니다. 연결/쓰기 실패는 stdout 및 JSONL 로깅을 막지 않으며, 손실될 수 있는 이벤트는 기존 JSONL이 복구 원본입니다. Instance Definition에서 Core의 `loggingState` 슬롯을 PostgreSQL Resource에 연결하면, Jenkins가 **Core 전용 Schema와 최소 권한 DB Role을 할당**하고 비밀번호로 DSN 파일을 생성해 Core 컨테이너에 읽기 전용으로 마운트합니다. Credential은 Build Plan, Release 환경변수, Jenkins 로그에 들어가지 않습니다.
+DB Mirror는 최대 1024개 bounded channel과 별도 스레드로 동작합니다. DB가 아직 준비되지 않았다면 초기 이벤트를 큐에 유지하고, 연결 성공 후 순서대로 저장합니다. 연결/쓰기 실패는 stdout 및 JSONL 로깅을 막지 않으며, 장기 장애로 큐가 가득 차면 DB 미러 이벤트가 손실될 수 있습니다. 원본은 기존 JSONL이며, 네트워크 오류 직후 재시도한 이벤트는 중복 저장될 수도 있습니다. Instance Definition에서 Core의 `loggingState` 슬롯을 PostgreSQL Resource에 연결하면, Jenkins가 **Core 전용 Schema와 최소 권한 DB Role을 할당**하고 비밀번호로 DSN 파일을 생성해 Core 컨테이너에 읽기 전용으로 마운트합니다. Credential은 Build Plan, Release 환경변수, Jenkins 로그에 들어가지 않습니다.
 
 ```yaml
 core:
@@ -65,7 +65,7 @@ core:
 
 `loggingState`를 생략하면 DB 접속 없이 stdout과 JSONL 볼륨으로만 동작합니다. 설정된 target은 활성 PostgreSQL Resource여야 하며 다른 Provider나 비활성 대상을 가리키면 Build Plan 검증이 실패합니다. 현재 DB Binding 자동 프로비저닝 경로는 **Jenkins 릴리스 파이프라인**에 구현되어 있습니다. 수동 `MANAFIELD_LOG_POSTGRES_DSN_FILE`/`SCHEMA` 환경설정도 계속 지원합니다.
 
-운영 중 DB가 연결되지 않거나 아직 Provider가 Schema를 만들지 않았다면, Core는 정상 기동하고 10초 간격으로 Sink 연결을 다시 시도하며 그동안의 이벤트는 JSONL에 남깁니다. 자동 DB 재전송/백필은 아직 없습니다.
+운영 중 DB가 연결되지 않거나 아직 Provider가 Schema를 만들지 않았다면, Core는 정상 기동하고 10초 간격으로 Sink 연결을 다시 시도합니다. 연결되지 않은 동안 받은 이벤트는 bounded queue에 보관하고 재연결 시 저장합니다. 기존 JSONL 전체를 검색해서 다시 가져오는 자동 DB 백필 기능은 아직 없습니다. Account Core 등 외부 모듈의 로그인/로그아웃 이벤트는 별도 전달 프로토콜이 없어 자동 저장되지 않습니다.
 
 ## Role 기반 열람 정책
 
