@@ -195,7 +195,7 @@ pub fn read(file: &Path, options: &Options) -> std::io::Result<Vec<LogRecord>> {
     }
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
         if meta.permissions().mode() & 0o077 != 0 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
