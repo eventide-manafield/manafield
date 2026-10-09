@@ -731,8 +731,9 @@ EOF
 
                         printf '      MANAFIELD_ACCOUNT_MANAGEMENT_TOKEN_FILE: "/run/manafield/management/token"\\n' \
                           >> "$RELEASE_DIR/modules.compose.yml"
-                        printf '      MANAFIELD_ACCOUNT_OAUTH_CLIENTS_JSON: '\''{"manafield-manage-web":"https://manage.manafield.studio/auth/callback"}'\''\\n' \
-                          >> "$RELEASE_DIR/modules.compose.yml"
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
+      MANAFIELD_ACCOUNT_OAUTH_CLIENTS_JSON: '{"manafield-manage-web":"https://manage.manafield.studio/auth/callback"}'
+EOF
 
                         printf '%s\\t%s\\n' \
                           "$management_file" "/run/manafield/management/token" \
