@@ -701,8 +701,8 @@ EOF
       MANAFIELD_MANAGE_BINDINGS_FILE: "/run/manafield/manage/bindings.json"
       MANAFIELD_MANAGE_CUSTOM_CSS_FILE: "/run/manafield/manage/custom.css"
 EOF
-                        printf '%s\\t%s\\n' \\
-                          "$manage_assets" "/run/manafield/manage" \\
+                        printf '%s\t%s\n' \
+                          "$manage_assets" "/run/manafield/manage" \
                           >> "$binding_mounts"
                       fi
 
@@ -976,7 +976,7 @@ EOF
 
                     # Publish the active binding projection only after Module Registry
                     # verification succeeds. Never publish candidate/failed Releases.
-                    if awk -F '\\t' '$1 == "manafield-manage-web" { found=1 } END { exit(found ? 0 : 1) }' ci-plan/modules.tsv; then
+                    if awk -F '\t' '$1 == "manafield-manage-web" { found=1 } END { exit(found ? 0 : 1) }' ci-plan/modules.tsv; then
                       target_dir="$INSTANCE_ROOT/manage-assets"
                       test -d "$target_dir"
                       test -s "$RELEASE_DIR/manage-bindings.json"
