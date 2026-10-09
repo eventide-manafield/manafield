@@ -251,7 +251,10 @@ mod tests {
         assert_eq!(v.limit, 25);
         assert!(v.audit);
         assert!(parse(["--limit".into(), "0".into()].into_iter()).is_err());
-        assert!(parse(["--limit".into(), "2".into(), "--limit".into(), "3".into()].into_iter()).is_err());
+        assert!(
+            parse(["--limit".into(), "2".into(), "--limit".into(), "3".into()].into_iter())
+                .is_err()
+        );
         assert!(parse(["--since".into(), "1x".into()].into_iter()).is_err());
     }
     #[cfg(unix)]
