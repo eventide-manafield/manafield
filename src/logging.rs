@@ -210,8 +210,8 @@ fn open_private_log(path: &Path) -> io::Result<File> {
 }
 
 pub fn init() -> Result<(), Box<dyn std::error::Error>> {
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("manafield=info,manafield_core=info"));
+    let filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("manafield=info,manafield_core=info"));
     let file = match std::env::var("MANAFIELD_LOG_FILE") {
         Ok(path) if !path.trim().is_empty() => Some(open_private_log(Path::new(&path))?),
         _ => None,
