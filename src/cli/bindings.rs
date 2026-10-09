@@ -1,4 +1,3 @@
-//! Strict, secret-free projection of an already resolved Instance Build Plan.
 //! Jenkins only publishes this projection after verifying the deployed Release.
 use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
@@ -80,7 +79,10 @@ pub(super) fn export(plan_file: &str, output_file: &str) -> Result<(), CliError>
         .and_then(|_| file.write_all(b"\n"))
         .and_then(|_| file.sync_all())
         .map_err(|e| CliError::Execution(format!("cannot write binding snapshot: {e}")))?;
-    println!("Created safe Manage bindings projection: {}", output.display());
+    println!(
+        "Created safe Manage bindings projection: {}",
+        output.display()
+    );
     Ok(())
 }
 
@@ -107,7 +109,12 @@ mod tests {
         assert!(snapshot.modules["web"].is_empty());
         assert!(snapshot.modules["plain"].is_empty());
         let text = serde_json::to_string(&snapshot).unwrap();
-        for forbidden in ["must-not-appear", "private.example", "never-copy", "credentials"] {
+        for forbidden in [
+            "must-not-appear",
+            "private.example",
+            "never-copy",
+            "credentials",
+        ] {
             assert!(!text.contains(forbidden));
         }
     }
