@@ -741,6 +741,24 @@ EOF
 services:
 EOF
 
+                    # Scoped service-to-service credentials. Unlike management
+                    # tokens, these authorize only history READ and Role CHECK.
+                    audit_dir="$INSTANCE_ROOT/secrets/audit-services"
+                    mkdir -p "$audit_dir"
+                    chmod 0700 "$audit_dir"
+                    account_audit_token="$audit_dir/account-history-read.token"
+                    role_check_token="$audit_dir/role-auth-check.token"
+                    for scoped_token in "$account_audit_token" "$role_check_token"; do
+                      if [ ! -f "$scoped_token" ]; then
+                        (
+                          umask 077
+                          od -An -N32 -tx1 /dev/urandom | tr -d '[:space:]' > "$scoped_token"
+                        )
+                      fi
+                      test "$(wc -c < "$scoped_token")" -eq 64
+                      chmod 0444 "$scoped_token"
+                    done
+
                     tab="$(printf '\t')"
 
                     while IFS="$tab" read -r module_id safe_id module_dir revision image build_type build_context dockerfile; do
@@ -813,7 +831,11 @@ EOF
       MANAFIELD_MANAGE_SSO_END_SESSION_URL: "http://module-manafield-account-core:8080/account/oauth/end-session"
       MANAFIELD_MANAGE_SSO_CLIENT_ID: "manafield-manage-web"
       MANAFIELD_MANAGE_SSO_REDIRECT_URL: "https://manage.manafield.studio/auth/callback"
+      MANAFIELD_MANAGE_ROLE_AUTH_CHECK_TOKEN_FILE: "/run/manafield/security/role-check.token"
+      MANAFIELD_MANAGE_ACCOUNT_AUDIT_READ_TOKEN_FILE: "/run/manafield/security/account-history.token"
 EOF
+                        printf '%s\\t%s\\n' "$role_check_token" "/run/manafield/security/role-check.token" >> "$binding_mounts"
+                        printf '%s\\t%s\\n' "$account_audit_token" "/run/manafield/security/account-history.token" >> "$binding_mounts"
                       fi
 
                       if [ "$module_id" = "manafield-account-core" ]; then
@@ -835,6 +857,9 @@ EOF
                           >> "$RELEASE_DIR/modules.compose.yml"
                         cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
       MANAFIELD_ACCOUNT_OAUTH_CLIENTS_JSON: '{"manafield-manage-web":"https://manage.manafield.studio/auth/callback"}'
+      # Trust only the ingress container resolved on the shared edge network.
+      # All other callers retain their direct TCP peer; XFF is never trusted.
+      MANAFIELD_ACCOUNT_TRUSTED_PROXY_HOST: "traefik"
 EOF
 
                         printf '%s\\t%s\\n' \
@@ -862,6 +887,20 @@ EOF
                         printf '%s\\t%s\\n' \
                           "$management_file" "/run/manafield/management/token" \
                           >> "$binding_mounts"
+                      fi
+
+                      if [ "$module_id" = "manafield-account-core" ]; then
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
+      MANAFIELD_ACCOUNT_AUDIT_READ_TOKEN_FILE: "/run/manafield/security/account-history.token"
+EOF
+                        printf '%s\\t%s\\n' "$account_audit_token" "/run/manafield/security/account-history.token" >> "$binding_mounts"
+                      fi
+
+                      if [ "$module_id" = "manafield-account-role" ]; then
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
+      MANAFIELD_ROLE_AUTH_CHECK_TOKEN_FILE: "/run/manafield/security/role-check.token"
+EOF
+                        printf '%s\\t%s\\n' "$role_check_token" "/run/manafield/security/role-check.token" >> "$binding_mounts"
                       fi
 
                       while IFS="$tab" read -r binding_module binding_slot binding_target; do
