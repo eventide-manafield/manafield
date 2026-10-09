@@ -1,6 +1,7 @@
 mod bindings;
 mod build;
 mod deploy;
+mod log;
 mod release;
 mod staging;
 mod workspace;
@@ -25,6 +26,7 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
+    Log(log::Options),
     Extension {
         namespace: String,
         arguments: Vec<String>,
@@ -90,6 +92,7 @@ where
             "Core is a separate executable; run manafield-core".to_owned(),
         )),
         "health" => ensure_no_more(args, Command::Health),
+        "log" => Ok(Command::Log(log::parse(args)?)),
         "bindings" => parse_bindings_args(args),
         "use" => parse_use_args(args),
         "module" => parse_module_args(args),
@@ -500,6 +503,7 @@ fn run_extension(namespace: &str, arguments: &[String]) -> Result<(), CliError> 
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
         Command::Health => print_health(),
+        Command::Log(options) => log::run(options),
         Command::Extension {
             namespace,
             arguments,
@@ -692,6 +696,8 @@ pub fn print_help() {
            use [RELEASE_ID]  Select a Release as editable YAML (or show selection)\n\
                              option: --instance-root DIR\n\
            health            Show Core health\n\
+           log               Read private local Core logs (operator-only)\n\
+                             options: --file PATH --level LEVEL --source NAME --since 1h --audit --limit N --json\n\
            ps                Show Core, Module, and Resource summary\n\
            resource [ID]     List Resources or show one Resource\n\
            plan [INSTANCE]   Resolve an Instance Definition into a Build Plan\n\
@@ -1282,6 +1288,18 @@ mod tests {
             "📦",
         ] {
             assert!(!valid_extension_namespace(rejected), "{rejected}");
+        }
+    }
+
+    #[test]
+    fn parses_log_command_without_accessing_core_http() {
+        let parsed = parse_args(args(&["log", "--level", "warn", "--source", "account"])).unwrap();
+        match parsed {
+            Command::Log(opts) => {
+                assert_eq!(opts.level.as_deref(), Some("warn"));
+                assert_eq!(opts.source.as_deref(), Some("account"));
+            }
+            _ => panic!("log command not registered"),
         }
     }
 
