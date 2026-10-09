@@ -292,10 +292,14 @@ fn validate_definition(definition: &InstanceDefinition) -> Result<(), String> {
         if slot != "loggingState" {
             return Err(format!("unknown Core binding slot '{slot}'"));
         }
-        if !definition.resources.iter().any(|r| {
-            r.enabled && r.id == *target && r.provider == "postgresql"
-        }) {
-            return Err(format!("core.bindings.loggingState must target an enabled PostgreSQL Resource, got '{target}'"));
+        if !definition
+            .resources
+            .iter()
+            .any(|r| r.enabled && r.id == *target && r.provider == "postgresql")
+        {
+            return Err(format!(
+                "core.bindings.loggingState must target an enabled PostgreSQL Resource, got '{target}'"
+            ));
         }
     }
 
@@ -738,7 +742,13 @@ deployment:
         assert_eq!(plan.core.bindings.get("loggingState").unwrap(), "postgres");
         assert!(validate_yaml(&basic.replace("provider: postgresql", "provider: redis")).is_err());
         assert!(validate_yaml(&basic.replace("loggingState", "unknownSlot")).is_err());
-        assert!(validate_yaml(&basic.replace("provider: postgresql", "provider: postgresql\n    enabled: false")).is_err());
+        assert!(
+            validate_yaml(&basic.replace(
+                "provider: postgresql",
+                "provider: postgresql\n    enabled: false"
+            ))
+            .is_err()
+        );
     }
 
     #[test]
