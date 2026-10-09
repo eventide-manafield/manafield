@@ -683,9 +683,21 @@ EOF
                     # or Jenkins logs; the Postgres Provider owns schema allocation.
                     if [ -s ci-plan/core-bindings.tsv ]; then
                       tab="$(printf '\t')"
+                      core_dsn_written=false
                       while IFS="$tab" read -r consumer slot target host port database schema username secret_file; do
                         [ "$consumer" = "manafield-core" ] || continue
                         [ "$slot" = "loggingState" ] || exit 1
+                        if [ "$core_dsn_written" = true ]; then
+                          echo "Multiple Core logging PostgreSQL bindings are not supported." >&2
+                          exit 1
+                        fi
+                        expected_target="$(
+                          awk -F '\t' '$1 == "loggingState" { print $2; exit }' ci-plan/core-bindings.tsv
+                        )"
+                        [ "$target" = "$expected_target" ] || {
+                          echo "Materialized Core log Resource differs from Instance binding." >&2
+                          exit 1
+                        }
                         test -f "$secret_file"
                         password="$(head -n 1 "$secret_file")"
                         test "${#password}" -eq 48
@@ -711,7 +723,12 @@ EOF
                           "MANAFIELD_LOG_POSTGRES_SCHEMA=$schema" \
                           "MANAFIELD_LOG_DSN_FILE_HOST=$dsn_file" \
                           >> "$RELEASE_DIR/release.env"
+                        core_dsn_written=true
                       done < postgresql-bindings.tsv
+                      if [ "$core_dsn_written" != true ]; then
+                        echo "Core loggingState binding was not materialized; refusing incomplete Release." >&2
+                        exit 1
+                      fi
                     fi
 
                     printf '%s\n' "$compose_profiles" > "$RELEASE_DIR/compose-profiles.txt"

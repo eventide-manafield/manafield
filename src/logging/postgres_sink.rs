@@ -3,7 +3,7 @@
 use std::io;
 use std::path::Path;
 use std::str::FromStr;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
 use postgres::{Client, NoTls};
@@ -109,23 +109,35 @@ fn insert(client: &mut Client, schema: &str, value: &LogRecord) -> Result<(), po
 
 pub fn run(config: Config, queue: Receiver<LogRecord>) {
     let mut client = None;
-    let mut retry_after = None::<Instant>;
-    while let Ok(event) = queue.recv() {
-        if retry_after.is_some_and(|until| Instant::now() < until) {
-            continue; // Console/private JSONL still have the event.
-        }
-        if client.is_none() {
+    let mut next_attempt = Instant::now();
+
+    loop {
+        // A configured sink must retry even when Core is idle. The database
+        // may be provisioned after Core becomes healthy, and waiting for a
+        // fresh event would otherwise leave the sink disconnected indefinitely.
+        if client.is_none() && Instant::now() >= next_attempt {
             match connect(&config) {
                 Ok(connected) => client = Some(connected),
                 Err(_) => {
                     eprintln!(
                         "(warn)[logging] optional PostgreSQL log sink unavailable; console/file logging continues"
                     );
-                    retry_after = Some(Instant::now() + Duration::from_secs(10));
-                    continue;
+                    next_attempt = Instant::now() + Duration::from_secs(10);
                 }
             }
         }
+
+        let wait = if client.is_none() {
+            next_attempt.saturating_duration_since(Instant::now())
+        } else {
+            Duration::from_secs(10)
+        };
+        let event = match queue.recv_timeout(wait) {
+            Ok(event) => event,
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => return,
+        };
+
         if let Some(ref mut live) = client
             && insert(live, &config.schema, &event).is_err()
         {
@@ -133,8 +145,10 @@ pub fn run(config: Config, queue: Receiver<LogRecord>) {
                 "(warn)[logging] PostgreSQL log insert failed; console/file logging continues"
             );
             client = None;
-            retry_after = Some(Instant::now() + Duration::from_secs(10));
+            next_attempt = Instant::now() + Duration::from_secs(10);
         }
+        // If the database is down, drop only its mirror copy; the event
+        // already reached the console and private JSONL storage.
     }
 }
 
