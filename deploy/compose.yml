@@ -8,7 +8,7 @@ services:
     environment:
       MANAFIELD_BIND: 0.0.0.0:8080
       MANAFIELD_MODULES_DIR: /var/lib/manafield/modules
-      RUST_LOG: ${MANAFIELD_LOG:-manafield=info}
+      RUST_LOG: ${MANAFIELD_LOG:-manafield=info,manafield_core=info}
       MANAFIELD_LOG_FILE: /var/lib/manafield/logs/core.jsonl
     ports:
       - "127.0.0.1:${MANAFIELD_CORE_PORT:-18080}:8080"
