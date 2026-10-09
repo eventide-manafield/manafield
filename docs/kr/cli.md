@@ -263,3 +263,16 @@ Core, Module, PostgreSQL Resource Provider 이미지를 Docker로 빌드합니�
 이 명령은 source checkout, Build Plan 해석, binding materialization,
 release staging을 수행하지 않습니다. 현재는 Jenkins가 입력을 준비해야 하므로
 CLI만으로 Instance를 처음부터 구축하는 기능은 아직 구현 중입니다.
+
+## Manafield Manage SSO (OAuth 2.0 PKCE v0)
+
+Jenkins `Stage Release` explicitly configures the registered first-party OAuth client on `manafield-account-core` and the authorization, token, userinfo, client ID, and callback URLs on `manafield-manage-web`.
+
+- Public browser authorization: `https://manafield.studio/account/oauth/authorize`
+- Private token/userinfo network: `http://module-manafield-account-core:8080/account/oauth/...`
+- Callback: `https://manage.manafield.studio/auth/callback` (exact registration)
+- Manage enforces SSO on every route except `/manafield/health`, including module details and CSS. Missing/invalid SSO config causes Manage startup to fail closed.
+- Account Core keeps login sessions on `manafield.studio`; Manage receives **only** its own host-only cookie and keeps short-lived opaque OAuth credentials in server memory. Authenticated identities are checked by Account Core on every Manage request.
+- Account Role Permission verification and Manage mutation controls are **not** part of this SSO step. Logging in is not authorization for server operations.
+- This is first-party OAuth2 Authorization Code + PKCE S256 with userinfo, **not yet a full OIDC provider** (Discovery, ID Token, JWKS not included).
+
