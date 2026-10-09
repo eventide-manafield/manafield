@@ -107,14 +107,37 @@ fn insert(client: &mut Client, schema: &str, value: &LogRecord) -> Result<(), po
     Ok(())
 }
 
+// Keep the oldest event in flight while waiting for a disconnected DB.
+// Remaining records stay in the bounded channel rather than being drained
+// and dropped before the PostgreSQL Provider has created the schema.
+fn wait_for_connection(
+    queue: &Receiver<LogRecord>,
+    pending: &mut Option<LogRecord>,
+    next_attempt: Instant,
+) -> bool {
+    let delay = next_attempt.saturating_duration_since(Instant::now());
+    if pending.is_some() {
+        std::thread::sleep(delay);
+        return true;
+    }
+    match queue.recv_timeout(delay) {
+        Ok(event) => {
+            *pending = Some(event);
+            true
+        }
+        Err(RecvTimeoutError::Timeout) => true,
+        Err(RecvTimeoutError::Disconnected) => false,
+    }
+}
+
 pub fn run(config: Config, queue: Receiver<LogRecord>) {
     let mut client = None;
     let mut next_attempt = Instant::now();
+    let mut pending = None;
 
     loop {
-        // A configured sink must retry even when Core is idle. The database
-        // may be provisioned after Core becomes healthy, and waiting for a
-        // fresh event would otherwise leave the sink disconnected indefinitely.
+        // The Provider starts only after Core is healthy. Retain queued
+        // startup events until its schema becomes available, then flush them.
         if client.is_none() && Instant::now() >= next_attempt {
             match connect(&config) {
                 Ok(connected) => client = Some(connected),
@@ -127,34 +150,91 @@ pub fn run(config: Config, queue: Receiver<LogRecord>) {
             }
         }
 
-        let wait = if client.is_none() {
-            next_attempt.saturating_duration_since(Instant::now())
-        } else {
-            Duration::from_secs(10)
-        };
-        let event = match queue.recv_timeout(wait) {
-            Ok(event) => event,
-            Err(RecvTimeoutError::Timeout) => continue,
-            Err(RecvTimeoutError::Disconnected) => return,
-        };
+        if client.is_none() {
+            if !wait_for_connection(&queue, &mut pending, next_attempt) {
+                return;
+            }
+            continue;
+        }
 
+        let event = if let Some(event) = pending.take() {
+            event
+        } else {
+            match queue.recv() {
+                Ok(event) => event,
+                Err(_) => return,
+            }
+        };
         if let Some(ref mut live) = client
             && insert(live, &config.schema, &event).is_err()
         {
             eprintln!(
                 "(warn)[logging] PostgreSQL log insert failed; console/file logging continues"
             );
+            // Keep the failed event for retry. After an ambiguous transport
+            // failure, the mirror can contain duplicates (at-least-once).
+            pending = Some(event);
             client = None;
             next_attempt = Instant::now() + Duration::from_secs(10);
         }
-        // If the database is down, drop only its mirror copy; the event
-        // already reached the console and private JSONL storage.
+        // The producer uses try_send on a 1024-entry bounded channel, so an
+        // extended outage never stalls Core or grows memory without limit.
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pending_record_is_kept_while_db_is_unavailable() {
+        use std::sync::mpsc::sync_channel;
+
+        let (sender, receiver) = sync_channel(2);
+        let first = LogRecord {
+            timestamp_ms: 1,
+            level: "info".into(),
+            source: "core".into(),
+            event: None,
+            message: "Core is listening".into(),
+            fields: Default::default(),
+        };
+        let second = LogRecord {
+            timestamp_ms: 2,
+            message: "Resource registered".into(),
+            ..first.clone()
+        };
+        sender.send(first.clone()).unwrap();
+        let mut pending = None;
+        assert!(wait_for_connection(
+            &receiver,
+            &mut pending,
+            Instant::now() + Duration::from_millis(10),
+        ));
+        assert_eq!(pending, Some(first));
+
+        sender.send(second.clone()).unwrap();
+        assert!(wait_for_connection(
+            &receiver,
+            &mut pending,
+            Instant::now() + Duration::from_millis(2),
+        ));
+        assert_eq!(pending.as_ref().unwrap().message, "Core is listening");
+        assert_eq!(receiver.try_recv().unwrap(), second);
+    }
+
+    #[test]
+    fn disconnected_queue_exits_if_no_event_is_pending() {
+        use std::sync::mpsc::sync_channel;
+        let (sender, receiver) = sync_channel(1);
+        drop(sender);
+        let mut pending = None;
+        assert!(!wait_for_connection(
+            &receiver,
+            &mut pending,
+            Instant::now(),
+        ));
+    }
 
     #[test]
     fn only_safe_postgres_identifiers_accepted() {
