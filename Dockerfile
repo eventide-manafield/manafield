@@ -54,7 +54,7 @@ COPY --from=core-builder /tmp/manafield-core /usr/local/bin/manafield-core
 
 ENV MANAFIELD_BIND=0.0.0.0:8080 \
     MANAFIELD_MODULES_DIR=/var/lib/manafield/modules \
-    RUST_LOG=manafield=info \
+    RUST_LOG=manafield=info,manafield_core=info \
     MANAFIELD_LOG_FILE=/var/lib/manafield/logs/core.jsonl
 
 WORKDIR /var/lib/manafield
