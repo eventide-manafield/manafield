@@ -620,6 +620,9 @@ EOF
 
                     cp deploy/compose.yml "$RELEASE_DIR/compose.yml"
                     cp build-plan.json "$RELEASE_DIR/build-plan.json"
+                    ./manafield-cli bindings export \
+                      --plan "$RELEASE_DIR/build-plan.json" \
+                      --output "$RELEASE_DIR/manage-bindings.json"
                     cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
 
                     printf '%s\n' \
@@ -687,6 +690,21 @@ EOF
 
                       binding_mounts="$RELEASE_DIR/.binding-mounts-$safe_id"
                       : > "$binding_mounts"
+
+                      if [ "$module_id" = "manafield-manage-web" ]; then
+                        # Read-only directory mount: atomic file replacement is visible
+                        # to a running container; a bind-mounted single file is not.
+                        manage_assets="$INSTANCE_ROOT/manage-assets"
+                        mkdir -p "$manage_assets"
+                        chmod 0755 "$manage_assets"
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+      MANAFIELD_MANAGE_BINDINGS_FILE: "/run/manafield/manage/bindings.json"
+      MANAFIELD_MANAGE_CUSTOM_CSS_FILE: "/run/manafield/manage/custom.css"
+EOF
+                        printf '%s\t%s\n' \
+                          "$manage_assets" "/run/manafield/manage" \
+                          >> "$binding_mounts"
+                      fi
 
                       if [ "$module_id" = "manafield-account-core" ]; then
                         management_dir="$INSTANCE_ROOT/secrets/account-core"
@@ -955,6 +973,19 @@ EOF
                     }
 
                     verify_expected_modules
+
+                    # Publish the active binding projection only after Module Registry
+                    # verification succeeds. Never publish candidate/failed Releases.
+                    if awk -F '\t' '$1 == "manafield-manage-web" { found=1 } END { exit(found ? 0 : 1) }' ci-plan/modules.tsv; then
+                      target_dir="$INSTANCE_ROOT/manage-assets"
+                      test -d "$target_dir"
+                      test -s "$RELEASE_DIR/manage-bindings.json"
+                      tmp="$target_dir/.bindings.json.$BUILD_NUMBER.tmp"
+                      cp "$RELEASE_DIR/manage-bindings.json" "$tmp"
+                      chmod 0644 "$tmp"
+                      mv -f "$tmp" "$target_dir/bindings.json"
+                      echo "Published verified Manage binding snapshot."
+                    fi
                     echo "Deployment verification passed."
                 '''
             }

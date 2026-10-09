@@ -23,6 +23,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Health,
+    ExportBindings {
+        plan: String,
+        output: String,
+    },
     ModuleBind {
         consumer: String,
         slot: String,
@@ -80,6 +84,7 @@ where
             "Core is a separate executable; run manafield-core".to_owned(),
         )),
         "health" => ensure_no_more(args, Command::Health),
+        "bindings" => parse_bindings_args(args),
         "use" => parse_use_args(args),
         "module" => parse_module_args(args),
         "ps" => ensure_no_more(args, Command::Ps),
@@ -101,6 +106,42 @@ where
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
         other => Err(CliError::Usage(format!("unknown command '{other}'"))),
     }
+}
+
+fn parse_bindings_args<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    if args.next().as_deref() != Some("export") {
+        return Err(CliError::Usage(
+            "bindings requires: export --plan BUILD-PLAN.json --output FILE".into(),
+        ));
+    }
+    let (mut plan, mut output) = (None, None);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--plan" if plan.is_none() => {
+                plan = Some(args.next().ok_or_else(|| {
+                    CliError::Usage("--plan requires a JSON Build Plan path".into())
+                })?);
+            }
+            "--output" if output.is_none() => {
+                output = Some(
+                    args.next()
+                        .ok_or_else(|| CliError::Usage("--output requires a path".into()))?,
+                );
+            }
+            other => {
+                return Err(CliError::Usage(format!(
+                    "unknown or repeated bindings export option '{other}'"
+                )));
+            }
+        }
+    }
+    Ok(Command::ExportBindings {
+        plan: plan.ok_or_else(|| CliError::Usage("missing --plan".into()))?,
+        output: output.ok_or_else(|| CliError::Usage("missing --output".into()))?,
+    })
 }
 
 fn parse_module_args<I>(mut args: I) -> Result<Command, CliError>
@@ -404,6 +445,7 @@ where
 pub fn run(command: Command) -> Result<(), CliError> {
     match command {
         Command::Health => print_health(),
+        Command::ExportBindings { plan, output } => bindings::export(&plan, &output),
         Command::ModuleBind {
             consumer,
             slot,
@@ -584,6 +626,8 @@ pub fn print_help() {
            manafield [COMMAND]\n\
          \n\
          Commands:\n\
+           bindings export   Export safe Module binding snapshot for Manage Web\n\
+                             options: --plan FILE --output FILE\n\
            module bind A B C  Set consumer A requirement slot B to Instance C\n\
                              option: --instance-root DIR\n\
            use [RELEASE_ID]  Select a Release as editable YAML (or show selection)\n\
@@ -883,6 +927,37 @@ mod tests {
             parse_args(args(&["serve"])),
             Err(CliError::Usage(_))
         ));
+    }
+
+    #[test]
+    fn parses_bindings_export() {
+        assert_eq!(
+            parse_args(args(&[
+                "bindings",
+                "export",
+                "--plan",
+                "build-plan.json",
+                "--output",
+                "bindings.json"
+            ]))
+            .unwrap(),
+            Command::ExportBindings {
+                plan: "build-plan.json".to_owned(),
+                output: "bindings.json".to_owned(),
+            }
+        );
+        for invalid in [
+            vec!["bindings", "export", "--plan", "plan.json"],
+            vec!["bindings", "export", "--output", "bindings.json"],
+            vec![
+                "bindings", "export", "--plan", "a", "--output", "b", "--plan", "c",
+            ],
+        ] {
+            assert!(matches!(
+                parse_args(args(&invalid)),
+                Err(CliError::Usage(_))
+            ));
+        }
     }
 
     #[test]
