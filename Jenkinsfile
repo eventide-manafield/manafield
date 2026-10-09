@@ -567,12 +567,12 @@ EOF
 
                         if [ ! -f "$secret_file" ]; then
                           umask 077
-                          password="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \\n')"
+                          password="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
                           test -n "$password"
-                          printf '%s\\n' "$password" > "$secret_file"
+                          printf '%s\n' "$password" > "$secret_file"
                         fi
                         chmod 0444 "$secret_file"
-                        printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
+                        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
                           "manafield-core" "$binding_slot" "$binding_target" \
                           "manafield-postgres" "5432" "manafield" \
                           "$identifier" "$identifier" "$secret_file" \
@@ -700,13 +700,13 @@ EOF
                         dsn_file="$dsn_dir/postgres.dsn"
                         temporary="$dsn_dir/.postgres.dsn.$BUILD_NUMBER.tmp"
                         umask 077
-                        printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\\n' \
+                        printf 'postgres://%s:%s@%s:%s/%s?sslmode=disable\n' \
                           "$username" "$password" "$host" "$port" "$database" \
                           > "$temporary"
                         chmod 0444 "$temporary"
                         mv -f "$temporary" "$dsn_file"
 
-                        printf '%s\\n' \
+                        printf '%s\n' \
                           "MANAFIELD_LOG_POSTGRES_DSN_FILE=/run/manafield/logging/postgres.dsn" \
                           "MANAFIELD_LOG_POSTGRES_SCHEMA=$schema" \
                           "MANAFIELD_LOG_DSN_FILE_HOST=$dsn_file" \
