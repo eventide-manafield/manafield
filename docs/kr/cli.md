@@ -37,7 +37,7 @@ manafield use --instance-root /path/to/instance
 
 명시적 `use A`는 기존 미저장 작업본을 버리고 A를 불러오는 작업이야. 다만 지정한 Release가 없거나 YAML이 잘못됐으면 이전 작업본을 유지해. `use`만 실행하면 선택 상태와 수정 여부를 조회해. 이 단계에서는 **실제 Module/Resource 또는 Docker를 전혀 변경하지 않아.**
 
-이제 `module bind`는 `use` 없이도 기존 작업본 → `manafield/state/active-release.json`의 마지막 배포 Release → 초기 `instance.yaml` 순서로 작업본을 선택하거나 생성해. 없으면 오류를 반환하고 빈 YAML을 만들지 않아. 현재는 `active-release.json`에 `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}` 형식을 사용할 예정이며, 해당 상태 파일을 실제 배포 성공 시 쓰는 부분은 아직 미구현이야.
+이제 `module bind`는 `use` 없이도 기존 작업본 → `manafield/state/active-release.json`의 마지막 배포 Release → 초기 `instance.yaml` 순서로 작업본을 선택하거나 생성해. 없으면 오류를 반환하고 빈 YAML을 만들지 않아. `active-release.json`의 `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}`는 **새 Release-ID 직접 배포에서 Compose 적용과 Core Health 검증이 성공하면 기록**돼. 기존 Jenkins 레거시 배포 경로가 이 상태 파일을 자동으로 갱신한다고 가정하면 안 돼.
 
 ## Module Binding 수정 — Docker 불필요
 
@@ -172,7 +172,7 @@ cargo run --locked --bin manafield -- deploy \
 
 새 Release는 Docker 빌드 실패와 관계없이 불변 YAML로 남아. 같은 Release를 재시도하면 유효한 기존 준비 산출물을 재사용하며 데이터 볼륨이나 비밀번호 파일을 지우지 않아. Resource 재사용은 **볼륨과 인증정보를 유지한다는 의미**로, PostgreSQL 데이터/계정 마이그레이션이나 기존 Jenkins 설치의 인증정보 자동 이전을 보증하지 않아. 기존 Jenkins PostgreSQL Volume의 데이터는 새 Instance로 자동 이전되지 않으니 이관 시 별도 절차가 필요해.
 
-Core `/health`까지 통과하면 활성 Release를 기록하지만, 모든 Module/Resource의 등록/실제 가용성은 별도로 확인해야 해. 이 기능은 이미지 digest 잠금, 이전 배포 자동 롤백, Ingress 반영, 파괴적 리소스 제거를 포함하지 않아. **실제 Docker 엔진 통합 검증은 아직 필요해.**
+Core `/health`까지 통과하면 활성 Release를 기록하지만, 모든 Module/Resource의 등록/실제 가용성은 별도로 확인해야 해. 이 기능은 이미지 digest 잠금, 이전 배포 자동 롤백, Ingress 반영, 파괴적 리소스 제거를 포함하지 않아. **새 직접 배포 경로의 전체 Docker/Resource 통합 검증은 아직 필요해. PR #22 리팩터링의 별도 Core Docker 격리 실행 테스트는 통과했지만, 전체 Instance 직접 배포 검증을 대체하지는 않아.**
 
 ## 불변 Release 확정과 적용 — 단계적 구현
 
@@ -277,7 +277,7 @@ Core, Module, PostgreSQL Resource Provider 이미지를 Docker로 빌드합니�
 
 이 명령은 source checkout, Build Plan 해석, binding materialization,
 release staging을 수행하지 않습니다. 현재는 Jenkins가 입력을 준비해야 하므로
-CLI만으로 Instance를 처음부터 구축하는 기능은 아직 구현 중입니다.
+레거시 `build WORKSPACE ...` 자체는 Instance를 처음부터 준비하지 않습니다. **별도의 `deploy [release-id] --source DIR` 명령은 위에서 정의한 제한된 v0 범위에서 직접 준비·배포를 구현했습니다.**
 
 ## Manafield Manage SSO (OAuth 2.0 PKCE v0)
 
@@ -288,6 +288,7 @@ Jenkins `Stage Release` explicitly configures the registered first-party OAuth c
 - Callback: `https://manage.manafield.studio/auth/callback` (exact registration)
 - Manage enforces SSO on every route except `/manafield/health`, including module details and CSS. Missing/invalid SSO config causes Manage startup to fail closed.
 - Account Core keeps login sessions on `manafield.studio`; Manage receives **only** its own host-only cookie and keeps short-lived opaque OAuth credentials in server memory. Authenticated identities are checked by Account Core on every Manage request.
-- Account Role Permission verification and Manage mutation controls are **not** part of this SSO step. Logging in is not authorization for server operations.
+- SSO 인증만으로 서버 운영 권한을 얻지는 못합니다. **`/security/login-history`는 검증된 Identity의 Account Role `log.audit.read` 권한을 서버 측에서 확인**하며, 그 외 Manage 운영 변경 기능은 아직 미구현입니다.
+- 로그인 감사 이력 조회에는 별도의 읽기 전용 Account 토큰과 Role 검사 전용 토큰을 사용하고 전체 관리 토큰은 Manage에 제공하지 않습니다. 새 토큰은 Jenkins Stage Release에서 비공개 파일로 생성·마운트합니다.
 - This is first-party OAuth2 Authorization Code + PKCE S256 with userinfo, **not yet a full OIDC provider** (Discovery, ID Token, JWKS not included).
 

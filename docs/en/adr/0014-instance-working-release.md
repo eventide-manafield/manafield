@@ -1,6 +1,6 @@
 # ADR-0014 — Instance Working Copy, Immutable Releases, Persistent Resources
 
-- Status: Accepted (architecture decision; CLI syntax and implementation are planned)
+- Status: Accepted (architecture decision; bounded CLI v0 implementation exists; see implementation note below)
 - Date: 2026-10-08
 - Related: [ADR-0006](0006-instance-build-plan.md), [ADR-0010](0010-capability-dependency-resolution.md), [ADR-0013](0013-docker-v0-cli-execution.md)
 
@@ -47,7 +47,7 @@ manafield deploy B
 - An argument-free `deploy` may generate a new Release ID and print it. Re-deploy an existing Release explicitly using `deploy A`.
 - `use` changes the selected editing baseline, not the live deployment. Record the last selected base Release in `manafield/temp/context.json` and the successful live Release separately in `manafield/state/active-release.json`. CLI restarts do not discard temp edits.
 
-These commands are a **target design**, not currently implemented syntax. A separate `release create` is not required initially; snapshotting belongs to the new-release deploy transaction. A save-without-deploy operation may be added later.
+These commands are **implemented within the supported v0 subset**. This ADR preserves the design decision; consult the CLI guide for exact deployment limits. A separate `release create` is not required initially; snapshotting belongs to the new-release deploy transaction. A save-without-deploy operation may be added later.
 
 ## Paths and ID
 
@@ -91,7 +91,7 @@ An immutable YAML snapshot allows retrying or re-applying an earlier desired con
 
 - Split the `manafield` CLI binary from `manafield-core`, shipping both together, with shared management/deployment logic.
 - Redesign the `build` command family for **Manafield platform artifacts only**. The current Jenkins-compatibility `manafield build WORKSPACE REVISION CORE_IMAGE` also builds external Modules, which conflicts with this target.
-- Working-copy `use` and `module bind` are implemented in CLI v0. Immutable Release YAML creation, `deploy <release-id>`, and persistent Resource reuse remain future work.
+- Working-copy `use` / `module bind`, immutable YAML Releases, Release-ID deployment and one PostgreSQL Resource preparation are implemented for supported direct-deploy v0. Direct ingress, multiple/external Resource providers, and full recovery remain future work.
 - Maintain existing Jenkins/CLI `plan`, legacy `build`, and `deploy RELEASE_DIR` during the migration; do not represent them as already following this new contract.
 
 ## CLI implementation status (2026-10-08)
@@ -102,7 +102,7 @@ An immutable YAML snapshot allows retrying or re-applying an earlier desired con
 
 `manafield deploy [release-id]` now validates a working copy and atomically commits a new immutable YAML snapshot (or applies an existing one unless dirty working edits conflict). Without an ID it allocates `vN_UTCtimestamp`; `--snapshot-only` stops after saving.
 
-Runtime application currently requires `--staged-dir DIR` with pre-created Compose artifacts and `build-plan.json`. The staged Build Plan must match the Release or Docker execution is rejected. Success currently means **Compose application and Core HTTP health**, not full Module/Resource health or ingress verification.
+Runtime application either accepts pre-created Compose artifacts and `build-plan.json` through `--staged-dir DIR`, or prepares them directly for the supported non-exposed Git/dir Module and single-PostgreSQL Resource v0 subset. The staged Build Plan must match the Release or Docker execution is rejected. Success currently means **Compose application and Core HTTP health**, not full Module/Resource health or ingress verification.
 
 The new path avoids `--remove-orphans` and records the last attempt and active Release separately. The old Jenkins-compatible `deploy RELEASE_DIR` stays unchanged. Immutable YAML alone does not pin all image digests, mutable external source refs or runtime data.
 
@@ -111,4 +111,5 @@ The new path avoids `--remove-orphans` and records the last attempt and active R
 Without `--staged-dir`, `deploy` prepares source/build/Compose artifacts from local Manafield Core source (`--source`, default cwd) for non-exposed Git/dir Modules and at most one PostgreSQL Resource. Git refs are fetched and checked out, and image tags include resolved commit IDs; `--modules-root` locates local Module directories. Other Resource providers and ingress/exposure fail explicitly.
 
 Direct mode currently records active Release after Core HTTP health, not full Module/Resource verification or DB migration. Existing PostgreSQL volumes and secrets are not deleted, but credential migration from Jenkins-managed installations is not automatic. Direct mode scopes Compose project name and internal network to the Instance ID, separate from the legacy Jenkins project. Real Docker integration remains necessary before calling it production-ready.
-\nDirect deployment derives a stable Core host port in 20000–39999 from the Instance ID, or uses the `MANAFIELD_CORE_PORT` environment override.\n
+
+Direct deployment derives a stable Core host port in 20000–39999 from the Instance ID, or uses the `MANAFIELD_CORE_PORT` environment override.

@@ -79,7 +79,7 @@ core:
 | `log.audit.read` | 감사 이벤트 |
 | `log.*` / `*` | 전체 로그 |
 
-`log.read.*`를 가진 사용자에게도 감사 이벤트는 보이지 않습니다. 그러나 **현재 실제 Account Role Binding에서 Permission을 조회하는 인증된 Web 로그 뷰어는 아직 미구현**입니다. 추후 신뢰된 Identity를 인증한 서버에서 Account Role의 유효 Permission을 조회해 이 정책에 전달하고, 각 요청에서 서버 측 필터링을 적용해야 합니다. CLI는 Role을 가장하지 않으며 로컬 Operator 권한에 의해 접근합니다.
+`log.read.*`를 가진 사용자에게도 감사 이벤트는 보이지 않습니다. **Manage의 `/security/login-history`는 별도 Account Core 로그인 감사 이력을 검증된 Identity의 Account Role `log.audit.read` Permission 검사 후 보여주는 읽기 전용 화면으로 구현됐습니다.** 그러나 이는 **Core의 JSONL/`core_log_events`를 보여주는 로그 뷰어가 아니며**, Core 로그의 Role 검증 웹 열람은 아직 미구현입니다. 추후 신뢰된 Identity를 인증한 서버에서 Account Role의 유효 Permission을 조회해 이 정책에 전달하고, 각 요청에서 서버 측 필터링을 적용해야 합니다. CLI는 Role을 가장하지 않으며 로컬 Operator 권한에 의해 접근합니다. Account Core 로그인 이력은 `/manafield-account-core account history`에서 별도로 조회합니다.
 
 ## 프라이버시·보존
 

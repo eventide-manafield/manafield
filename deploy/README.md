@@ -38,9 +38,9 @@ Build Plan
 → exact revisions / image tags / affected components
 ```
 
-## Future Instance Release YAML (ADR-0014)
+## Immutable Instance Release YAML (ADR-0014, supported v0)
 
-The existing Jenkins `<instance-root>/releases/<BUILD_NUMBER>/` contains prepared Compose artifacts. It is **not** the new immutable Release YAML storage model.
+The Jenkins `<instance-root>/releases/<BUILD_NUMBER>/` continues to store pre-staged Compose artifacts. The **separate** Release-ID direct deployment command now implements immutable YAML snapshots within its supported v0 scope; Jenkins and CLI Release histories are not interchangeable.
 
 ```text
 <instance-root>/manafield/release/v1_20261008T070000Z.yaml
@@ -519,4 +519,8 @@ Credentials, registry tokens, runtime keys, and similar values must be injected 
 
 ## Status
 
-Draft / pre-alpha.
+Pre-alpha. Jenkins deploys the current multi-Module Instance and publishes Traefik ingress plus a validated Manage Binding snapshot. The new CLI Release-ID path can prepare/deploy private Git/dir Modules and one PostgreSQL Resource directly, but not the full Jenkins ingress/multi-Resource scope. Full direct Instance health/recovery still requires integration verification.
+
+On the Jenkins production path, Stage Release provisions separate read-only Account login-audit and Role-check credentials for Manage, and configures Account Core to accept forwarding headers **only** from the configured trusted Traefik peer. Manage never receives the full Account/Role management credentials.
+
+Do not treat a Jenkins release directory as the immutable YAML snapshot of CLI `deploy <release-id>`.

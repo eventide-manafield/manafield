@@ -1,6 +1,6 @@
 # ADR-0014 — Instance 작업본, 불변 Release, 영속 Resource
 
-- 상태: Accepted (설계 원칙; CLI 명령 문법과 구현은 진행 예정)
+- 상태: Accepted (설계 원칙; CLI v0 제한 범위 구현 현황은 아래 참고)
 - 날짜: 2026-10-08
 - 관련 결정: [ADR-0006](0006-instance-build-plan.md), [ADR-0010](0010-capability-dependency-resolution.md), [ADR-0013](0013-docker-v0-cli-execution.md)
 
@@ -94,7 +94,7 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 
 - 별도 `manafield` CLI와 `manafield-core` 서버 바이너리 + 공통 관리/배포 코드로 분리
 - `build` 명령군을 **Manafield 플랫폼만** 빌드하도록 재설계. 현재 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 기능이며 외부 Module 이미지를 함께 빌드하므로 목표 계약과 다르다
-- 작업본 관리(`use`, `module bind`)는 CLI v0에서 구현됨. 불변 Release YAML 저장, `deploy <release-id>`와 Resource reuse는 향후 구현
+- 작업본 관리(`use`, `module bind`), 불변 Release YAML, `deploy <release-id>`, 단일 PostgreSQL Resource 준비는 제한된 v0 범위에서 구현됨. 다중/외부 Resource·Ingress 직접 배포와 완전한 복구는 미구현
 - 기존 Jenkins 파이프라인은 전환 과정의 frontend로 유지; 현행 `plan`/CLI `build`/CLI `deploy RELEASE_DIR`를 새 명령과 혼동하지 않도록 문서화
 
 ## CLI 구현 현황 (2026-10-08)
@@ -105,7 +105,7 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 
 `manafield deploy [release-id]`는 새 ID의 경우 작업본을 검증한 뒤 원자적으로 불변 YAML을 보존한다. 기존 ID는 작업본에 미저장 변경이 있으면 거부한다. ID가 없으면 `vN_UTC타임스탬프`를 발급한다. `--snapshot-only`는 YAML 확정만 수행한다.
 
-실제 적용에는 현재 `--staged-dir DIR` 옵션으로 외부에서 준비된 Compose 파일과 `build-plan.json`이 필요하다. Build Plan이 저장된 Release와 일치하지 않으면 Docker 호출을 거부한다. 배포 성공 판정은 **Compose 동작 및 Core HTTP 헬스**를 의미하며, 모든 Module/Resource의 헬스와 Ingress 반영은 후속 작업이다.
+실제 적용에는 `--staged-dir DIR`로 외부에서 준비된 Compose 파일과 `build-plan.json`을 제공하거나, 지원되는 비공개 Module/단일 PostgreSQL v0 구성에서 `--source DIR`로 CLI가 직접 준비할 수 있다. Build Plan이 저장된 Release와 일치하지 않으면 Docker 호출을 거부한다. 배포 성공 판정은 **Compose 동작 및 Core HTTP 헬스**를 의미하며, 모든 Module/Resource의 헬스와 Ingress 반영은 후속 작업이다.
 
 새 경로는 `--remove-orphans`를 사용하지 않고, 마지막 시도 상태와 활성 Release ID를 별도 JSON에 기록한다. 이전 Jenkins 방식의 디렉터리 기반 `deploy RELEASE_DIR`은 호환성 용도로 그대로 남는다. YAML 스냅샷만으로 이미지 digest, 외부 소스 ref, 데이터 상태가 완전히 고정되는 것은 아니다.
 
@@ -114,4 +114,5 @@ YAML 스냅샷을 남기면 같은 목표 구성으로 **재배포를 재시도*
 `deploy`는 사전 준비된 산출물 옵션 `--staged-dir`가 없으면, Core 소스(`--source`, 기본 cwd)를 기준으로 **비공개 Git/dir Module과 PostgreSQL 최대 1개**의 빌드/Materialization/Compose 산출물을 직접 생성할 수 있다. Git Module은 선언 ref를 Fetch/Checkout하여 이미지에 실제 Git 커밋 태그를 부여한다. `source.type: dir`은 `--modules-root` 옵션으로 찾는다. Ingress/Exposure 및 나머지 Resource Provider는 실패 우선 정책으로 거부한다.
 
 직접 배포는 Core 헬스 성공을 활성 상태 기록의 기준으로 사용하며, 전체 Module/Resource 검증과 데이터 마이그레이션, 과거 Jenkins 설치의 PostgreSQL 인증정보 자동 승계는 후속 과제다. PostgreSQL 볼륨과 기존 Secret은 삭제하지 않으며 직접 배포의 Compose 프로젝트 및 내부 네트워크는 Instance ID 기반으로 분리되어 기존 Jenkins 프로젝트와 충돌하지 않도록 한다. 실제 Docker Runtime 통합 검증 전까지 운영 준비 완료로 간주하지 않는다.
-\n직접 배포의 Core 호스트 포트는 Instance ID에서 파생한 20000~39999 범위를 기본으로 하며, 사용자 환경변수 `MANAFIELD_CORE_PORT`로 재지정 가능하다.\n
+
+직접 배포의 Core 호스트 포트는 Instance ID에서 파생한 20000~39999 범위를 기본으로 하며, 사용자 환경변수 `MANAFIELD_CORE_PORT`로 재지정 가능하다.
