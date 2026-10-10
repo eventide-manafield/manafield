@@ -12,7 +12,7 @@
 </p>
 
 > [!IMPORTANT]
-> **Pre-alpha / Design Stage**  
+> **Pre-alpha / Design and v0 Implementation Stage**
 > Manafield는 현재 Core architecture와 Module Protocol을 설계하고 있는 초기 단계입니다.
 >
 > **한국어 문서를 기준 문서로 우선합니다.**  
@@ -63,7 +63,7 @@ flowchart TB
 
 그런 플랫폼을 직접 만드는 것이 목표입니다.
 
-`manafield.studio`는 Manafield 자체가 아니라 **Eventide가 운영하는 하나의 Manafield 인스턴스**가 될 예정입니다.
+`manafield.studio`는 Manafield 자체가 아니라 **Eventide가 운영 중인 하나의 초기 Manafield 인스턴스**입니다. 현재 동작하는 v0 구성과 장기 Runtime/Module 관리 목표는 구별합니다.
 
 ## 개발 기준 버전
 
@@ -81,7 +81,7 @@ flowchart TB
 
 Core는 `(warn)[source] 메시지` 형식의 기본 콘솔 로그를 남기며, 공식 Docker 배포에서는 별도의 영구 볼륨에 구조화된 JSONL을 기록합니다. 운영자는 `docker exec manafield-core-1 /usr/local/bin/manafield log --level warn` 같은 방식으로 필터링할 수 있습니다.
 
-선택적 PostgreSQL 로그 Mirror는 `core.bindings.loggingState`에 PostgreSQL Resource를 지정하면 Jenkins에서 전용 DB Role/Schema가 자동 할당됩니다. Role별 기본 거부 정책도 제공하지만 **인증된 Role 기반 웹 로그 뷰어는 다음 통합 작업**입니다. [Logging 설계 및 현재 지원 범위](docs/kr/logging.md)를 참고하세요.
+선택적 PostgreSQL 로그 Mirror는 `core.bindings.loggingState`에 PostgreSQL Resource를 지정하면 Jenkins에서 전용 DB Role/Schema가 자동 할당됩니다. **Account 로그인 감사 이력은 별도 DB에 저장되어 Manage에서 `log.audit.read` 확인 후 열람 가능**하지만, Core JSONL/DB 로그의 인증된 Role 기반 웹 뷰어는 다음 통합 작업입니다. [Logging 설계 및 현재 지원 범위](docs/kr/logging.md)를 참고하세요.
 
 ## 기본 CLI
 
@@ -101,7 +101,7 @@ manafield deploy /opt/manafield/instance/releases/123
 
 `health`, `ps`, `resource` 같은 운영 command는 Core API를 사용합니다. 기본 API 주소는 `http://127.0.0.1:8080`이며, 필요하면 `MANAFIELD_CORE_URL`로 변경할 수 있습니다.
 
-`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build all`은 외부 Module을 제외한 Manafield 플랫폼 자체의 실행파일과 Docker 이미지(Core 및 공식 PostgreSQL Provider)를 생성합니다. `--no-docker`는 바이너리만 빌드합니다. 기존 `build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 명령입니다. `verify / rebuild`와 source checkout, release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **현재는 CLI만으로 전체 Instance를 처음부터 구축할 수 없습니다.**
+`plan`은 Instance Definition을 검증하고 Build Plan으로 해석합니다. `deploy RELEASE_DIR`은 이미 staging된 release에 대해 Docker Compose를 실행합니다. `build all`은 외부 Module을 제외한 Manafield 플랫폼 자체의 실행파일과 Docker 이미지(Core 및 공식 PostgreSQL Provider)를 생성합니다. `--no-docker`는 바이너리만 빌드합니다. 기존 `build WORKSPACE REVISION CORE_IMAGE`는 Jenkins 호환 과도기 명령입니다. `verify / rebuild`와 source checkout, release 준비 기능은 아직 Jenkins에서 CLI로 옮기는 중입니다. **지원되는 v0 범위의 Instance는 CLI + Docker로 직접 구축할 수 있습니다.** 다만 공개 Ingress, 다중·외부 Resource, 배포 전체 Health 검증·복구는 기존 Jenkins 경로나 후속 작업이 필요합니다.
 
 Core 서버는 `manafield-core`로 실행합니다. `manafield`를 인자 없이 실행하면 CLI 도움말을 출력하며, 이전의 `manafield serve`는 더 이상 서버를 시작하지 않습니다.
 
@@ -109,11 +109,11 @@ Core 서버는 `manafield-core`로 실행합니다. `manafield`를 인자 없이
 
 Manafield v0의 **전체 Instance 구축과 배포에는 Docker가 필요합니다.** Docker는 v0에서 의도적으로 채택한 deployment substrate이며, Jenkins는 필수 구성요소가 아닙니다.
 
-향후에는 로컬에서도 `manafield` CLI + Docker만으로 동일한 Instance를 구축할 수 있어야 합니다. 현재 `deploy`에는 사전 준비된 release, Docker CLI, Compose plugin, Docker daemon 접근 권한이 필요합니다. Jenkins는 webhook, approval, credential integration, build history를 담당하면서 같은 CLI 경로를 호출하는 방향으로 발전합니다.
+현재 CLI는 제한된 v0 Instance를 `deploy [release-id] --source DIR`로 직접 준비·배포할 수 있습니다. 준비된 산출물을 적용하는 레거시 `deploy RELEASE_DIR`과는 구별해야 하며, 직접 배포에도 Docker CLI/Compose/daemon 접근이 필요합니다. Jenkins는 webhook, approval, credential integration, build history를 담당하면서 같은 CLI 경로를 호출하는 방향으로 발전합니다.
 
 Core의 일반 Registry / Protocol 모델은 계속 Docker-specific privilege와 분리합니다. 자세한 결정은 [ADR-0013](docs/kr/adr/0013-docker-v0-cli-execution.md)을 참고합니다.
 
-### Release 작업 흐름 (향후 CLI)
+### Release 작업 흐름 (지원되는 v0 구현)
 
 구현된 `build all`은 **Manafield 플랫폼 자체만 빌드**합니다. 이미 존재하는 Module/Resource를 매번 빌드하는 명령이 아닙니다. Instance의 연결과 배포는 별도로 취급합니다.
 
@@ -190,6 +190,8 @@ Manafield 본체와 별도로 개발·배포되는 공개 모듈 및 모듈 제�
 
 ## 문서
 
+2026-10-10 구현 상태는 [Roadmap](docs/kr/roadmap.md)과 [CLI 가이드](docs/kr/cli.md)를 기준으로 확인하세요. 구현과 별개의 장기 설계 목표는 ADR에 기록합니다.
+
 한국어 문서를 기준으로 유지하며, 영어 문서는 이를 바탕으로 동기화합니다.
 
 - [CLI / Docker v0 실행 가이드](docs/kr/cli.md)
@@ -223,7 +225,7 @@ Its guiding principle is:
 
 > **Strict Core, free Modules.**
 
-The Core is planned to be implemented in **Rust**, while Modules may use any language or framework as long as they implement the Manafield Module Protocol.
+The Core is implemented in **Rust**, while Modules may use any language or framework as long as they implement the Manafield Module Protocol.
 
 Callable functionality exposed by a Module is described through a common **Operation** contract. An Operation describes its ID, optional description, Input/Output Schema, invocation Binding, and Payload Codec so Core can understand what a Module provides without knowing its implementation language.
 
@@ -259,7 +261,7 @@ manafield deploy /opt/manafield/instance/releases/123
 
 Operational commands such as `health`, `ps`, and `resource` use the Core API. The default API address is `http://127.0.0.1:8080` and may be overridden with `MANAFIELD_CORE_URL`.
 
-`plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. `build all` creates a Manafield-only platform bundle (CLI, Core, official tools) and Docker images for Core / the official PostgreSQL Provider; `--no-docker` builds binaries only. Legacy `build WORKSPACE REVISION CORE_IMAGE` remains Jenkins-specific. Verify, rebuild, source checkout, and release staging are still migrating; **a full CLI-only from-scratch Instance build is not yet implemented.**
+`plan` resolves an Instance Definition locally. `deploy RELEASE_DIR` runs Docker Compose for a previously staged release. `build all` creates a Manafield-only platform bundle (CLI, Core, official tools) and Docker images for Core / the official PostgreSQL Provider; `--no-docker` builds binaries only. Legacy `build WORKSPACE REVISION CORE_IMAGE` remains Jenkins-specific. Verify, rebuild, source checkout, and release staging are still migrating; **the CLI already builds supported v0 Instances from scratch**, while public ingress, multiple/external Resources, full health verification, and rollback remain future work.
 
 Run `manafield-core` to start the Core server. Running `manafield` without arguments prints CLI help; `manafield serve` does not start the Core server.
 
@@ -267,11 +269,11 @@ Run `manafield-core` to start the Core server. Running `manafield` without argum
 
 A **full Manafield v0 Instance build and deployment requires Docker**. Docker is an intentional v0 deployment substrate; Jenkins is not required.
 
-The local target is CLI + Docker. The current `deploy` command requires a pre-staged release, Docker CLI, Compose plugin, and access to the Docker daemon. Jenkins provides remote CI/CD concerns such as webhooks, approvals, credential integration, and build history while invoking the same CLI path.
+CLI + Docker already supports a bounded direct deployment profile through `deploy [release-id] --source DIR`; it builds/stages its own artifacts. The legacy `deploy RELEASE_DIR` still requires pre-staged artifacts. Both paths need Docker CLI/Compose/daemon access. Jenkins provides webhooks, approvals, credential integration, and build history.
 
 The general Core registry/protocol model remains separated from Docker-specific privilege. See [ADR-0013](docs/en/adr/0013-docker-v0-cli-execution.md).
 
-### Release workflow (planned CLI)
+### Release workflow (implemented for supported v0 profiles)
 
 The implemented `build all` builds **only the Manafield platform**, not all already-published Modules/Resources. Editing Instance Bindings and deploying Releases are separate concerns.
 
@@ -299,7 +301,7 @@ Load immutable YAML A as a temp working copy, edit Requirement Bindings, then sn
 - **Privilege boundaries** for powerful runtime control
 - **Runtime abstraction** for future Process, Remote, and Kubernetes Providers
 
-`manafield.studio` is not Manafield itself. It is planned to become **one Manafield instance operated by Eventide**.
+`manafield.studio` is not Manafield itself. It is currently **an early Manafield instance operated by Eventide**. Implemented v0 behavior is distinct from the longer-term lifecycle/runtime goals.
 
 ## Intermediate Goal
 
@@ -323,6 +325,8 @@ See each repository's README for current features and installation details. Priv
 
 ## Documentation
 
+For implementation status as of 2026-10-10, see the [Roadmap](docs/en/roadmap.md) and [CLI guide](docs/en/cli.md). ADRs also preserve earlier architecture decisions.
+
 - [CLI / Docker v0 execution guide](docs/en/cli.md)
 - [Architecture](docs/en/architecture.md)
 - [Module Protocol](docs/en/module-protocol.md)
@@ -335,7 +339,7 @@ See each repository's README for current features and installation details. Priv
 
 ## Status
 
-**Pre-alpha / Design Stage**
+**Pre-alpha / Design and v0 Implementation Stage**
 
 The architecture and protocol are still evolving.
 

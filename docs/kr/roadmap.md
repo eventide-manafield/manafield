@@ -5,6 +5,7 @@
 >
 > **한국어 문서를 기준 문서로 우선합니다.**  
 > 영문판과 내용이 다를 경우 이 한국어판을 우선합니다.
+> 구현 현황은 2026-10-10 기준의 `main` 소스와 Jenkins 운영 Release 50을 대조했습니다. 설계 목표의 체크박스와 특정 v0 부분 구현을 구분합니다.
 
 ## 진행 원칙
 
@@ -38,7 +39,8 @@ ADR 목록: [Architecture Decision Records](adr/README.md)
 - [x] Immutable RegistrySnapshot
 - [x] ArcSwap 기반 lock-free read model
 - [x] Built-in Headless CLI v0 — `health` / `ps` / `resource`
-- [ ] Module CLI contribution contract
+- [x] 신뢰된 Operator 디렉터리의 명시적 CLI extension 로딩 v0 (`MANAFIELD_CLI_EXTENSIONS_DIR`)
+- [ ] 일반 Module Descriptor 기반 CLI contribution contract 및 설치/신뢰 정책
 - [ ] Module Protocol v0 문서 안정화
 - [ ] Registry update semantics 정의
 
@@ -129,9 +131,10 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [x] Module / Resource 공통 Instance ID namespace / duplicate conflict
 - [x] PostgreSQL Resource Provider registration/watch 예제
 - [ ] Resource 관리 컴포넌트 lifecycle / protocol
-- [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource 관리 구현 v0 (`database.postgresql` Capability)
-- [ ] 동일 PostgreSQL Resource database의 Module별 schema/role allocation / Capability binding
+- [x] Jenkins 및 직접 배포 v0의 PostgreSQL Binding 환경변수·비밀파일 주입
+- [x] 공식 PostgreSQL Provider의 단일 Resource 준비 / Module별 schema·role·password 할당 v0
+- [ ] 범용 Secret / connection metadata injection 계약 및 Resource lifecycle 제어
+- [ ] 복수·외부 PostgreSQL Resource 지원 및 범용 Capability Binding 관리
 
 ## Phase 2 — Module Lifecycle
 
@@ -170,15 +173,18 @@ Docker Provider는 Core와 같은 Repository에서 관리하되 **별도 Binary 
 - [ ] `routes` exposure normalization / exact-route conflict validation
 - [x] Traefik same-host prefix composition 렌더링 (no prefix strip)
 - [ ] Manafield reserved root path 정책
-- [ ] resolved Build Plan 기반 ingress 설정 생성 / 적용
-- [ ] login / session entry UX
+- [x] Jenkins에서 resolved Build Plan 기반 Traefik ingress 렌더링·배포·게시
+- [ ] CLI 직접 배포의 ingress/exposure 구성 지원
+- [x] Account Core 로그인/세션 및 Manage OAuth2/PKCE SSO 진입 흐름 v0
+- [ ] Web Shell 공통 로그인/세션 내비게이션 UX
 - [ ] Settings UI
 
 ### Module Manager Module
 
 Module을 관리하는 기능도 Core에 UI를 내장하기보다 **공식 관리 Module**로 제공하는 방향을 우선합니다.
 
-- [ ] Module 목록 / 상태 조회
+- [x] Manage Web의 Core Registry Module/Resource/Capability 읽기 전용 조회 및 Module 상세 진단
+- [ ] 실제 Runtime 상태·Health 통합 조회
 - [ ] Module 탑재 / 활성화
 - [ ] Module 비활성화 / 분리 / 제거
 - [ ] Module source / version 선택
@@ -186,7 +192,17 @@ Module을 관리하는 기능도 Core에 UI를 내장하기보다 **공식 관�
 - [ ] 변경 전 route conflict / 영향 미리보기
 - [ ] Instance configuration 변경 diff / 확인
 - [ ] Core / Runtime Provider API를 통한 lifecycle 적용
-- [ ] Docker socket을 관리 Module에 직접 제공하지 않음
+- [x] 관리 Web Module에 Docker socket을 직접 제공하지 않음 (현재 배포 구성)
+
+## 운영 중인 인증·로깅 v0 (2026-10-10)
+
+- [x] Core 로그: stdout, 비공개 JSONL, 선택적 PostgreSQL Mirror, `manafield log` 조회
+- [x] Account Core: 로그인 성공/실패/차단 감사 이력 PostgreSQL 저장, 관리 CLI, 90일 정리
+- [x] Account Role: Role 상속·유효 Permission 검사와 최소권한 `log.audit.read` 확인
+- [x] Manage: OAuth2/PKCE SSO와 Role 검증 후 `/security/login-history` 읽기 전용 화면
+- [x] Account Core: 지정한 신뢰 Traefik 피어만 전달 IP 사용 (프록시 설정/다중 홉은 운영 검증 대상)
+- [ ] Core/Module 로그 공통 수집 프로토콜, Core 로그의 Role 기반 웹 열람
+- [ ] JSONL 회전·보존/재처리, 감사 저장소 무결성·모니터링 정책
 
 ## Phase 4 — Reference / Existing Services
 
@@ -255,7 +271,7 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] 새 배포 경로의 전체 Module/Resource/Ingress 상태 검증 및 안전한 배포 재시도
 - [ ] Resource 재사용 및 비파괴 멱등 적용 검증, Jenkins `--remove-orphans` 정책 검토
 
-**현재와 목표를 구별:** 현행 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Module도 빌드하고 `manafield deploy RELEASE_DIR`은 준비된 Compose 디렉터리를 실행합니다. 새 `build all`은 구현됐지만 `deploy <release-id>`는 아직 미구현입니다. 자세한 내용은 [ADR-0014](adr/0014-instance-working-release.md)를 참고합니다.
+**현재와 목표를 구별:** 레거시 `manafield build WORKSPACE REVISION CORE_IMAGE`는 Module도 빌드하고 `manafield deploy RELEASE_DIR`은 준비된 Compose 디렉터리를 실행합니다. 반면 `build all`은 플랫폼만 빌드하며, **`deploy <release-id>`는 스냅샷·일치 검증·제한된 직접 빌드/Compose 배포까지 구현**됐습니다. 직접 모드는 비공개 Git/dir Module 및 PostgreSQL Resource 최대 1개까지만 지원하고, Jenkins Ingress 및 다중 Resource 범위와 동일하지 않습니다. [ADR-0014](adr/0014-instance-working-release.md) · [CLI](cli.md).
 
 ## Phase 5 — CI/CD / Instance Build Plan
 
@@ -283,8 +299,9 @@ Misskey 전용 로직을 Core에 추가하지 않고도 Misskey를 자연스럽�
 - [ ] Bootstrap Example Account 실제 구현
 - [ ] GitHub webhook → 동일 Instance Pipeline 연결
 - [ ] 변경 source 기반 selective build
-- [ ] Core / Runtime Provider / Module image tagging
-- [ ] Deploy 후 Health / Protocol verification
+- [x] Core/Module/공식 Provider 이미지 태깅 v0 (리비전 기반; 이미지 digest 고정은 미구현)
+- [x] Jenkins 배포 후 Core HTTP Health 및 예정 Module의 Registry 등록 확인
+- [ ] 모든 Module/Resource의 Health Operation과 Protocol 검증
 - [ ] CI credential store 기반 Secret 주입
 - [ ] Jenkins의 Checkout / Build / Materialize / Stage / Deploy / Verify 로직을 CLI/reusable executor로 단계적 이동
 - [ ] 남은 `manafield verify / rebuild` CLI surface 및 stage 구현

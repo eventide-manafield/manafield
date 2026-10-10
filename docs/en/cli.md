@@ -37,7 +37,7 @@ The Instance root comes from `--instance-root`, then `MANAFIELD_INSTANCE_ROOT`, 
 
 Explicit `use A` discards prior unsaved temp edits. A missing or malformed Release must leave the previous working copy intact. Running `use` without an ID shows the selected base and whether its YAML was edited. No Docker commands or live Instance changes occur.
 
-Without an explicit `use`, `module bind` now starts from existing temp, else the last deployed Release recorded in `manafield/state/active-release.json`, else initial `instance.yaml`; if none exists it reports an error. The planned active state JSON schema is `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}`; recording it on successful deployment remains future work.
+Without an explicit `use`, `module bind` now starts from existing temp, else the last deployed Release recorded in `manafield/state/active-release.json`, else initial `instance.yaml`; if none exists it reports an error. The active state schema is `{"release_id":"vN_YYYYMMDDTHHMMSSZ"}`. The **new Release-ID deployment** writes it only after Compose succeeds and Core HTTP Health passes; the legacy Jenkins deployment does not automatically update this state.
 
 ## Edit Module Bindings — no Docker required
 
@@ -136,7 +136,7 @@ Direct mode builds Core and Module Docker images, conditionally builds the offic
 
 **Supported scope:** Docker Runtime Provider, Git/dir Modules without external exposure, at most one PostgreSQL Resource Provider. Ingress/exposed Modules and other Resource providers fail explicitly. Direct mode scopes the Compose project as `manafield-<instance-id>` and its internal network per Instance, keeping resources separate from the legacy Jenkins stack. Releases of the same Instance reuse the same project and volume. Direct mode selects a stable host Core port from 20000–39999 for each Instance rather than the legacy 18080 default. Set `MANAFIELD_CORE_PORT=19189` at deploy time to override; the value is persisted in the staged `release.env`.
 
-Direct deployment records active Release after Core HTTP health passes; full Module/Resource readiness, ingress publication, image digest pinning, cleanup/removal, rollback, and data migrations are not yet covered. Direct-mode PostgreSQL volumes are persistent across Releases, but legacy Jenkins project volumes are not automatically migrated. **A real Docker-engine integration run is still required.**
+Direct deployment records active Release after Core HTTP health passes; full Module/Resource readiness, ingress publication, image digest pinning, cleanup/removal, rollback, and data migrations are not yet covered. Direct-mode PostgreSQL volumes are persistent across Releases, but legacy Jenkins project volumes are not automatically migrated. **The full direct Instance Docker-engine and Resource integration still needs verification.** The separate PR #22 Core-container smoke test passed, but does not verify full direct deployment.
 
 ## Immutable Release snapshots and staged deployment bridge
 
@@ -157,7 +157,7 @@ The staged directory must contain `build-plan.json`, `release.env`, `compose.yml
 
 For a new ID, the validated working copy is saved as an immutable Release YAML before deployment. If specified, missing or mismatching `--staged-dir` artifacts cause an error **after the snapshot is saved**; otherwise supported Instances are staged by the CLI. Existing Release IDs reject reapplication when there are unsaved working-copy edits. `--snapshot-only` saves the configuration without Docker.
 
-Applying staged artifacts uses `docker compose up -d --no-build`, `ps`, and a Core-container HTTP `/health` check. Only after those succeed is `manafield/state/active-release.json` updated; the latest attempt status is stored separately in `last-attempt.json`. **This does not yet verify every Module/Resource, publish ingress, perform backups/recovery, or generate the staged artifacts automatically.**
+Applying staged artifacts uses `docker compose up -d --no-build`, `ps`, and a Core-container HTTP `/health` check. Only after those succeed is `manafield/state/active-release.json` updated; the latest attempt status is stored separately in `last-attempt.json`. **This does not yet verify every Module/Resource, publish ingress, or perform backups/recovery.** If `--staged-dir` is omitted, supported v0 Instances are prepared automatically from `--source`, as described above.
 
 The new path deliberately does **not** use `--remove-orphans`. Legacy Jenkins `deploy RELEASE_DIR` behavior is unchanged. Build Plan equality also does not pin mutable source refs or image digests; true reproducibility requires additional artifact identity checks.
 
@@ -187,7 +187,13 @@ The current Docker commands execute from the host/CI environment running the CLI
 not from the Core API process; the future privileged Runtime Provider boundary remains separate.
 
 CLI + Docker rebuilding a complete Instance without Jenkins is the target,
-**not yet a verified end-to-end implementation**.
+**implemented for the constrained direct deployment profile above, but its full end-to-end integration remains to be verified**.
+
+## Manage SSO and audit-view authorization
+
+Manage has first-party Account Core OAuth2 Authorization Code + PKCE S256 SSO. It rechecks the Account identity through userinfo on protected requests. Browser SSO is not equivalent to permission to manage the server.
+
+`/security/login-history` is now a read-only Account Core login audit viewer. The verified SSO Identity must have the **Account Role `log.audit.read`** effective permission; denied checks and service errors fail closed. Jenkins provisions separate **Account audit-read** and **Role check-only** service credentials instead of mounting full management tokens into Manage. Core event logs are not yet exposed through this audit viewer; see the Korean [Core Logging](../kr/logging.md) guide.
 
 ## Build images from a prepared workspace
 

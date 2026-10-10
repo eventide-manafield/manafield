@@ -20,6 +20,8 @@ Manafield defines **long-term boundaries and responsibilities early, while imple
 
 ADR index: [Architecture Decision Records](adr/README.md)
 
+> Implementation status cross-checked against `main` and Jenkins Release 50 on 2026-10-10. Design goals and partial v0 implementations remain distinct.
+
 ## Phase 0 — Core Foundation
 
 - [x] Rust Core bootstrap
@@ -38,7 +40,8 @@ ADR index: [Architecture Decision Records](adr/README.md)
 - [x] Immutable RegistrySnapshot
 - [x] ArcSwap-based lock-free read model
 - [x] Built-in Headless CLI v0 — `health` / `ps` / `resource`
-- [ ] Module CLI contribution contract
+- [x] Explicit opt-in Operator CLI extension loading v0 (`MANAFIELD_CLI_EXTENSIONS_DIR`)
+- [ ] Descriptor-driven Module CLI contribution contract and install/trust policy
 - [ ] Stabilize Module Protocol v0 documentation
 - [ ] Define Registry update semantics
 
@@ -129,9 +132,10 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [x] Shared Instance ID namespace / duplicate conflict across Modules and Resources
 - [x] PostgreSQL Resource Provider registration/watch example
 - [ ] Resource management component lifecycle / protocol
-- [ ] Secret / connection metadata injection model
-- [ ] PostgreSQL Resource management v0 (`database.postgresql` Capability)
-- [ ] Per-Module schema/role allocation / Capability binding inside a shared PostgreSQL Resource database
+- [x] PostgreSQL Binding env/secret-file injection in Jenkins and supported direct deployment v0
+- [x] Official single-PostgreSQL Resource preparation and per-Module schema/role/password allocation v0
+- [ ] General Secret/connection metadata contract and Resource lifecycle controls
+- [ ] Multiple/external PostgreSQL Resources and generalized Capability Binding management
 
 ## Phase 2 — Module Lifecycle
 
@@ -170,15 +174,18 @@ The initial direction is to keep Docker Provider code in the same repository whi
 - [ ] Normalize `routes` exposure / validate exact-route conflicts
 - [x] Render Traefik same-host prefix composition (no prefix stripping)
 - [ ] Manafield reserved root-path policy
-- [ ] Generate / apply ingress configuration from the resolved Build Plan
-- [ ] login / session entry UX
+- [x] Render and publish Traefik ingress from the resolved Build Plan in Jenkins
+- [ ] Ingress/exposure support in CLI direct deployment
+- [x] Account Core login/session and Manage OAuth2/PKCE SSO entry v0
+- [ ] Shared login/session navigation UX in Web Shell
 - [ ] Settings UI
 
 ### Module Manager Module
 
 Prefer an **official management Module** over embedding a management UI directly into Core.
 
-- [ ] Module list / status view
+- [x] Read-only Manage Web Core Registry Module/Resource/Capability list and Module diagnostics
+- [ ] Combined Runtime status/Health monitoring view
 - [ ] Attach / enable Modules
 - [ ] Disable / detach / remove Modules
 - [ ] Select Module source / version
@@ -186,7 +193,17 @@ Prefer an **official management Module** over embedding a management UI directly
 - [ ] Preview route conflicts / impact before applying changes
 - [ ] Preview and confirm Instance configuration diffs
 - [ ] Apply lifecycle changes through Core / Runtime Provider APIs
-- [ ] Do not provide the management Module direct Docker socket access
+- [x] Do not mount the Docker socket in the currently deployed Manage Web Module
+
+## Current Authentication and Logging v0 (verified 2026-10-10)
+
+- [x] Core stdout, private JSONL, optional PostgreSQL log mirror, operator `manafield log`
+- [x] Account Core login success/failure/blocked history, operator CLI, PostgreSQL retention (90 days)
+- [x] Account Role inheritance/effective permissions and scoped `log.audit.read` checks
+- [x] Manage OAuth2/PKCE SSO and read-only, Role-checked `/security/login-history`
+- [x] Account Core only trusts forwarded IP from a configured and verified Traefik peer (multi-hop configuration needs operational verification)
+- [ ] Module-to-Core log transport and Role-checked Web viewer for Core events
+- [ ] JSONL rotation, retention/replay, audit immutability and monitoring policies
 
 ## Phase 4 — Reference / Existing Services
 
@@ -255,7 +272,7 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Verify all Module/Resource health and ingress publication in the new deployment flow
 - [ ] Verify nondestructive persistent Resource reconciliation; review Jenkins `--remove-orphans`
 
-**Current versus target:** `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules; `manafield deploy RELEASE_DIR` operates on pre-staged Compose directories. The new `build all` is implemented, but `deploy <release-id>` is not yet implemented. See [ADR-0014](adr/0014-instance-working-release.md).
+**Current versus target:** Legacy `manafield build WORKSPACE REVISION CORE_IMAGE` still builds Modules and `manafield deploy RELEASE_DIR` applies pre-staged Compose directories. The platform-only `build all` and **Release-ID deployment (snapshot, Build Plan validation and bounded direct image/Compose preparation) are implemented**. Direct mode is limited to private Git/dir Modules and at most one PostgreSQL Resource; it does not replicate Jenkins ingress/multi-Resource behavior. See [ADR-0014](adr/0014-instance-working-release.md) and [CLI guide](cli.md).
 
 ## Phase 5 — CI/CD / Instance Build Plan
 
@@ -283,8 +300,9 @@ If Misskey can be modeled cleanly without Misskey-specific Core behavior, both t
 - [ ] Implement bootstrap Example Account
 - [ ] Connect GitHub webhooks to the same Instance Pipeline
 - [ ] Selective build based on changed source
-- [ ] Core / Runtime Provider / Module image tagging
-- [ ] Post-deploy Health / Protocol verification
+- [x] Revision-based Core/Module/official Provider image tags v0 (digest pinning still pending)
+- [x] Jenkins verifies Core HTTP Health and expected Module Registry registration after deployment
+- [ ] Verify every Module/Resource Health Operation and Protocol contract
 - [ ] Secret injection through CI credential storage
 - [ ] Gradually move Jenkins Checkout / Build / Materialize / Stage / Deploy / Verify semantics into CLI/reusable executors
 - [ ] Implement remaining `manafield verify / rebuild` CLI surfaces and stages
