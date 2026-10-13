@@ -986,9 +986,9 @@ EOF
                             exit 1
                           fi
                           lifecycle_mount="/run/manafield/interop/profile-lifecycle.token"
-                          printf '      MANAFIELD_ACCOUNT_PROFILE_LIFECYCLE_TOKEN_FILE: "%s"\\n' \
+                          printf '      MANAFIELD_ACCOUNT_PROFILE_LIFECYCLE_TOKEN_FILE: "%s"\n' \
                             "$lifecycle_mount" >> "$RELEASE_DIR/modules.compose.yml"
-                          printf '%s\\t%s\\n' "$lifecycle_token" "$lifecycle_mount" \
+                          printf '%s\t%s\n' "$lifecycle_token" "$lifecycle_mount" \
                             >> "$binding_mounts"
                           ;;
                       esac
