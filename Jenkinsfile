@@ -976,6 +976,23 @@ EOF
                         fi
                       done < ci-plan/module-bindings.tsv
 
+                      # Account lifecycle service credential, provisioned by the
+                      # Instance administrator and mounted only into Core/Profile.
+                      case "$module_id" in
+                        manafield-account-core|manafield-account-profile)
+                          lifecycle_token="$INSTANCE_ROOT/secrets/profile-lifecycle.token"
+                          if [ ! -s "$lifecycle_token" ]; then
+                            echo "Profile lifecycle token is missing or empty." >&2
+                            exit 1
+                          fi
+                          lifecycle_mount="/run/manafield/interop/profile-lifecycle.token"
+                          printf '      MANAFIELD_ACCOUNT_PROFILE_LIFECYCLE_TOKEN_FILE: "%s"\\n' \
+                            "$lifecycle_mount" >> "$RELEASE_DIR/modules.compose.yml"
+                          printf '%s\\t%s\\n' "$lifecycle_token" "$lifecycle_mount" \
+                            >> "$binding_mounts"
+                          ;;
+                      esac
+
                       if [ -s "$binding_mounts" ]; then
                         cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
     volumes:
