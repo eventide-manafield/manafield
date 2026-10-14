@@ -19,6 +19,11 @@ pipeline {
             defaultValue: "/opt/manafield/local-modules",
             description: "Optional root containing local directory Modules"
         )
+        booleanParam(
+            name: "ENABLE_ACCOUNT_SIGNUP",
+            defaultValue: false,
+            description: "Explicit opt-in: enable Account Core email signup with protected Resend SMTP credential (requires approved deploy)"
+        )
     }
 
     environment {
@@ -865,6 +870,39 @@ EOF
                         printf '%s\\t%s\\n' \
                           "$management_file" "/run/manafield/management/token" \
                           >> "$binding_mounts"
+                      fi
+
+                      if [ "$module_id" = "manafield-account-core" ]; then
+                        # Public signup is deliberately OFF unless the Jenkins
+                        # operator checks the explicit, per-build opt-in.
+                        # No SMTP secret is mounted into disabled deployments.
+                        case "${ENABLE_ACCOUNT_SIGNUP:-false}" in
+                          true)
+                            smtp_password_file="$INSTANCE_ROOT/secrets/account-smtp/password"
+                            if [ -L "$smtp_password_file" ] || [ ! -f "$smtp_password_file" ] || [ ! -s "$smtp_password_file" ]; then
+                              echo "Account signup requested but protected SMTP credential is missing/empty/symlinked." >&2
+                              exit 1
+                            fi
+                            cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
+      MANAFIELD_ACCOUNT_REGISTRATION_ENABLED: "true"
+      MANAFIELD_ACCOUNT_SMTP_HOST: "smtp.resend.com"
+      MANAFIELD_ACCOUNT_SMTP_PORT: "465"
+      MANAFIELD_ACCOUNT_SMTP_TLS_MODE: "tls"
+      MANAFIELD_ACCOUNT_SMTP_USERNAME: "resend"
+      MANAFIELD_ACCOUNT_SMTP_FROM: "system@manafield.studio"
+      MANAFIELD_ACCOUNT_SMTP_PASSWORD_FILE: "/run/manafield/signup/smtp-password"
+EOF
+                            printf '%s\\t%s\\n' "$smtp_password_file" "/run/manafield/signup/smtp-password" >> "$binding_mounts"
+                            ;;
+                          false)
+                            printf '      MANAFIELD_ACCOUNT_REGISTRATION_ENABLED: "false"\\n' \
+                              >> "$RELEASE_DIR/modules.compose.yml"
+                            ;;
+                          *)
+                            echo "ENABLE_ACCOUNT_SIGNUP must be true or false." >&2
+                            exit 1
+                            ;;
+                        esac
                       fi
 
                       if [ "$module_id" = "manafield-account-role" ]; then
