@@ -861,7 +861,7 @@ EOF
                         printf '      MANAFIELD_ACCOUNT_MANAGEMENT_TOKEN_FILE: "/run/manafield/management/token"\\n' \
                           >> "$RELEASE_DIR/modules.compose.yml"
                         cat >> "$RELEASE_DIR/modules.compose.yml" <<'EOF'
-      MANAFIELD_ACCOUNT_OAUTH_CLIENTS_JSON: '{"manafield-manage-web":"https://manage.manafield.studio/auth/callback"}'
+      MANAFIELD_ACCOUNT_OAUTH_CLIENTS_JSON: '{"manafield-manage-web":"https://manage.manafield.studio/auth/callback","manafield-noctemblith-dev":"https://noctemblith-dev.manafield.studio/auth/manafield/callback"}'
       # Trust only the ingress container resolved on the shared edge network.
       # All other callers retain their direct TCP peer; XFF is never trusted.
       MANAFIELD_ACCOUNT_TRUSTED_PROXY_HOST: "traefik"
