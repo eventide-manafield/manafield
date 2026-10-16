@@ -2,8 +2,8 @@
 //! Supports Git/dir Modules and the v0 PostgreSQL Resource Provider.
 //! No cleanup or volume removal is performed here.
 
-mod secrets;
 mod s3;
+mod secrets;
 use secrets::{create_secret, write_private};
 
 use std::collections::BTreeSet;
@@ -74,9 +74,15 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
             "postgresql" if postgres_id.is_none() => postgres_id = Some(id),
             "s3" if s3_resource.is_none() => s3_resource = Some(resource),
             "postgresql" | "s3" => {
-                return Err(fail("direct deploy v0 supports one Resource of each provider type"));
+                return Err(fail(
+                    "direct deploy v0 supports one Resource of each provider type",
+                ));
             }
-            other => return Err(fail(format!("unsupported direct Resource provider '{other}'"))),
+            other => {
+                return Err(fail(format!(
+                    "unsupported direct Resource provider '{other}'"
+                )));
+            }
         }
     }
     // Validate configured credentials before starting a Docker build.
@@ -273,15 +279,16 @@ fn prepare_inside(
             .map_err(|e| fail(e.to_string()))?;
         // Object Storage is an explicit required dependency. Do not start a
         // Module with a silently ignored or unavailable S3 requirement.
-        let manifest_value: Value = serde_json::from_slice(
-            &fs::read(&manifest).map_err(|e| fail(e.to_string()))?,
-        )
-        .map_err(|e| fail(format!("Module '{id}' manifest invalid JSON: {e}")))?;
+        let manifest_value: Value =
+            serde_json::from_slice(&fs::read(&manifest).map_err(|e| fail(e.to_string()))?)
+                .map_err(|e| fail(format!("Module '{id}' manifest invalid JSON: {e}")))?;
         if let Some(required) = manifest_value["requires"]["capabilities"].as_object() {
             for (slot, capability) in required {
                 if capability["id"] == "storage.object" {
                     let target = module["bindings"][slot].as_str().ok_or_else(|| {
-                        fail(format!("Module '{id}' storage.object slot '{slot}' is UNBOUND"))
+                        fail(format!(
+                            "Module '{id}' storage.object slot '{slot}' is UNBOUND"
+                        ))
                     })?;
                     if !s3_runtime.is_some_and(|resource| resource.id == target) {
                         return Err(fail(format!(
@@ -440,8 +447,12 @@ fn prepare_inside(
     )
     .map_err(|e| fail(e.to_string()))?;
     let mut profiles = Vec::new();
-    if postgres_id.is_some() { profiles.push("postgresql"); }
-    if s3_runtime.is_some() { profiles.push("s3"); }
+    if postgres_id.is_some() {
+        profiles.push("postgresql");
+    }
+    if s3_runtime.is_some() {
+        profiles.push("s3");
+    }
     fs::write(
         stage.join("compose-profiles.txt"),
         if profiles.is_empty() {
@@ -478,7 +489,9 @@ fn prepare_inside(
         // Non-secret connection parameters and private host mount paths only.
         vars.push(format!("MANAFIELD_S3_PROVIDER_IMAGE={s3_provider_image}"));
         vars.push(format!("MANAFIELD_S3_RESOURCE_ID={}", storage.id));
-        vars.push(format!("MANAFIELD_S3_RESOURCE_NAME=Manafield S3 Object Storage"));
+        vars.push(format!(
+            "MANAFIELD_S3_RESOURCE_NAME=Manafield S3 Object Storage"
+        ));
         vars.push(format!("MANAFIELD_S3_ENDPOINT={}", storage.config.endpoint));
         vars.push(format!("MANAFIELD_S3_BUCKET={}", storage.config.bucket));
         vars.push(format!("MANAFIELD_S3_REGION={}", storage.config.region));
