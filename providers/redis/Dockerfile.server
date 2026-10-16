@@ -1,0 +1,5 @@
+FROM redis:7-alpine
+# Ensure the named /data volume begins owned by the non-root Redis process.
+RUN mkdir -p /data && chown redis:redis /data
+USER redis
+WORKDIR /data

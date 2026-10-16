@@ -62,6 +62,11 @@ resources:
       region: auto
       forcePathStyle: true
 
+  # Optional Redis cache Resource. Does not grant tenant isolation by itself.
+  - id: manafield-redis
+    enabled: false
+    provider: redis
+
 deployment:
   # Internal Core <-> Module network.
   modulesNetwork: manafield-modules

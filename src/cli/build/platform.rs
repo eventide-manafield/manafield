@@ -193,6 +193,30 @@ fn build_staged(
         ]);
         execute(&mut s3_build, "S3 Resource Provider image build")?;
         docker_images.push(s3);
+
+        let redis_server = format!("manafield-resource-redis-server:{suffix}");
+        let mut server_build = ProcessCommand::new("docker");
+        server_build.current_dir(source).arg("build").args([
+            "--file",
+            "providers/redis/Dockerfile.server",
+            "--tag",
+            &redis_server,
+            "providers/redis",
+        ]);
+        execute(&mut server_build, "Redis Server Resource image build")?;
+        docker_images.push(redis_server);
+
+        let redis_provider = format!("manafield-resource-redis-provider:{suffix}");
+        let mut redis_build = ProcessCommand::new("docker");
+        redis_build.current_dir(source).arg("build").args([
+            "--file",
+            "providers/redis/Dockerfile",
+            "--tag",
+            &redis_provider,
+            "providers/redis",
+        ]);
+        execute(&mut redis_build, "Redis Resource Provider image build")?;
+        docker_images.push(redis_provider);
     }
 
     let manifest = Manifest {
