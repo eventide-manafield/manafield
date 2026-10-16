@@ -115,6 +115,9 @@ struct ModuleDefinition {
     exposure: Option<ExposureDefinition>,
     #[serde(default)]
     bindings: BTreeMap<String, String>,
+    // Per-Resource options belong to Instance configuration, not Capability.
+    #[serde(default, rename = "bindingOptions")]
+    binding_options: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -232,6 +235,7 @@ impl From<InstanceDefinition> for BuildPlan {
                     },
                     exposure: module.exposure,
                     bindings: module.bindings,
+                    binding_options: module.binding_options,
                 })
                 .collect(),
             resources: definition
@@ -269,6 +273,8 @@ struct ModulePlan {
     exposure: Option<ExposureDefinition>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     bindings: BTreeMap<String, String>,
+    #[serde(rename = "bindingOptions", default, skip_serializing_if = "BTreeMap::is_empty")]
+    binding_options: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
