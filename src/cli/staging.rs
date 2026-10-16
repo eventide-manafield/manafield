@@ -273,8 +273,9 @@ fn prepare_inside(
                     .ok_or_else(|| fail("Binding target must be string"))?;
                 let key = slot.to_ascii_uppercase();
                 env.insert(format!("MANAFIELD_BINDING_{key}_TARGET"), json!(instance));
+                let allocation_mode = postgres_allocation_mode(module, slot, instance, postgres_id)?;
                 if postgres_id == Some(instance) {
-                    let schema = format!(
+                    let schema = format!
                         "mf_{}_{}",
                         id.replace(['-', '.'], "_"),
                         slot.to_ascii_lowercase()
@@ -297,8 +298,20 @@ fn prepare_inside(
                     let container_path = format!("/run/manafield/bindings/{slot}/password");
                     let provider_path =
                         format!("/run/manafield/postgresql/secrets/{instance}/{schema}.password");
+                    // Default schema allocation is retained for existing Modules.
+                    // Apps with hard-coded public migrations require a dedicated DB.
+                    let database = if allocation_mode == "database" {
+                        schema.as_str()
+                    } else {
+                        "manafield"
+                    };
+                    let allocated_schema = if allocation_mode == "database" {
+                        "public"
+                    } else {
+                        schema.as_str()
+                    };
                     allocations.push(format!(
-                        "{instance}\tmanafield\t{schema}\t{schema}\t{provider_path}"
+                        "{instance}\t{database}\t{allocated_schema}\t{schema}\t{provider_path}\t{allocation_mode}"
                     ));
                     env.insert(
                         format!("MANAFIELD_BINDING_{key}_ENDPOINT_HOST"),
@@ -310,11 +323,15 @@ fn prepare_inside(
                     );
                     env.insert(
                         format!("MANAFIELD_BINDING_{key}_CONFIG_DATABASE"),
-                        json!("manafield"),
+                        json!(database),
                     );
                     env.insert(
                         format!("MANAFIELD_BINDING_{key}_CONFIG_SCHEMA"),
-                        json!(schema),
+                        json!(allocated_schema),
+                    );
+                    env.insert(
+                        format!("MANAFIELD_BINDING_{key}_CONFIG_ALLOCATION_MODE"),
+                        json!(allocation_mode),
                     );
                     env.insert(
                         format!("MANAFIELD_BINDING_{key}_CONFIG_USERNAME"),
@@ -427,6 +444,50 @@ fn prepare_inside(
         format!("{}\n", vars.join("\n")).as_bytes(),
     )?;
     Ok(())
+}
+
+fn postgres_allocation_mode(
+    module: &Value,
+    slot: &str,
+    target: &str,
+    postgres_id: Option<&str>,
+) -> Result<&'static str, CliError> {
+    let Some(options) = module
+        .get("bindingOptions")
+        .and_then(Value::as_object)
+        .and_then(|options| options.get(slot))
+    else {
+        return Ok("schema");
+    };
+    if postgres_id != Some(target) {
+        return Err(fail(format!(
+            "bindingOptions for slot '{slot}' require a PostgreSQL Resource target"
+        )));
+    }
+    let option_map = options
+        .as_object()
+        .ok_or_else(|| fail(format!("bindingOptions.{slot} must be an object")))?;
+    if option_map.len() != 1 {
+        return Err(fail(format!(
+            "bindingOptions.{slot} supports only postgresql allocation options in direct deploy v0"
+        )));
+    }
+    let postgres = option_map
+        .get("postgresql")
+        .and_then(Value::as_object)
+        .ok_or_else(|| fail(format!("bindingOptions.{slot}.postgresql must be an object")))?;
+    if postgres.len() != 1 {
+        return Err(fail(format!(
+            "bindingOptions.{slot}.postgresql must contain only allocation"
+        )));
+    }
+    match postgres.get("allocation").and_then(Value::as_str) {
+        Some("schema") => Ok("schema"),
+        Some("database") => Ok("database"),
+        _ => Err(fail(format!(
+            "bindingOptions.{slot}.postgresql.allocation must be schema or database"
+        ))),
+    }
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> Result<&'a str, CliError> {
