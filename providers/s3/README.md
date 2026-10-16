@@ -76,4 +76,7 @@ cargo test --locked --lib
 ```
 
 The offline tests use fake S3 clients; no R2 tokens or real bucket requests
-are used. Jenkins deployment support may require separate executor wiring.
+are used. The current Jenkins Release executor explicitly rejects S3 Resource requests
+until its credential materializer and S3 Module wiring are implemented. Use
+the direct CLI Release path or the standalone provider Compose example for
+initial testing.
