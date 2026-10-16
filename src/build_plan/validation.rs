@@ -108,7 +108,10 @@ pub(super) fn validate_definition(definition: &InstanceDefinition) -> Result<(),
 
         if resource.provider == "s3" {
             let config = resource.config.as_ref().ok_or_else(|| {
-                format!("resources[{}] S3 provider requires nonsecret config", resource.id)
+                format!(
+                    "resources[{}] S3 provider requires nonsecret config",
+                    resource.id
+                )
             })?;
             crate::storage_config::S3ResourceConfig::parse(config)
                 .map_err(|message| format!("resources[{}]: {message}", resource.id))?;
