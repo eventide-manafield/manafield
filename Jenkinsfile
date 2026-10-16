@@ -656,6 +656,36 @@ EOF
                       compose_profiles="postgresql"
                     fi
 
+                    s3_count="$(
+                      awk -F '\t' '$2 == "s3" { c++ } END {print c+0}' ci-plan/resources.tsv
+                    )"
+                    if [ "$s3_count" -gt 1 ]; then
+                      echo "Only one S3 Resource is supported by Jenkins v0." >&2
+                      exit 1
+                    fi
+                    s3_resource_id=""
+                    s3_provider_image=""
+                    s3_endpoint=""
+                    s3_bucket=""
+                    s3_region=""
+                    s3_style=""
+                    if [ "$s3_count" -eq 1 ]; then
+                      s3_provider_image="$(
+                        awk -F '\t' '$2 == "s3" { print $3; exit }' resource-providers.tsv
+                      )"
+                      s3_row="$(cat ci-plan/s3-resources.tsv)"
+                      tab="$(printf '\t')"
+                      IFS="$tab" read -r s3_resource_id s3_endpoint s3_bucket s3_region s3_style s3_public <<EOF
+$s3_row
+EOF
+                      test -n "$s3_resource_id" && test -n "$s3_provider_image" || exit 1
+                      if [ -n "$compose_profiles" ]; then
+                        compose_profiles="$compose_profiles,s3"
+                      else
+                        compose_profiles="s3"
+                      fi
+                    fi
+
                     mkdir -p "$RELEASE_DIR/modules"
 
                     : > "$RELEASE_DIR/postgresql-allocations.tsv"
