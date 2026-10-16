@@ -106,6 +106,22 @@ pub(super) fn validate_definition(definition: &InstanceDefinition) -> Result<(),
             return Err(format!("duplicate instance id '{}'", resource.id));
         }
 
+        if resource.provider == "s3" {
+            let config = resource.config.as_ref().ok_or_else(|| {
+                format!(
+                    "resources[{}] S3 provider requires nonsecret config",
+                    resource.id
+                )
+            })?;
+            crate::storage_config::S3ResourceConfig::parse(config)
+                .map_err(|message| format!("resources[{}]: {message}", resource.id))?;
+        } else if resource.config.is_some() {
+            return Err(format!(
+                "resources[{}] provider '{}' does not support config fields in v0",
+                resource.id, resource.provider
+            ));
+        }
+
         if resource.enabled {
             enabled_instance_ids.insert(resource.id.as_str());
         }

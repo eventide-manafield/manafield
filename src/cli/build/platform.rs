@@ -181,6 +181,18 @@ fn build_staged(
         ]);
         execute(&mut pg_build, "PostgreSQL Resource Provider image build")?;
         docker_images.push(pg);
+
+        let s3 = format!("manafield-resource-s3:{suffix}");
+        let mut s3_build = ProcessCommand::new("docker");
+        s3_build.current_dir(source).arg("build").args([
+            "--file",
+            "providers/s3/Dockerfile",
+            "--tag",
+            &s3,
+            "providers/s3",
+        ]);
+        execute(&mut s3_build, "S3 Resource Provider image build")?;
+        docker_images.push(s3);
     }
 
     let manifest = Manifest {

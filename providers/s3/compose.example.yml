@@ -1,0 +1,38 @@
+# Standalone observer for an already-running Core and modules network.
+# Credential files are provided outside this repository.
+services:
+  s3-provider:
+    build: .
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_S3_RESOURCE_ID:-manafield-r2}
+      MANAFIELD_S3_ENDPOINT: ${MANAFIELD_S3_ENDPOINT:?HTTPS S3 endpoint required}
+      MANAFIELD_S3_BUCKET: ${MANAFIELD_S3_BUCKET:?S3 bucket required}
+      MANAFIELD_S3_REGION: ${MANAFIELD_S3_REGION:-auto}
+      MANAFIELD_S3_FORCE_PATH_STYLE: "true"
+      MANAFIELD_S3_ACCESS_KEY_ID_FILE: /run/manafield/s3/access-key-id
+      MANAFIELD_S3_SECRET_ACCESS_KEY_FILE: /run/manafield/s3/secret-access-key
+    volumes:
+      - type: bind
+        source: ${MANAFIELD_S3_ACCESS_KEY_ID_HOST:?Access key file required}
+        target: /run/manafield/s3/access-key-id
+        read_only: true
+      - type: bind
+        source: ${MANAFIELD_S3_SECRET_ACCESS_KEY_HOST:?Secret key file required}
+        target: /run/manafield/s3/secret-access-key
+        read_only: true
+    networks:
+      - modules
+
+networks:
+  modules:
+    external: true
+    name: ${MANAFIELD_MODULES_NETWORK:-manafield-modules}

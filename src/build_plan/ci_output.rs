@@ -136,5 +136,29 @@ pub(super) fn write_ci_plan(
     }
     fs::write(directory.join("resources.tsv"), resources)?;
 
+    // Executor-facing, nonsecret S3 connection metadata. Keep resources.tsv
+    // generic and stable for older Jenkins consumers.
+    let mut s3_resources = String::new();
+    for resource in &plan.resources {
+        if resource.provider != "s3" {
+            continue;
+        }
+        let configuration = resource
+            .config
+            .as_ref()
+            .ok_or("S3 Resource missing config")?;
+        let config = crate::storage_config::S3ResourceConfig::parse(configuration)?;
+        s3_resources.push_str(&format!(
+            "{}\t{}\t{}\t{}\t{}\t{}\n",
+            resource.id,
+            config.endpoint,
+            config.bucket,
+            config.region,
+            config.force_path_style,
+            config.public_base_url.as_deref().unwrap_or("-"),
+        ));
+    }
+    fs::write(directory.join("s3-resources.tsv"), s3_resources)?;
+
     Ok(())
 }
