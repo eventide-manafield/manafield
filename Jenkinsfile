@@ -608,6 +608,13 @@ EOF
                     modules_network="$(cat ci-plan/modules-network.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
 
+                    # Jenkins has not yet implemented Storage binding materialization.
+                    # Fail rather than silently producing a partially wired Release.
+                    if awk -F '\t' '$2 == "s3" { found=1 } END {exit(found ? 0 : 1)}' ci-plan/resources.tsv; then
+                      echo "S3 Resource deployment is not yet supported by Jenkins; use direct CLI staging." >&2
+                      exit 1
+                    fi
+
                     postgres_count="$(
                       awk -F '\t' '$2 == "postgresql" { count += 1 } END { print count + 0 }' \
                         ci-plan/resources.tsv
