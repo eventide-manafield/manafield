@@ -106,7 +106,10 @@ impl S3Runtime {
             ("CONFIG_BUCKET", self.config.bucket.clone()),
             ("CONFIG_REGION", self.config.region.clone()),
             ("CONFIG_PREFIX", prefix),
-            ("CONFIG_FORCE_PATH_STYLE", self.config.force_path_style.to_string()),
+            (
+                "CONFIG_FORCE_PATH_STYLE",
+                self.config.force_path_style.to_string(),
+            ),
             ("SECRET_ACCESS_KEY_ID_FILE", runtime_access.clone()),
             ("SECRET_SECRET_ACCESS_KEY_FILE", runtime_secret.clone()),
         ] {
@@ -137,8 +140,13 @@ impl S3Runtime {
 fn valid_resource_id(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 63
-        && value.bytes().next().is_some_and(|v| v.is_ascii_alphanumeric())
-        && value.bytes().all(|v| v.is_ascii_alphanumeric() || matches!(v, b'.' | b'_' | b'-'))
+        && value
+            .bytes()
+            .next()
+            .is_some_and(|v| v.is_ascii_alphanumeric())
+        && value
+            .bytes()
+            .all(|v| v.is_ascii_alphanumeric() || matches!(v, b'.' | b'_' | b'-'))
         && !value.contains("..")
 }
 
@@ -149,19 +157,27 @@ fn valid_slot(value: &str) -> bool {
 }
 
 fn read_master(path: &Path) -> Result<Vec<u8>, CliError> {
-    let meta = fs::symlink_metadata(path)
-        .map_err(|_| fail("S3 master credentials not found under Instance secrets/s3/<resource-id>/"))?;
+    let meta = fs::symlink_metadata(path).map_err(|_| {
+        fail("S3 master credentials not found under Instance secrets/s3/<resource-id>/")
+    })?;
     if !meta.is_file() || meta.file_type().is_symlink() {
-        return Err(fail("S3 master credential must be a regular file (not symlink)"));
+        return Err(fail(
+            "S3 master credential must be a regular file (not symlink)",
+        ));
     }
-    let contents = fs::read(path)
-        .map_err(|_| fail("Cannot read S3 master credential file"))?;
+    let contents = fs::read(path).map_err(|_| fail("Cannot read S3 master credential file"))?;
     if contents.is_empty() || contents.len() > 4096 {
         return Err(fail("S3 master credential file is empty or too large"));
     }
     let without_newline: &[u8] = contents.strip_suffix(b"\n").unwrap_or(&contents);
-    let trimmed = without_newline.strip_suffix(b"\r").unwrap_or(without_newline);
-    if trimmed.is_empty() || trimmed.contains(&b'\n') || trimmed.contains(&b'\r') || trimmed.contains(&0) {
+    let trimmed = without_newline
+        .strip_suffix(b"\r")
+        .unwrap_or(without_newline);
+    if trimmed.is_empty()
+        || trimmed.contains(&b'\n')
+        || trimmed.contains(&b'\r')
+        || trimmed.contains(&0)
+    {
         return Err(fail("S3 master credential file has malformed content"));
     }
     // Preserve only the supplied value, not the trailing line ending.
@@ -211,7 +227,10 @@ mod tests {
 
     #[test]
     fn injects_s3_binding_without_leaking_credentials_or_wrong_contract() {
-        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("mf-s3-bind-test-{id}"));
         let secret_dir = root.join("secrets/s3/manafield-r2");
         fs::create_dir_all(&secret_dir).unwrap();
@@ -229,30 +248,50 @@ mod tests {
         });
         let runtime = S3Runtime::prepare(&resource, &root).unwrap();
         let manifest = root.join("manafield.module.json");
-        fs::write(&manifest, r#"{
+        fs::write(
+            &manifest,
+            r#"{
             "requires": {"capabilities": {
                 "media": {"id": "storage.object", "version": "^1.0.0"}
             }}
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
         let mut env = Map::new();
         let mut mounts = Vec::new();
-        runtime.inject("media-consumer", "media", &manifest, &mut env, &mut mounts).unwrap();
-        assert_eq!(env["MANAFIELD_BINDING_MEDIA_CONFIG_PREFIX"], "modules/media-consumer/media/");
+        runtime
+            .inject("media-consumer", "media", &manifest, &mut env, &mut mounts)
+            .unwrap();
+        assert_eq!(
+            env["MANAFIELD_BINDING_MEDIA_CONFIG_PREFIX"],
+            "modules/media-consumer/media/"
+        );
         assert_eq!(env["MANAFIELD_BINDING_MEDIA_CONFIG_BUCKET"], "files-test");
         assert_eq!(mounts.len(), 2);
         assert!(!serde_json::to_string(&env).unwrap().contains("test-secret"));
         assert_eq!(fs::read(runtime.secret_path()).unwrap(), b"test-secret");
         // A different Capability must never receive the S3 credentials.
-        fs::write(&manifest, r#"{"requires":{"capabilities":{
+        fs::write(
+            &manifest,
+            r#"{"requires":{"capabilities":{
             "media":{"id":"database.postgresql","version":"^1.0.0"}
-        }}}"#).unwrap();
-        assert!(runtime.inject("media-consumer", "media", &manifest, &mut env, &mut mounts).is_err());
+        }}}"#,
+        )
+        .unwrap();
+        assert!(
+            runtime
+                .inject("media-consumer", "media", &manifest, &mut env, &mut mounts)
+                .is_err()
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn redacts_secret_and_rejects_rotation_without_explicit_action() {
-        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("mf-s3-test-{id}"));
         fs::create_dir_all(&root).unwrap();
         let secret = root.join("credential");
