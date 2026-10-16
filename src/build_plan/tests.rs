@@ -230,3 +230,65 @@ deployment:
     let error = validate_definition(&definition).unwrap_err();
     assert!(error.contains("targets unknown or disabled instance"));
 }
+
+#[test]
+fn accepts_s3_resource_and_preserves_safe_instance_config() {
+    let input = r#"
+version: 0
+instance:
+  id: storage-test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+runtimeProviders:
+  - id: docker
+resources:
+  - id: manafield-r2
+    provider: s3
+    config:
+      endpoint: https://example.r2.cloudflarestorage.com
+      bucket: manafield-media
+      region: auto
+      forcePathStyle: true
+deployment:
+  modulesNetwork: modules
+  edgeNetwork: edge
+"#;
+    validate_yaml(input).unwrap();
+    let value: InstanceDefinition = serde_yaml_ng::from_str(input).unwrap();
+    let plan = BuildPlan::from(value);
+    let config = plan.resources[0].config.as_ref().unwrap();
+    assert_eq!(config["bucket"], "manafield-media");
+    assert_eq!(config["region"], "auto");
+    assert!(config.get("secretAccessKey").is_none());
+}
+
+#[test]
+fn rejects_missing_and_credential_bearing_s3_configuration() {
+    let definition = r#"
+version: 0
+instance:
+  id: storage-test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+resources:
+  - id: manafield-r2
+    provider: s3
+    config:
+      endpoint: https://example.r2.cloudflarestorage.com
+      bucket: media-test
+deployment:
+  modulesNetwork: modules
+  edgeNetwork: edge
+"#;
+    assert!(validate_yaml(definition).is_ok());
+    assert!(validate_yaml(&definition.replace("      bucket: media-test\n", "")).is_err());
+    assert!(validate_yaml(&definition.replace(
+        "      bucket: media-test",
+        "      bucket: media-test\n      secretAccessKey: never-store-secrets-in-YAML"
+    )).is_err());
+    assert!(validate_yaml(&definition.replace("provider: s3", "provider: postgresql")).is_err());
+}
