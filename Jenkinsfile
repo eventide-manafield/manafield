@@ -734,6 +734,21 @@ EOF
                       "MANAFIELD_POSTGRES_SECRETS_PATH=$INSTANCE_ROOT/secrets/postgresql" \
                       > "$RELEASE_DIR/release.env"
 
+                    if [ "$s3_count" -eq 1 ]; then
+                      s3_runtime_dir="$INSTANCE_ROOT/secrets/s3/$s3_resource_id/runtime"
+                      printf '%s\n' \
+                        "MANAFIELD_S3_PROVIDER_IMAGE=$s3_provider_image" \
+                        "MANAFIELD_S3_RESOURCE_ID=$s3_resource_id" \
+                        "MANAFIELD_S3_RESOURCE_NAME=Manafield S3 Object Storage" \
+                        "MANAFIELD_S3_ENDPOINT=$s3_endpoint" \
+                        "MANAFIELD_S3_BUCKET=$s3_bucket" \
+                        "MANAFIELD_S3_REGION=$s3_region" \
+                        "MANAFIELD_S3_FORCE_PATH_STYLE=$s3_style" \
+                        "MANAFIELD_S3_ACCESS_KEY_ID_HOST=$s3_runtime_dir/access-key-id" \
+                        "MANAFIELD_S3_SECRET_ACCESS_KEY_HOST=$s3_runtime_dir/secret-access-key" \
+                        >> "$RELEASE_DIR/release.env"
+                    fi
+
                     # Bridge the declared Core loggingState Resource binding into
                     # a private DSN file. No credentials enter public Build Plans
                     # or Jenkins logs; the Postgres Provider owns schema allocation.
