@@ -210,6 +210,47 @@ mod tests {
     }
 
     #[test]
+    fn injects_s3_binding_without_leaking_credentials_or_wrong_contract() {
+        let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("mf-s3-bind-test-{id}"));
+        let secret_dir = root.join("secrets/s3/manafield-r2");
+        fs::create_dir_all(&secret_dir).unwrap();
+        fs::write(secret_dir.join("access-key-id"), "test-id\n").unwrap();
+        fs::write(secret_dir.join("secret-access-key"), "test-secret\n").unwrap();
+        let resource = json!({
+            "id": "manafield-r2",
+            "provider": "s3",
+            "config": {
+                "endpoint": "https://account.r2.cloudflarestorage.com",
+                "bucket": "files-test",
+                "region": "auto",
+                "forcePathStyle": true
+            }
+        });
+        let runtime = S3Runtime::prepare(&resource, &root).unwrap();
+        let manifest = root.join("manafield.module.json");
+        fs::write(&manifest, r#"{
+            "requires": {"capabilities": {
+                "media": {"id": "storage.object", "version": "^1.0.0"}
+            }}
+        }"#).unwrap();
+        let mut env = Map::new();
+        let mut mounts = Vec::new();
+        runtime.inject("media-consumer", "media", &manifest, &mut env, &mut mounts).unwrap();
+        assert_eq!(env["MANAFIELD_BINDING_MEDIA_CONFIG_PREFIX"], "modules/media-consumer/media/");
+        assert_eq!(env["MANAFIELD_BINDING_MEDIA_CONFIG_BUCKET"], "files-test");
+        assert_eq!(mounts.len(), 2);
+        assert!(!serde_json::to_string(&env).unwrap().contains("test-secret"));
+        assert_eq!(fs::read(runtime.secret_path()).unwrap(), b"test-secret");
+        // A different Capability must never receive the S3 credentials.
+        fs::write(&manifest, r#"{"requires":{"capabilities":{
+            "media":{"id":"database.postgresql","version":"^1.0.0"}
+        }}}"#).unwrap();
+        assert!(runtime.inject("media-consumer", "media", &manifest, &mut env, &mut mounts).is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn redacts_secret_and_rejects_rotation_without_explicit_action() {
         let id = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
         let root = std::env::temp_dir().join(format!("mf-s3-test-{id}"));
