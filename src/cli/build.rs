@@ -32,7 +32,7 @@ pub(super) fn run(workspace: &str, revision: &str, core_image: &str) -> Result<(
         }
     }
     for row in &resources {
-        if row[1] != "postgresql" {
+        if row[1] != "postgresql" && row[1] != "s3" {
             return Err(CliError::Execution(format!(
                 "unsupported Resource provider '{}'",
                 row[1]
@@ -81,7 +81,9 @@ pub(super) fn run(workspace: &str, revision: &str, core_image: &str) -> Result<(
     for row in resources {
         let id = &row[0];
         let provider = &row[1];
-        let image = format!("manafield-resource-postgresql:{revision}");
+        let image = format!("manafield-resource-{provider}:{revision}");
+        let dockerfile = format!("providers/{provider}/Dockerfile");
+        let context = format!("providers/{provider}");
         let label = format!("org.opencontainers.image.revision={revision}");
         docker_build(
             root,
@@ -91,8 +93,8 @@ pub(super) fn run(workspace: &str, revision: &str, core_image: &str) -> Result<(
                 "--tag",
                 &image,
                 "--file",
-                "providers/postgresql/Dockerfile",
-                "providers/postgresql",
+                &dockerfile,
+                &context,
             ],
         )?;
         providers.push_str(&format!("{id}\t{provider}\t{image}\n"));
