@@ -75,29 +75,43 @@ provision_allocation() {
   schema="$2"
   username="$3"
   password_file="$4"
+  mode="$5"
+  [ -n "$mode" ] || mode=schema
 
-  if ! valid_postgres_identifier "$database"; then
-    echo "Invalid PostgreSQL database identifier '$database'" >&2
-    return 1
-  fi
+  for identifier in "$database" "$schema" "$username"; do
+    if ! valid_postgres_identifier "$identifier" || [ "$(printf '%s' "$identifier" | wc -c)" -gt 63 ]; then
+      echo "Invalid PostgreSQL allocation identifier" >&2
+      return 1
+    fi
+  done
 
-  if ! valid_postgres_identifier "$schema"; then
-    echo "Invalid PostgreSQL schema identifier '$schema'" >&2
-    return 1
-  fi
-
-  if ! valid_postgres_identifier "$username"; then
-    echo "Invalid PostgreSQL role identifier '$username'" >&2
-    return 1
-  fi
+  case "$mode" in
+    schema)
+      # Existing behavior: one shared DB, module-scoped schema and role.
+      if [ "$database" != "$POSTGRES_DB" ]; then
+        echo "Schema allocation must target the Resource database" >&2
+        return 1
+      fi
+      ;;
+    database)
+      # Legacy apps may have migrations with hard-coded public references.
+      # They must never run those migrations against the shared Resource DB.
+      if [ "$database" = "$POSTGRES_DB" ] || [ "$schema" != "public" ]; then
+        echo "Dedicated database allocation must use a separate DB with public schema" >&2
+        return 1
+      fi
+      ;;
+    *)
+      echo "Unknown PostgreSQL allocation mode" >&2
+      return 1
+      ;;
+  esac
 
   if [ ! -r "$password_file" ]; then
-    echo "PostgreSQL binding password file is not readable: $password_file" >&2
+    echo "PostgreSQL binding password file is not readable" >&2
     return 1
   fi
-
   password="$(tr -d '\r\n' < "$password_file")"
-
   case "$password" in
     ""|*[!0-9a-f]*)
       echo "PostgreSQL binding password must be a non-empty lowercase hex secret" >&2
@@ -105,26 +119,61 @@ provision_allocation() {
       ;;
   esac
 
-  database_exists="$(
-    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -tAc "SELECT 1 FROM pg_database WHERE datname = '$database'"       | tr -d '[:space:]'
+  database_owner="$(
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+      -d "$POSTGRES_DB" -tAc \
+      "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '$database'" \
+      | tr -d '[:space:]'
   )"
-
-  if [ "$database_exists" != "1" ]; then
-    echo "PostgreSQL Resource database '$database' does not exist" >&2
+  if [ "$mode" = "schema" ] && [ -z "$database_owner" ]; then
+    echo "Resource database for schema allocation does not exist" >&2
+    return 1
+  fi
+  if [ "$mode" = "database" ] && [ -n "$database_owner" ] && [ "$database_owner" != "$username" ]; then
+    echo "Existing dedicated database has a different owner; refusing to modify it" >&2
     return 1
   fi
 
   role_exists="$(
-    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$username'"       | tr -d '[:space:]'
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+      -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$username'" \
+      | tr -d '[:space:]'
   )"
 
   if [ "$role_exists" = "1" ]; then
-    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -v ON_ERROR_STOP=1       -c "ALTER ROLE \"$username\" WITH LOGIN PASSWORD '$password'"       >/dev/null
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+      -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 \
+      -c "ALTER ROLE \"$username\" WITH LOGIN PASSWORD '$password'" >/dev/null
   else
-    psql       -h "$POSTGRES_HOST"       -p "$POSTGRES_PORT"       -U "$POSTGRES_USER"       -d "$POSTGRES_DB"       -v ON_ERROR_STOP=1       -c "CREATE ROLE \"$username\" WITH LOGIN PASSWORD '$password'"       >/dev/null
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+      -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 \
+      -c "CREATE ROLE \"$username\" WITH LOGIN PASSWORD '$password'" >/dev/null
   fi
 
-  psql     -h "$POSTGRES_HOST"     -p "$POSTGRES_PORT"     -U "$POSTGRES_USER"     -d "$database"     -v ON_ERROR_STOP=1     -c "CREATE SCHEMA IF NOT EXISTS \"$schema\" AUTHORIZATION \"$username\""     -c "ALTER SCHEMA \"$schema\" OWNER TO \"$username\""     -c "REVOKE ALL ON SCHEMA \"$schema\" FROM PUBLIC"     -c "GRANT CONNECT ON DATABASE \"$database\" TO \"$username\""     -c "GRANT USAGE, CREATE ON SCHEMA \"$schema\" TO \"$username\""     -c "ALTER ROLE \"$username\" IN DATABASE \"$database\" SET search_path TO \"$schema\""     >/dev/null
+  if [ "$mode" = "database" ]; then
+    if [ -z "$database_owner" ]; then
+      psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+        -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 \
+        -c "CREATE DATABASE \"$database\" OWNER \"$username\"" >/dev/null
+    fi
+    # PG 15+: public schema is owned by pg_database_owner in new DBs.
+    # DB ownership lets the application run legacy public-qualified migrations.
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+      -d "$database" -v ON_ERROR_STOP=1 \
+      -c "ALTER ROLE \"$username\" IN DATABASE \"$database\" SET search_path TO public" >/dev/null
+    echo "Provisioned dedicated PostgreSQL database '$database' for role '$username'"
+    return 0
+  fi
+
+  psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+    -d "$database" -v ON_ERROR_STOP=1 \
+    -c "CREATE SCHEMA IF NOT EXISTS \"$schema\" AUTHORIZATION \"$username\"" \
+    -c "ALTER SCHEMA \"$schema\" OWNER TO \"$username\"" \
+    -c "REVOKE ALL ON SCHEMA \"$schema\" FROM PUBLIC" \
+    -c "GRANT CONNECT ON DATABASE \"$database\" TO \"$username\"" \
+    -c "GRANT USAGE, CREATE ON SCHEMA \"$schema\" TO \"$username\"" \
+    -c "ALTER ROLE \"$username\" IN DATABASE \"$database\" SET search_path TO \"$schema\"" \
+    >/dev/null
 
   echo "Provisioned PostgreSQL schema '$schema' in database '$database' for role '$username'"
 }
@@ -137,11 +186,11 @@ provision_allocations() {
 
   tab="$(printf '\t')"
 
-  while IFS="$tab" read -r allocation_resource database schema username password_file; do
+  while IFS="$tab" read -r allocation_resource database schema username password_file allocation_mode; do
     [ -n "$allocation_resource" ] || continue
     [ "$allocation_resource" = "$RESOURCE_ID" ] || continue
 
-    provision_allocation "$database" "$schema" "$username" "$password_file"
+    provision_allocation "$database" "$schema" "$username" "$password_file" "$allocation_mode"
   done < "$ALLOCATIONS_FILE"
 }
 
