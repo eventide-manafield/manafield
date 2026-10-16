@@ -295,3 +295,51 @@ deployment:
     );
     assert!(validate_yaml(&definition.replace("provider: s3", "provider: postgresql")).is_err());
 }
+
+#[test]
+fn ci_plan_emits_s3_connection_metadata_without_credentials() {
+    let definition: InstanceDefinition = serde_yaml_ng::from_str(
+        r#"
+version: 0
+instance:
+  id: storage-test
+core:
+  source:
+    repository: https://example.invalid/core.git
+    ref: main
+resources:
+  - id: manafield-r2
+    provider: s3
+    config:
+      endpoint: https://account.r2.cloudflarestorage.com
+      bucket: media-bucket
+      region: auto
+      forcePathStyle: true
+deployment:
+  modulesNetwork: modules
+  edgeNetwork: edge
+"#,
+    )
+    .unwrap();
+    let plan = BuildPlan::from(definition);
+    let dir = std::env::temp_dir().join(format!(
+        "manafield-s3-ci-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    ci_output::write_ci_plan(&plan, &dir).unwrap();
+    let metadata = fs::read_to_string(dir.join("s3-resources.tsv")).unwrap();
+    assert_eq!(
+        metadata,
+        "manafield-r2\thttps://account.r2.cloudflarestorage.com\tmedia-bucket\tauto\ttrue\t-\n"
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("resources.tsv")).unwrap(),
+        "manafield-r2\ts3\n"
+    );
+    assert!(!metadata.to_lowercase().contains("secret"));
+    fs::remove_dir_all(dir).unwrap();
+}
