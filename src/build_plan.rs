@@ -123,6 +123,8 @@ struct ResourceDefinition {
     #[serde(default = "default_true")]
     enabled: bool,
     provider: String,
+    #[serde(default)]
+    config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -241,6 +243,7 @@ impl From<InstanceDefinition> for BuildPlan {
                 .map(|resource| ResourcePlan {
                     id: resource.id,
                     provider: resource.provider,
+                    config: resource.config,
                 })
                 .collect(),
             deployment: definition.deployment,
@@ -275,6 +278,8 @@ struct ModulePlan {
 struct ResourcePlan {
     id: String,
     provider: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
