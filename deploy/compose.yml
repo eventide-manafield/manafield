@@ -101,6 +101,48 @@ services:
     networks:
       - modules
 
+
+  # External S3-compatible Resource observer (Cloudflare R2, MinIO, etc.).
+  # Neither Manafield Core nor this Provider handles application object bytes.
+  manafield-s3-provider:
+    profiles:
+      - s3
+    image: ${MANAFIELD_S3_PROVIDER_IMAGE:-manafield-resource-s3:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_S3_RESOURCE_ID:-manafield-s3}
+      MANAFIELD_RESOURCE_NAME: ${MANAFIELD_S3_RESOURCE_NAME:-Manafield S3 Object Storage}
+      MANAFIELD_S3_ENDPOINT: ${MANAFIELD_S3_ENDPOINT:-}
+      MANAFIELD_S3_BUCKET: ${MANAFIELD_S3_BUCKET:-}
+      MANAFIELD_S3_REGION: ${MANAFIELD_S3_REGION:-auto}
+      MANAFIELD_S3_FORCE_PATH_STYLE: ${MANAFIELD_S3_FORCE_PATH_STYLE:-true}
+      MANAFIELD_S3_ACCESS_KEY_ID_FILE: /run/manafield/s3/access-key-id
+      MANAFIELD_S3_SECRET_ACCESS_KEY_FILE: /run/manafield/s3/secret-access-key
+      MANAFIELD_RESOURCE_CHECK_INTERVAL: 15
+    volumes:
+      - type: bind
+        source: ${MANAFIELD_S3_ACCESS_KEY_ID_HOST:-/dev/null}
+        target: /run/manafield/s3/access-key-id
+        read_only: true
+      - type: bind
+        source: ${MANAFIELD_S3_SECRET_ACCESS_KEY_HOST:-/dev/null}
+        target: /run/manafield/s3/secret-access-key
+        read_only: true
+    depends_on:
+      core:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - modules
+
 volumes:
   manafield-core-logs:
   manafield-postgres-data:
