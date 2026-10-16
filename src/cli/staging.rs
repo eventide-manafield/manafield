@@ -2,6 +2,8 @@
 //! Supports Git/dir Modules and the v0 PostgreSQL Resource Provider.
 //! No cleanup or volume removal is performed here.
 
+mod ingress;
+mod redis;
 mod s3;
 mod secrets;
 use secrets::{create_secret, write_private};
@@ -46,17 +48,20 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
     let resources = plan["resources"]
         .as_array()
         .ok_or_else(|| fail("invalid Build Plan Resources"))?;
-    // Exposed services require the dedicated Traefik ingress renderer and its
-    // publication step, which direct-mode deliberately does not silently skip.
-    if modules.iter().any(|m| m.get("exposure").is_some()) {
+    // Stage ingress declaratively, but NEVER publish it until operator cutover.
+    let mut has_exposure = false;
+    for module in modules {
+        has_exposure |= ingress::inspect(module)?.is_some();
+    }
+    if has_exposure && plan["deployment"]["ingress"]["provider"] != "traefik" {
         return Err(fail(
-            "direct deploy of exposed Modules is not supported yet; an Ingress provider stage is required",
+            "exposed Modules require a declared Traefik ingress provider",
         ));
     }
-    if !plan["deployment"]["ingress"].is_null() {
-        return Err(fail(
-            "direct deploy does not yet publish ingress; omit deployment.ingress or use Jenkins",
-        ));
+    if !plan["deployment"]["ingress"].is_null()
+        && plan["deployment"]["ingress"]["provider"] != "traefik"
+    {
+        return Err(fail("direct staging only supports Traefik ingress plans"));
     }
     if !plan["runtimeProviders"]
         .as_array()
@@ -68,12 +73,14 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
     }
     let mut postgres_id: Option<&str> = None;
     let mut s3_resource: Option<&Value> = None;
+    let mut redis_resource: Option<&Value> = None;
     for resource in resources {
         let id = field(resource, "id")?;
         match field(resource, "provider")? {
             "postgresql" if postgres_id.is_none() => postgres_id = Some(id),
             "s3" if s3_resource.is_none() => s3_resource = Some(resource),
-            "postgresql" | "s3" => {
+            "redis" if redis_resource.is_none() => redis_resource = Some(resource),
+            "postgresql" | "s3" | "redis" => {
                 return Err(fail(
                     "direct deploy v0 supports one Resource of each provider type",
                 ));
@@ -89,6 +96,9 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
     // Master credentials never enter YAML/JSON/Compose environment.
     let s3_runtime = s3_resource
         .map(|resource| s3::S3Runtime::prepare(resource, &root))
+        .transpose()?;
+    let redis_runtime = redis_resource
+        .map(|resource| redis::RedisRuntime::prepare(resource, &root))
         .transpose()?;
     let network = field(&plan["deployment"], "modulesNetwork")?;
     let edge = field(&plan["deployment"], "edgeNetwork")?;
@@ -123,6 +133,7 @@ pub(super) fn prepare(options: PrepareOptions<'_>) -> Result<PathBuf, CliError> 
         modules,
         postgres_id,
         s3_runtime.as_ref(),
+        redis_runtime.as_ref(),
         &scoped_network,
         edge,
         &project,
@@ -148,6 +159,7 @@ fn prepare_inside(
     modules: &[Value],
     postgres_id: Option<&str>,
     s3_runtime: Option<&s3::S3Runtime>,
+    redis_runtime: Option<&redis::RedisRuntime>,
     modules_network: &str,
     edge_network: &str,
     project: &str,
@@ -205,6 +217,38 @@ fn prepare_inside(
         name
     } else {
         String::new()
+    };
+
+    let (redis_server_image, redis_provider_image) = if redis_runtime.is_some() {
+        let server = format!("manafield-resource-redis-server:{core_revision}");
+        let provider = format!("manafield-resource-redis-provider:{core_revision}");
+        run(
+            "docker",
+            &[
+                "build",
+                "--file",
+                "providers/redis/Dockerfile.server",
+                "--tag",
+                &server,
+                "providers/redis",
+            ],
+            source,
+        )?;
+        run(
+            "docker",
+            &[
+                "build",
+                "--file",
+                "providers/redis/Dockerfile",
+                "--tag",
+                &provider,
+                "providers/redis",
+            ],
+            source,
+        )?;
+        (server, provider)
+    } else {
+        (String::new(), String::new())
     };
 
     let mut compose_modules = Map::new();
@@ -284,6 +328,30 @@ fn prepare_inside(
                 .map_err(|e| fail(format!("Module '{id}' manifest invalid JSON: {e}")))?;
         if let Some(required) = manifest_value["requires"]["capabilities"].as_object() {
             for (slot, capability) in required {
+                if capability["id"] == "cache.redis" {
+                    let target = module["bindings"][slot].as_str().ok_or_else(|| {
+                        fail(format!(
+                            "Module '{id}' cache.redis slot '{slot}' is UNBOUND"
+                        ))
+                    })?;
+                    if !redis_runtime.is_some_and(|cache| cache.id == target) {
+                        return Err(fail(format!(
+                            "Module '{id}' cache.redis slot '{slot}' must target a Redis Resource"
+                        )));
+                    }
+                }
+                if capability["id"] == "database.postgresql" {
+                    let target = module["bindings"][slot].as_str().ok_or_else(|| {
+                        fail(format!(
+                            "Module '{id}' database.postgresql slot '{slot}' is UNBOUND"
+                        ))
+                    })?;
+                    if postgres_id != Some(target) {
+                        return Err(fail(format!(
+                            "Module '{id}' database.postgresql slot '{slot}' must target the PostgreSQL Resource"
+                        )));
+                    }
+                }
                 if capability["id"] == "storage.object" {
                     let target = module["bindings"][slot].as_str().ok_or_else(|| {
                         fail(format!(
@@ -319,7 +387,22 @@ fn prepare_inside(
         )?;
 
         let mut env = Map::new();
-        env.insert("PORT".into(), json!("8080"));
+        let exposure = ingress::inspect(module)?;
+        env.insert(
+            "PORT".into(),
+            json!(
+                exposure
+                    .as_ref()
+                    .map(|e| e.port.to_string())
+                    .unwrap_or_else(|| "8080".to_owned())
+            ),
+        );
+        if let Some(exposure) = &exposure {
+            env.insert(
+                "MANAFIELD_MODULE_PUBLIC_URL".into(),
+                json!(format!("https://{}", exposure.host)),
+            );
+        }
         env.insert("MANAFIELD_CORE_URL".into(), json!("http://core:8080"));
         env.insert("MANAFIELD_MODULE_ID".into(), json!(id));
         env.insert("MANAFIELD_WEB_BASE_PATH".into(), json!("/"));
@@ -388,6 +471,8 @@ fn prepare_inside(
                     mounts.push(json!({"type":"bind","source":secret_path,"target":container_path,"read_only":true}));
                 } else if let Some(s3) = s3_runtime.filter(|s3| s3.id == instance) {
                     s3.inject(id, slot, &manifest, &mut env, &mut mounts)?;
+                } else if let Some(cache) = redis_runtime.filter(|cache| cache.id == instance) {
+                    cache.inject(id, slot, &manifest_value, &mut env, &mut mounts)?;
                 }
             }
         }
@@ -403,6 +488,19 @@ fn prepare_inside(
         });
         if !mounts.is_empty() {
             service["volumes"] = json!(mounts);
+        }
+        if let Some(exposure) = &exposure {
+            service["networks"]["edge"] = json!({});
+            service["expose"] = json!([exposure.port.to_string()]);
+        }
+        if redis_runtime.is_some_and(|cache| {
+            module["bindings"].as_object().is_some_and(|bindings| {
+                bindings
+                    .values()
+                    .any(|target| target.as_str() == Some(cache.id.as_str()))
+            })
+        }) {
+            service["depends_on"]["manafield-redis"] = json!({"condition":"service_healthy"});
         }
         compose_modules.insert(format!("module-{id}"), service);
     }
@@ -421,16 +519,25 @@ fn prepare_inside(
         "interval":"5s","timeout":"3s","retries":15,"start_period":"5s"
     }))
     .map_err(|e| fail(e.to_string()))?;
-    // Unused external edge network shouldn't be required for non-exposed Modules.
-    compose["networks"]
-        .as_mapping_mut()
-        .ok_or_else(|| fail("Compose network map missing"))?
-        .remove(serde_yaml_ng::Value::String("edge".into()));
+    // Do not require the external edge network for private-only Instances.
+    if !modules.iter().any(|m| m.get("exposure").is_some()) {
+        compose["networks"]
+            .as_mapping_mut()
+            .ok_or_else(|| fail("Compose network map missing"))?
+            .remove(serde_yaml_ng::Value::String("edge".into()));
+    }
     let compose_yaml = serde_yaml_ng::to_string(&compose).map_err(|e| fail(e.to_string()))?;
     fs::write(stage.join("compose.yml"), compose_yaml).map_err(|e| fail(e.to_string()))?;
     let module_yaml = serde_yaml_ng::to_string(&json!({"services":compose_modules}))
         .map_err(|e| fail(e.to_string()))?;
     fs::write(stage.join("modules.compose.yml"), module_yaml).map_err(|e| fail(e.to_string()))?;
+    if let Some(rendered) = ingress::render(modules)? {
+        fs::write(stage.join("ingress-traefik.yml"), rendered).map_err(|e| fail(e.to_string()))?;
+        println!(
+            "Staged Traefik candidate: {}/ingress-traefik.yml (NOT published)",
+            stage.display()
+        );
+    }
     fs::write(
         stage.join("build-plan.json"),
         serde_json::to_vec_pretty(plan).map_err(|e| fail(e.to_string()))?,
@@ -452,6 +559,9 @@ fn prepare_inside(
     }
     if s3_runtime.is_some() {
         profiles.push("s3");
+    }
+    if redis_runtime.is_some() {
+        profiles.push("redis");
     }
     fs::write(
         stage.join("compose-profiles.txt"),
@@ -506,6 +616,17 @@ fn prepare_inside(
         vars.push(format!(
             "MANAFIELD_S3_SECRET_ACCESS_KEY_HOST={}",
             storage.secret_path().display()
+        ));
+    }
+    if let Some(cache) = redis_runtime {
+        vars.push(format!("MANAFIELD_REDIS_SERVER_IMAGE={redis_server_image}"));
+        vars.push(format!(
+            "MANAFIELD_REDIS_PROVIDER_IMAGE={redis_provider_image}"
+        ));
+        vars.push(format!("MANAFIELD_REDIS_RESOURCE_ID={}", cache.id));
+        vars.push(format!(
+            "MANAFIELD_REDIS_PASSWORD_HOST={}",
+            cache.password_file().display()
         ));
     }
     if postgres_id.is_some() {

@@ -143,9 +143,72 @@ services:
     networks:
       - modules
 
+
+  # Redis stores shared application cache data, not Manafield Core registry data.
+  # Redis password is read from a mounted file; NEVER expose it in CLI argv.
+  manafield-redis:
+    profiles: [redis]
+    image: ${MANAFIELD_REDIS_SERVER_IMAGE:-manafield-resource-redis-server:local}
+    restart: unless-stopped
+    init: true
+    entrypoint: ["/bin/sh", "-ec"]
+    command: |
+      umask 077
+      secret="$$(cat /run/manafield/redis/password)"
+      case "$$secret" in ""|*[!0-9a-f]*) exit 1;; esac
+      printf 'requirepass %s\nappendonly yes\ndir /data\n' "$$secret" > /tmp/redis.conf
+      unset secret
+      exec redis-server /tmp/redis.conf
+    volumes:
+      - manafield-redis-data:/data
+      - type: bind
+        source: ${MANAFIELD_REDIS_PASSWORD_HOST:-/dev/null}
+        target: /run/manafield/redis/password
+        read_only: true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'REDISCLI_AUTH="$$(cat /run/manafield/redis/password)" redis-cli ping | grep -q PONG'
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [modules]
+
+  manafield-redis-provider:
+    profiles: [redis]
+    image: ${MANAFIELD_REDIS_PROVIDER_IMAGE:-manafield-resource-redis-provider:local}
+    restart: unless-stopped
+    init: true
+    environment:
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_REDIS_RESOURCE_ID:-manafield-redis}
+      MANAFIELD_RESOURCE_NAME: Manafield Redis Cache
+      MANAFIELD_REDIS_HOST: manafield-redis
+      MANAFIELD_REDIS_PORT: 6379
+      MANAFIELD_REDIS_PASSWORD_FILE: /run/manafield/redis/password
+      MANAFIELD_RESOURCE_CHECK_INTERVAL: 15
+    volumes:
+      - type: bind
+        source: ${MANAFIELD_REDIS_PASSWORD_HOST:-/dev/null}
+        target: /run/manafield/redis/password
+        read_only: true
+    depends_on:
+      core: {condition: service_healthy}
+      manafield-redis: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [modules]
+
 volumes:
   manafield-core-logs:
   manafield-postgres-data:
+  manafield-redis-data:
 
 networks:
   modules:
