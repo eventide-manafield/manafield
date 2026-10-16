@@ -89,20 +89,30 @@ impl S3ResourceConfig {
 fn valid_root_https_endpoint(value: &str) -> bool {
     let Some(authority) = value.strip_prefix("https://") else { return false };
     let authority = authority.strip_suffix('/').unwrap_or(authority);
-    !authority.is_empty()
-        && !authority.contains("..")
-        && authority.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'))
-        && !authority.starts_with(':')
-        && !authority.ends_with(':')
-        && !authority.contains("::")
+    if authority.is_empty() || authority.contains("..") {
+        return false;
+    }
+    let (host, port) = match authority.split_once(':') {
+        Some((host, port)) => (host, Some(port)),
+        None => (authority, None),
+    };
+    !host.is_empty()
+        && host.split('.').all(|part| !part.is_empty() && !part.starts_with('-') && !part.ends_with('-'))
+        && host.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
+        && port.is_none_or(|p| {
+            !p.is_empty()
+                && p.bytes().all(|b| b.is_ascii_digit())
+                && p.parse::<u16>().is_ok_and(|n| n > 0)
+        })
 }
 
 fn valid_public_https_url(value: &str) -> bool {
     let Some(host_path) = value.strip_prefix("https://") else { return false };
     let host = host_path.split('/').next().unwrap_or("");
-    !host.is_empty()
-        && host.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'))
-        && !value.contains(['@', '?', '#', '\\', '\n', '\r'])
+    valid_root_https_endpoint(&format!("https://{host}"))
+        && host_path.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'~' | b':' | b'/' | b'%')
+        })
 }
 
 fn valid_bucket(name: &str) -> bool {
@@ -147,6 +157,8 @@ mod tests {
             json!({"endpoint":"https://example.invalid","bucket":"../etc"}),
             json!({"endpoint":"https://example.invalid","bucket":"files","secretAccessKey":"must-not-be-here"}),
             json!({"endpoint":"https://example.invalid","bucket":"files","forcePathStyle":"true"}),
+            json!({"endpoint":"https://example.invalid:abc","bucket":"files"}),
+            json!({"endpoint":"https://example.invalid","bucket":"files","publicBaseUrl":"https://cdn.example.test/x\\"\nmalicious: true"}),
         ] {
             assert!(S3ResourceConfig::parse(&bad).is_err(), "accepted {bad:?}");
         }
