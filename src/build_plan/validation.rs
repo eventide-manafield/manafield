@@ -141,6 +141,20 @@ pub(super) fn validate_definition(definition: &InstanceDefinition) -> Result<(),
                 ));
             }
         }
+        for (slot, options) in &module.binding_options {
+            if !module.bindings.contains_key(slot) {
+                return Err(format!(
+                    "module '{}' has bindingOptions for unbound slot '{}'",
+                    module.id, slot
+                ));
+            }
+            if !options.is_object() {
+                return Err(format!(
+                    "module '{}' bindingOptions.{} must be an object",
+                    module.id, slot
+                ));
+            }
+        }
     }
 
     require_non_empty(
