@@ -45,18 +45,26 @@ impl S3ResourceConfig {
         }
         let region = obj
             .get("region")
-            .map(|v| v.as_str().ok_or("S3 Resource config.region must be a string"))
+            .map(|v| {
+                v.as_str()
+                    .ok_or("S3 Resource config.region must be a string")
+            })
             .transpose()?
             .unwrap_or("auto");
         if region.is_empty()
             || region.len() > 40
-            || !region.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+            || !region
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
         {
             return Err("S3 Resource config.region must be a simple region name".into());
         }
         let force_path_style = obj
             .get("forcePathStyle")
-            .map(|v| v.as_bool().ok_or("S3 Resource config.forcePathStyle must be boolean"))
+            .map(|v| {
+                v.as_bool()
+                    .ok_or("S3 Resource config.forcePathStyle must be boolean")
+            })
             .transpose()?
             .unwrap_or(true);
         let public_base_url = obj
@@ -87,7 +95,9 @@ impl S3ResourceConfig {
 // v0 accepts only a hostname with optional numeric port and no embedded path,
 // query, fragment or credentials. Local HTTP is intentionally excluded.
 fn valid_root_https_endpoint(value: &str) -> bool {
-    let Some(authority) = value.strip_prefix("https://") else { return false };
+    let Some(authority) = value.strip_prefix("https://") else {
+        return false;
+    };
     let authority = authority.strip_suffix('/').unwrap_or(authority);
     if authority.is_empty() || authority.contains("..") {
         return false;
@@ -97,8 +107,12 @@ fn valid_root_https_endpoint(value: &str) -> bool {
         None => (authority, None),
     };
     !host.is_empty()
-        && host.split('.').all(|part| !part.is_empty() && !part.starts_with('-') && !part.ends_with('-'))
-        && host.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
+        && host
+            .split('.')
+            .all(|part| !part.is_empty() && !part.starts_with('-') && !part.ends_with('-'))
+        && host
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
         && port.is_none_or(|p| {
             !p.is_empty()
                 && p.bytes().all(|b| b.is_ascii_digit())
@@ -107,7 +121,9 @@ fn valid_root_https_endpoint(value: &str) -> bool {
 }
 
 fn valid_public_https_url(value: &str) -> bool {
-    let Some(host_path) = value.strip_prefix("https://") else { return false };
+    let Some(host_path) = value.strip_prefix("https://") else {
+        return false;
+    };
     let host = host_path.split('/').next().unwrap_or("");
     valid_root_https_endpoint(&format!("https://{host}"))
         && host_path.bytes().all(|b| {
@@ -118,10 +134,18 @@ fn valid_public_https_url(value: &str) -> bool {
 fn valid_bucket(name: &str) -> bool {
     name.len() >= 3
         && name.len() <= 63
-        && name.bytes().next().is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
-        && name.bytes().last().is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        && name
+            .bytes()
+            .next()
+            .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+        && name
+            .bytes()
+            .last()
+            .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
         && !name.contains("..")
-        && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'-')
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'.' || b == b'-')
 }
 
 #[cfg(test)]
@@ -137,10 +161,14 @@ mod tests {
             "region": "auto",
             "forcePathStyle": true,
             "publicBaseUrl": "https://cdn.example.test/media"
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(cfg.region, "auto");
         assert!(cfg.force_path_style);
-        assert_eq!(cfg.public_base_url.as_deref(), Some("https://cdn.example.test/media"));
+        assert_eq!(
+            cfg.public_base_url.as_deref(),
+            Some("https://cdn.example.test/media")
+        );
     }
 
     #[test]
@@ -169,7 +197,8 @@ mod tests {
         let cfg = S3ResourceConfig::parse(&json!({
             "endpoint": "https://example.invalid/",
             "bucket": "bucket"
-        })).unwrap();
+        }))
+        .unwrap();
         assert_eq!(cfg.endpoint, "https://example.invalid");
         assert_eq!(cfg.region, "auto");
         assert!(cfg.force_path_style);
