@@ -42,6 +42,11 @@ impl S3Runtime {
         let runtime_dir = dir.join("runtime");
         fs::create_dir_all(&runtime_dir)
             .map_err(|e| fail(format!("cannot create S3 runtime secret directory: {e}")))?;
+        if fs::symlink_metadata(&runtime_dir)
+            .is_ok_and(|meta| !meta.is_dir() || meta.file_type().is_symlink())
+        {
+            return Err(fail("S3 runtime secrets directory must not be a symlink"));
+        }
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -154,11 +159,8 @@ fn read_master(path: &Path) -> Result<Vec<u8>, CliError> {
     if contents.is_empty() || contents.len() > 4096 {
         return Err(fail("S3 master credential file is empty or too large"));
     }
-    let trimmed = contents
-        .strip_suffix(b"\n")
-        .unwrap_or(&contents)
-        .strip_suffix(b"\r")
-        .unwrap_or(&contents);
+    let without_newline: &[u8] = contents.strip_suffix(b"\n").unwrap_or(&contents);
+    let trimmed = without_newline.strip_suffix(b"\r").unwrap_or(without_newline);
     if trimmed.is_empty() || trimmed.contains(&b'\n') || trimmed.contains(&b'\r') || trimmed.contains(&0) {
         return Err(fail("S3 master credential file has malformed content"));
     }
