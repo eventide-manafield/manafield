@@ -51,6 +51,17 @@ resources:
     enabled: false
     provider: postgresql
 
+  # S3-compatible object storage (Cloudflare R2 example). Only enable after
+  # configuring an existing bucket and private Instance-root credential files.
+  - id: manafield-r2
+    enabled: false
+    provider: s3
+    config:
+      endpoint: https://example-account.r2.cloudflarestorage.com
+      bucket: example-media
+      region: auto
+      forcePathStyle: true
+
 deployment:
   # Internal Core <-> Module network.
   modulesNetwork: manafield-modules
