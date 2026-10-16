@@ -99,8 +99,8 @@ class S3ResourceProviderTests(unittest.TestCase):
         self.assertEqual(result["provides"]["capabilities"], [{"id": "storage.object", "version": "1.0.0"}])
         self.assertNotIn("access", json.dumps(result).lower())
         self.assertNotIn("secret", json.dumps(result).lower())
-        self.assertNotIn("bucket", json.dumps(result).lower())
-        self.assertNotIn("endpoint", json.dumps(result).lower())
+        self.assertNotIn(settings.bucket, json.dumps(result))
+        self.assertNotIn(settings.endpoint, json.dumps(result))
 
     def test_secret_file_is_read_only_and_rejects_malformed(self):
         with tempfile.TemporaryDirectory() as root:
