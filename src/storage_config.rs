@@ -158,7 +158,7 @@ mod tests {
             json!({"endpoint":"https://example.invalid","bucket":"files","secretAccessKey":"must-not-be-here"}),
             json!({"endpoint":"https://example.invalid","bucket":"files","forcePathStyle":"true"}),
             json!({"endpoint":"https://example.invalid:abc","bucket":"files"}),
-            json!({"endpoint":"https://example.invalid","bucket":"files","publicBaseUrl":"https://cdn.example.test/x\\"\nmalicious: true"}),
+            json!({"endpoint":"https://example.invalid","bucket":"files","publicBaseUrl":"https://cdn.example.test/x|pipe"}),
         ] {
             assert!(S3ResourceConfig::parse(&bad).is_err(), "accepted {bad:?}");
         }
