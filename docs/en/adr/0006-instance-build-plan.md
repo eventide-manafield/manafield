@@ -111,3 +111,16 @@ Broader changes such as Core or shared Protocol changes may trigger wider verifi
 - Manafield needs an Instance Definition schema and Build Plan resolver
 - secrets are injected through executor-specific credential integration rather than committed to repositories or Instance Definitions; Jenkins Credentials Store may be the first adapter
 - deployment success includes Health / Protocol verification, not merely process or container startup
+## Exclusive Resource consumer contract (2026-10-19)
+
+A Resource may declare `exclusiveTo: { module: <module-id>, slot: <requirement-slot> }`.
+Enabled Redis Resources require it. Validation rejects any other Module/slot
+(including disabled declarations), Core references, a missing/disabled owner,
+or an owner slot that does not bind that Resource. The resolved Build Plan
+preserves the contract and CI emits `resource-exclusive-consumers.tsv`.
+Direct staging validates the definition before allocating secrets or building,
+then rechecks Redis ownership when injecting credentials. Jenkins rejects
+exclusive Resources until its materializer supports that enforcement.
+Existing PostgreSQL/S3 Resources without this field keep their current behavior.
+This is credential allocation policy; prefixes are not Redis ACLs.
+The current Redis executor limit remains one Resource per Manafield Instance.

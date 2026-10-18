@@ -513,6 +513,13 @@ fn prepare_inside(
     // named PostgreSQL volume. The Compose project name is stable across
     // Releases of the same Instance but distinct across Instance IDs.
     compose["name"] = serde_yaml_ng::Value::String(project.to_owned());
+    if let Some(cache) = redis_runtime {
+        // Scope persistence to BOTH the Manafield Instance and Redis Resource.
+        // Changing the Resource ID never silently reuses another Resource's AOF.
+        compose["volumes"]["manafield-redis-data"] =
+            serde_yaml_ng::to_value(json!({"name": format!("{project}-redis-{}", cache.id)}))
+                .map_err(|e| fail(e.to_string()))?;
+    }
     // Compose providers and modules rely on Core health; ensure it exists.
     compose["services"]["core"]["healthcheck"] = serde_yaml_ng::to_value(json!({
         "test":["CMD","curl","--fail","--silent","http://127.0.0.1:8080/health"],

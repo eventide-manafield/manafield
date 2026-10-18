@@ -343,3 +343,174 @@ deployment:
     assert!(!metadata.to_lowercase().contains("secret"));
     fs::remove_dir_all(dir).unwrap();
 }
+
+fn exclusive_definition() -> InstanceDefinition {
+    let mut definition = definition_with_modules(
+        r#"  - id: noctemblith
+    source: {type: dir}
+    build: {type: docker, context: ., dockerfile: Dockerfile}
+    bindings: {cache: noctemblith-redis}"#,
+    );
+    definition.resources.push(ResourceDefinition {
+        id: "noctemblith-redis".into(),
+        enabled: true,
+        provider: "redis".into(),
+        exclusive_to: Some(ExclusiveConsumer {
+            module: "noctemblith".into(),
+            slot: "cache".into(),
+        }),
+        config: None,
+    });
+    definition
+}
+
+#[test]
+fn exclusive_resource_preserves_contract_in_plan_and_ci() {
+    let definition = exclusive_definition();
+    validate_definition(&definition).unwrap();
+    let plan = BuildPlan::from(definition);
+    let json = serde_json::to_value(&plan).unwrap();
+    assert_eq!(json["resources"][0]["exclusiveTo"]["module"], "noctemblith");
+    assert_eq!(json["resources"][0]["exclusiveTo"]["slot"], "cache");
+    let dir = std::env::temp_dir().join(format!(
+        "manafield-exclusive-ci-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    ci_output::write_ci_plan(&plan, &dir).unwrap();
+    assert_eq!(
+        fs::read_to_string(dir.join("resource-exclusive-consumers.tsv")).unwrap(),
+        "noctemblith-redis\tnoctemblith\tcache\n"
+    );
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn redis_requires_explicit_exclusive_consumer() {
+    let mut definition = exclusive_definition();
+    definition.resources[0].exclusive_to = None;
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("requires exclusiveTo")
+    );
+}
+
+#[test]
+fn exclusive_resource_rejects_other_module_even_when_disabled() {
+    for enabled in [true, false] {
+        let mut definition = exclusive_definition();
+        let mut other = definition_with_modules(
+            r#"  - id: other
+    source: {type: dir}
+    build: {type: docker, context: ., dockerfile: Dockerfile}
+    bindings: {cache: noctemblith-redis}"#,
+        )
+        .modules
+        .remove(0);
+        other.enabled = enabled;
+        definition.modules.push(other);
+        assert!(
+            validate_definition(&definition)
+                .unwrap_err()
+                .contains("not permitted")
+        );
+    }
+}
+
+#[test]
+fn exclusive_resource_rejects_second_slot_and_core_binding() {
+    let mut definition = exclusive_definition();
+    definition.modules[0]
+        .bindings
+        .insert("otherCache".into(), "noctemblith-redis".into());
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("not permitted")
+    );
+    let mut definition = exclusive_definition();
+    definition
+        .core
+        .bindings
+        .insert("loggingState".into(), "noctemblith-redis".into());
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("cannot be bound by Core")
+    );
+}
+
+#[test]
+fn exclusive_resource_requires_enabled_owner_and_matching_binding() {
+    let mut definition = exclusive_definition();
+    definition.modules[0].enabled = false;
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("enabled Module")
+    );
+    let mut definition = exclusive_definition();
+    definition.modules[0].bindings.clear();
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("owner must bind")
+    );
+    let mut definition = exclusive_definition();
+    definition.resources[0]
+        .exclusive_to
+        .as_mut()
+        .unwrap()
+        .module = "missing".into();
+    assert!(
+        validate_definition(&definition)
+            .unwrap_err()
+            .contains("enabled Module")
+    );
+}
+
+#[test]
+fn exclusive_consumer_is_generic_and_unrestricted_postgres_stays_compatible() {
+    let mut definition = exclusive_definition();
+    definition.resources[0].provider = "postgresql".into();
+    validate_definition(&definition).unwrap();
+    definition.resources[0].exclusive_to = None;
+    definition
+        .core
+        .bindings
+        .insert("loggingState".into(), "noctemblith-redis".into());
+    validate_definition(&definition).unwrap();
+    let json = serde_json::to_value(BuildPlan::from(definition)).unwrap();
+    assert!(json["resources"][0].get("exclusiveTo").is_none());
+}
+
+#[test]
+fn malformed_exclusive_policy_is_rejected() {
+    for value in [
+        serde_json::json!({"module":"noctemblith"}),
+        serde_json::json!({"module":"noctemblith","slot":"cache","allowOthers":true}),
+        serde_json::json!({"module":"noctemblith","slot":["cache"]}),
+        serde_json::json!([]),
+    ] {
+        assert!(serde_json::from_value::<ExclusiveConsumer>(value).is_err());
+    }
+    for (module, slot) in [
+        ("", "cache"),
+        ("../other", "cache"),
+        ("noctemblith", ""),
+        ("noctemblith", "bad.slot"),
+    ] {
+        assert!(
+            ExclusiveConsumer {
+                module: module.into(),
+                slot: slot.into()
+            }
+            .validate()
+            .is_err()
+        );
+    }
+}

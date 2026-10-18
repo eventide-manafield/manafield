@@ -106,6 +106,54 @@ pub(super) fn validate_definition(definition: &InstanceDefinition) -> Result<(),
             return Err(format!("duplicate instance id '{}'", resource.id));
         }
 
+        if resource.enabled && resource.provider == "redis" && resource.exclusive_to.is_none() {
+            return Err(format!(
+                "resources[{}] Redis requires exclusiveTo (one Module and slot)",
+                resource.id
+            ));
+        }
+        if let Some(owner) = &resource.exclusive_to {
+            owner.validate()?;
+            if resource.enabled {
+                let module = definition
+                    .modules
+                    .iter()
+                    .find(|m| m.enabled && m.id == owner.module)
+                    .ok_or_else(|| {
+                        format!(
+                            "resources[{}].exclusiveTo must name an enabled Module",
+                            resource.id
+                        )
+                    })?;
+                if module.bindings.get(&owner.slot) != Some(&resource.id) {
+                    return Err(format!(
+                        "resources[{}].exclusiveTo owner must bind this Resource at '{}.{}'",
+                        resource.id, owner.module, owner.slot
+                    ));
+                }
+            }
+            // Also reject forbidden dormant bindings rather than allowing a
+            // disabled Module to become a second consumer on later activation.
+            for module in &definition.modules {
+                for (slot, target) in &module.bindings {
+                    if target == &resource.id {
+                        owner.authorize(&resource.id, &module.id, slot)?;
+                    }
+                }
+            }
+            if definition
+                .core
+                .bindings
+                .values()
+                .any(|target| target == &resource.id)
+            {
+                return Err(format!(
+                    "Resource '{}' is exclusive to a Module and cannot be bound by Core",
+                    resource.id
+                ));
+            }
+        }
+
         if resource.provider == "s3" {
             let config = resource.config.as_ref().ok_or_else(|| {
                 format!(
@@ -243,7 +291,7 @@ fn validate_source_subdir(label: &str, subdir: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_binding_slot(module_id: &str, slot: &str) -> Result<(), String> {
+pub(super) fn validate_binding_slot(module_id: &str, slot: &str) -> Result<(), String> {
     let mut characters = slot.chars();
 
     let Some(first) = characters.next() else {

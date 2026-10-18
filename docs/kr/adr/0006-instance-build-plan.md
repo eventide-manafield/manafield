@@ -111,3 +111,16 @@ Core 또는 공통 Protocol 변경처럼 영향 범위가 넓은 변경은 더 �
 - Build Plan Resolver와 Instance Definition Schema가 필요합니다.
 - Secrets는 Instance Definition이나 Repository에 직접 저장하지 않고 executor-specific credential integration에서 주입합니다. Jenkins Credentials Store는 첫 adapter일 수 있습니다.
 - 배포 성공은 container/process 시작만으로 판단하지 않고 Health / Protocol verification까지 포함해야 합니다.
+## Resource 전용 소비자 계약 (2026-10-19)
+
+Resource에 `exclusiveTo: { module: <모듈 ID>, slot: <Requirement 슬롯> }`을
+선언할 수 있다. 활성 Redis Resource에는 필수다. 다른 모듈·슬롯의 참조
+(비활성 모듈 선언 포함), Core의 참조, 누락·비활성 소유자, 소유자의
+해당 슬롯 바인딩 누락을 검증 단계에서 거부한다. Build Plan에도 이 선언을
+보존하고 CI는 `resource-exclusive-consumers.tsv`를 출력한다.
+Direct staging은 비밀 파일 생성·이미지 빌드 전에 정의를 검증하며,
+Redis 자격증명 주입 시 소유자를 다시 검사한다. Jenkins는 이 계약을
+지원할 때까지 전용 Resource 배포를 명시적으로 거부한다.
+기존 PostgreSQL·S3는 필드가 없으면 종전대로 동작한다.
+자격증명 할당 정책이며 키 prefix를 Redis ACL로 간주하지 않는다.
+현재 Redis executor의 Instance당 Resource 최대 1개 제한은 유지한다.

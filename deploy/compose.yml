@@ -144,7 +144,7 @@ services:
       - modules
 
 
-  # Redis stores shared application cache data, not Manafield Core registry data.
+  # Redis is exclusive to its declared consumer; it also stores durable job queues.
   # Redis password is read from a mounted file; NEVER expose it in CLI argv.
   manafield-redis:
     profiles: [redis]
@@ -152,13 +152,14 @@ services:
     restart: unless-stopped
     init: true
     entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      umask 077
-      secret="$$(cat /run/manafield/redis/password)"
-      case "$$secret" in ""|*[!0-9a-f]*) exit 1;; esac
-      printf 'requirepass %s\nappendonly yes\ndir /data\n' "$$secret" > /tmp/redis.conf
-      unset secret
-      exec redis-server /tmp/redis.conf
+    command:
+      - |
+          umask 077
+          secret="$$(cat /run/manafield/redis/password)"
+          case "$$secret" in ""|*[!0-9a-f]*) exit 1;; esac
+          printf 'requirepass %s\nappendonly yes\nappendfsync everysec\nmaxmemory-policy noeviction\ndir /data\n' "$$secret" > /tmp/redis.conf
+          unset secret
+          exec redis-server /tmp/redis.conf
     volumes:
       - manafield-redis-data:/data
       - type: bind
@@ -185,7 +186,7 @@ services:
     init: true
     environment:
       MANAFIELD_CORE_URL: http://core:8080
-      MANAFIELD_RESOURCE_ID: ${MANAFIELD_REDIS_RESOURCE_ID:-manafield-redis}
+      MANAFIELD_RESOURCE_ID: ${MANAFIELD_REDIS_RESOURCE_ID:-redis-resource}
       MANAFIELD_RESOURCE_NAME: Manafield Redis Cache
       MANAFIELD_REDIS_HOST: manafield-redis
       MANAFIELD_REDIS_PORT: 6379

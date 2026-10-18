@@ -62,10 +62,14 @@ resources:
       region: auto
       forcePathStyle: true
 
-  # Optional Redis cache Resource. Does not grant tenant isolation by itself.
-  - id: manafield-redis
+  # Example only: enable the native noctemblith Module with cache binding first.
+  # Resource IDs and internal Docker service names are separate concepts.
+  - id: noctemblith-redis
     enabled: false
     provider: redis
+    exclusiveTo:
+      module: noctemblith
+      slot: cache
 
 deployment:
   # Internal Core <-> Module network.

@@ -123,8 +123,45 @@ struct ResourceDefinition {
     #[serde(default = "default_true")]
     enabled: bool,
     provider: String,
+    #[serde(default, rename = "exclusiveTo")]
+    exclusive_to: Option<ExclusiveConsumer>,
     #[serde(default)]
     config: Option<serde_json::Value>,
+}
+
+/// One exact Module Requirement allowed to consume a Resource.
+/// Optional for existing PostgreSQL/S3; mandatory for enabled Redis Resources.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ExclusiveConsumer {
+    pub(crate) module: String,
+    pub(crate) slot: String,
+}
+
+impl ExclusiveConsumer {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.module.is_empty()
+            || self.module.len() > 63
+            || !self
+                .module
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
+            || self.module.contains("..")
+        {
+            return Err("exclusiveTo.module must be a valid Module ID".into());
+        }
+        validation::validate_binding_slot(&self.module, &self.slot)
+    }
+
+    pub(crate) fn authorize(&self, resource: &str, module: &str, slot: &str) -> Result<(), String> {
+        if self.module != module || self.slot != slot {
+            return Err(format!(
+                "Resource '{resource}' is exclusive to '{}.{}'; '{module}.{slot}' is not permitted",
+                self.module, self.slot
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -243,6 +280,7 @@ impl From<InstanceDefinition> for BuildPlan {
                 .map(|resource| ResourcePlan {
                     id: resource.id,
                     provider: resource.provider,
+                    exclusive_to: resource.exclusive_to,
                     config: resource.config,
                 })
                 .collect(),
@@ -278,6 +316,8 @@ struct ModulePlan {
 struct ResourcePlan {
     id: String,
     provider: String,
+    #[serde(rename = "exclusiveTo", skip_serializing_if = "Option::is_none")]
+    exclusive_to: Option<ExclusiveConsumer>,
     #[serde(skip_serializing_if = "Option::is_none")]
     config: Option<serde_json::Value>,
 }

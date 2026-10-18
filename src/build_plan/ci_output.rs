@@ -136,6 +136,23 @@ pub(super) fn write_ci_plan(
     }
     fs::write(directory.join("resources.tsv"), resources)?;
 
+    // Preserve the generic exclusive consumer contract for future executors.
+    // Existing Jenkins still rejects Redis/S3 before materializing credentials.
+    let exclusive_resources = plan
+        .resources
+        .iter()
+        .filter_map(|resource| {
+            resource
+                .exclusive_to
+                .as_ref()
+                .map(|owner| format!("{}\t{}\t{}\n", resource.id, owner.module, owner.slot))
+        })
+        .collect::<String>();
+    fs::write(
+        directory.join("resource-exclusive-consumers.tsv"),
+        exclusive_resources,
+    )?;
+
     // Executor-facing, nonsecret S3 connection metadata. Keep resources.tsv
     // generic and stable for older Jenkins consumers.
     let mut s3_resources = String::new();

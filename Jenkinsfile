@@ -608,6 +608,11 @@ EOF
                     modules_network="$(cat ci-plan/modules-network.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
 
+                    if [ -s ci-plan/resource-exclusive-consumers.tsv ]; then
+                      echo "Exclusive Resource deployment is not yet supported by Jenkins materialization." >&2
+                      exit 1
+                    fi
+
                     # Jenkins has not yet implemented Storage binding materialization.
                     # Fail rather than silently producing a partially wired Release.
                     if awk -F '\t' '$2 == "s3" || $2 == "redis" { found=1 } END {exit(found ? 0 : 1)}' ci-plan/resources.tsv; then

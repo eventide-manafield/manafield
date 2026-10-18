@@ -72,6 +72,14 @@ fn write_secret_file(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
     f.write_all(bytes)
         .and_then(|_| f.sync_all())
         .map_err(|e| fail(e.to_string()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        // OpenOptions::mode is filtered by umask. The file alone is mounted
+        // read-only; its host parent remains 0700.
+        f.set_permissions(fs::Permissions::from_mode(0o444))
+            .map_err(|e| fail(format!("cannot set consumer secret read permissions: {e}")))?;
+    }
     Ok(())
 }
 pub(super) fn write_private(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
@@ -122,6 +130,21 @@ mod tests {
 
         create_secret(&admin).unwrap();
         assert_eq!(fs::read(&admin).unwrap(), first);
+
+        let consumer = directory.join("consumer/password");
+        create_secret(&consumer).unwrap();
+        assert_eq!(
+            fs::metadata(&consumer).unwrap().permissions().mode() & 0o777,
+            0o444
+        );
+        assert_eq!(
+            fs::metadata(consumer.parent().unwrap())
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
 
         let private = directory.join("release.env");
         write_private(&private, b"TEST_VALUE=ok\n").unwrap();
