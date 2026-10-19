@@ -86,7 +86,8 @@ R2의 S3 API 엔드포인트와 공개 미디어 URL은 다르다.
 - 직접 배포 CLI: PostgreSQL 최대 1개 + S3 최대 1개 Resource
 - Resource 설정 검증: HTTPS 엔드포인트, 버킷, 리전, 비밀 설정 차단
 - `storage.object` 요구사항 미바인딩·오바인딩 시 직접 배포 거부
-- 기존 Jenkins v0: S3 배포를 **명시적으로 거부** (별도 지원 예정)
+- Jenkins Stage Release와 직접 staging이 공통 CLI의 S3 바인딩 준비를 재사용
+- Jenkins는 권장 실행기이며 CLI 실행에는 Jenkins 설치가 필요하지 않음
 - 실제 R2 연결, S3 객체의 읽기·쓰기 테스트, 녹템블리스 본체의
   S3 설정 소비는 별도 통합 검증 대상
 

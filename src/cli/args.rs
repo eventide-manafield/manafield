@@ -34,6 +34,8 @@ where
         }
         "plan" => parse_plan_args(args),
         "deploy" => parse_deploy_args(args),
+        "stage-resources" => parse_resource_stage(args),
+        "apply" => parse_selected_apply(args),
         "build" => parse_build_args(args),
         "help" | "-h" | "--help" => ensure_no_more(args, Command::Help),
         "version" | "-V" | "--version" => ensure_no_more(args, Command::Version),
@@ -382,4 +384,63 @@ where
     } else {
         Ok(command)
     }
+}
+
+fn parse_resource_stage<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let mut values = std::collections::BTreeMap::new();
+    while let Some(key) = args.next() {
+        if !["--definition", "--instance-root", "--release-dir"].contains(&key.as_str())
+            || values.contains_key(&key)
+        {
+            return Err(CliError::Usage(format!(
+                "unknown or repeated stage-resources option '{key}'"
+            )));
+        }
+        let value = args
+            .next()
+            .filter(|v| !v.starts_with("--") && !v.is_empty())
+            .ok_or_else(|| CliError::Usage(format!("{key} requires a path")))?;
+        values.insert(key, value);
+    }
+    let mut required = |key: &str| {
+        values
+            .remove(key)
+            .ok_or_else(|| CliError::Usage(format!("missing {key}")))
+    };
+    Ok(Command::StageResources {
+        definition: required("--definition")?,
+        instance_root: required("--instance-root")?,
+        release_dir: required("--release-dir")?,
+    })
+}
+
+fn parse_selected_apply<I>(mut args: I) -> Result<Command, CliError>
+where
+    I: Iterator<Item = String>,
+{
+    let release_dir = args
+        .next()
+        .filter(|v| !v.starts_with('-'))
+        .ok_or_else(|| CliError::Usage("apply requires RELEASE_DIR [--service NAME ...]".into()))?;
+    let mut services = Vec::new();
+    while let Some(flag) = args.next() {
+        if flag != "--service" {
+            return Err(CliError::Usage(format!("unknown apply option '{flag}'")));
+        }
+        let service = args
+            .next()
+            .filter(|v| !v.starts_with('-') && !v.is_empty())
+            .ok_or_else(|| CliError::Usage("--service requires a service name".into()))?;
+        if services.contains(&service) {
+            return Err(CliError::Usage("repeated --service".into()));
+        }
+        services.push(service);
+    }
+    Ok(Command::ApplySelected {
+        release_dir,
+        services,
+    })
 }

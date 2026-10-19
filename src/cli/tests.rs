@@ -349,3 +349,55 @@ fn decodes_chunked_body() {
 
     assert_eq!(decoded, b"test");
 }
+
+#[test]
+fn parses_shared_staging_and_selected_apply() {
+    assert_eq!(
+        parse_args(args(&[
+            "stage-resources",
+            "--definition",
+            "instance.yaml",
+            "--instance-root",
+            "/instance",
+            "--release-dir",
+            "/release"
+        ]))
+        .unwrap(),
+        Command::StageResources {
+            definition: "instance.yaml".into(),
+            instance_root: "/instance".into(),
+            release_dir: "/release".into()
+        }
+    );
+    assert_eq!(
+        parse_args(args(&[
+            "apply",
+            "/release",
+            "--service",
+            "core",
+            "--service",
+            "manafield-redis"
+        ]))
+        .unwrap(),
+        Command::ApplySelected {
+            release_dir: "/release".into(),
+            services: vec!["core".into(), "manafield-redis".into()]
+        }
+    );
+    for invalid in [
+        vec!["stage-resources", "--definition", "x"],
+        vec!["stage-resources", "--definition", "--instance-root", "x"],
+        vec!["apply", "/release", "--service"],
+        vec![
+            "apply",
+            "/release",
+            "--service",
+            "core",
+            "--service",
+            "core",
+        ],
+        vec!["apply", "/release", "--unknown"],
+    ] {
+        assert!(parse_args(args(&invalid)).is_err());
+    }
+}

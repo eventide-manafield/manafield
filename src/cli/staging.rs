@@ -4,6 +4,7 @@
 
 mod ingress;
 mod redis;
+pub(crate) mod resource_release;
 mod s3;
 mod secrets;
 use secrets::{create_secret, write_private};
@@ -647,6 +648,7 @@ fn prepare_inside(
         &stage.join("release.env"),
         format!("{}\n", vars.join("\n")).as_bytes(),
     )?;
+    resource_release::augment(plan, root, stage)?;
     Ok(())
 }
 

@@ -194,6 +194,12 @@ fn write_mount_copy(path: &Path, contents: &[u8]) -> Result<(), CliError> {
                 "S3 runtime credential differs from master; controlled credential rotation is required",
             ));
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(path, fs::Permissions::from_mode(0o444))
+                .map_err(|_| fail("Cannot set S3 runtime credential read permissions"))?;
+        }
         return Ok(());
     }
     let mut options = OpenOptions::new();
@@ -209,6 +215,12 @@ fn write_mount_copy(path: &Path, contents: &[u8]) -> Result<(), CliError> {
     file.write_all(contents)
         .and_then(|_| file.sync_all())
         .map_err(|_| fail("Cannot write S3 runtime credential file"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        file.set_permissions(fs::Permissions::from_mode(0o444))
+            .map_err(|_| fail("Cannot set S3 runtime credential read permissions"))?;
+    }
     Ok(())
 }
 
@@ -296,7 +308,20 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let secret = root.join("credential");
         write_mount_copy(&secret, b"fake-secret").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&secret, fs::Permissions::from_mode(0o400)).unwrap();
+        }
         write_mount_copy(&secret, b"fake-secret").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(&secret).unwrap().permissions().mode() & 0o777,
+                0o444
+            );
+        }
         assert!(write_mount_copy(&secret, b"rotated").is_err());
         assert!(!format!("{}", fail("no secret bytes")).contains("fake-secret"));
         fs::remove_dir_all(root).unwrap();

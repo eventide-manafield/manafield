@@ -209,3 +209,32 @@ Modules, and PostgreSQL Resource Providers. Preserves the existing
 Source checkout, Build Plan resolution, binding materialization, and release
 staging remain separate. Jenkins must prepare the workspace; a complete
 CLI-only first-time Instance build is still a future goal.
+
+## Shared Resource staging and selected apply (2026-10-19)
+
+Jenkins is the recommended runner; shared build, Release preparation and apply
+must also work without Jenkins. Docker remains the current backend. The
+transitional `build WORKSPACE REVISION CORE_IMAGE` builder takes explicit
+`module-sources.tsv` and `ci-plan/resources.tsv`, without Jenkins API calls.
+
+After preparing images, base Compose and Module manifests:
+
+```sh
+manafield stage-resources --definition instance.yaml \
+  --instance-root /path/to/instance --release-dir /path/to/release
+manafield apply /path/to/release --service manafield-redis --service manafield-redis-provider
+```
+
+Staging checks Build Plan equality, required capabilities and exclusive
+consumers, then prepares PostgreSQL Module allocations, S3/Redis bindings and
+authorized secret-file mounts. It performs no Docker or ingress action.
+The limit is one Resource per provider. S3/Redis apply requires a completed
+receipt matching the Build Plan. Jenkins Stage Release and direct staging
+reuse this materializer. Some legacy Core logging/Account preparation remains
+inside Jenkins.
+
+Selected apply uses `--no-deps --no-build`; the caller checks dependencies.
+It preserves orphan services and does not promote the active Instance
+Definition/Release selection. `deploy/noctemblith-native-connect.py` uses actual
+Docker inventory to preserve existing images and start the native app internally.
+Public cutover and SSO/media E2E remain subsequent steps.

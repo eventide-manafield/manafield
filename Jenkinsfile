@@ -608,17 +608,8 @@ EOF
                     modules_network="$(cat ci-plan/modules-network.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
 
-                    if [ -s ci-plan/resource-exclusive-consumers.tsv ]; then
-                      echo "Exclusive Resource deployment is not yet supported by Jenkins materialization." >&2
-                      exit 1
-                    fi
-
-                    # Jenkins has not yet implemented Storage binding materialization.
-                    # Fail rather than silently producing a partially wired Release.
-                    if awk -F '\t' '$2 == "s3" || $2 == "redis" { found=1 } END {exit(found ? 0 : 1)}' ci-plan/resources.tsv; then
-                      echo "S3 and Redis Resource deployment require the direct CLI staging path; Jenkins v0 does not wire their secrets yet." >&2
-                      exit 1
-                    fi
+                    # Resource contracts and nonsecret/private-file binding
+                    # materialization are handled by the shared CLI below.
 
                     postgres_count="$(
                       awk -F '\t' '$2 == "postgresql" { count += 1 } END { print count + 0 }' \
@@ -1080,6 +1071,11 @@ EOF
 EOF
                       fi
                     done < module-sources.tsv
+
+                    ./manafield-cli stage-resources \
+                      --definition "$INSTANCE_ROOT/instance.yaml" \
+                      --instance-root "$INSTANCE_ROOT" \
+                      --release-dir "$RELEASE_DIR"
                 '''
             }
         }

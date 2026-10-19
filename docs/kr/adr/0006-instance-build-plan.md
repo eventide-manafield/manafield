@@ -119,8 +119,8 @@ Resource에 `exclusiveTo: { module: <모듈 ID>, slot: <Requirement 슬롯> }`�
 해당 슬롯 바인딩 누락을 검증 단계에서 거부한다. Build Plan에도 이 선언을
 보존하고 CI는 `resource-exclusive-consumers.tsv`를 출력한다.
 Direct staging은 비밀 파일 생성·이미지 빌드 전에 정의를 검증하며,
-Redis 자격증명 주입 시 소유자를 다시 검사한다. Jenkins는 이 계약을
-지원할 때까지 전용 Resource 배포를 명시적으로 거부한다.
+Redis 자격증명 주입 시 소유자를 다시 검사한다. Jenkins Stage Release와
+직접 staging은 같은 CLI Resource materializer로 이 계약을 적용한다.
 기존 PostgreSQL·S3는 필드가 없으면 종전대로 동작한다.
 자격증명 할당 정책이며 키 prefix를 Redis ACL로 간주하지 않는다.
 현재 Redis executor의 Instance당 Resource 최대 1개 제한은 유지한다.
@@ -146,8 +146,9 @@ Jenkins 설치, 전용 작업 공간 변수 또는 Jenkins API 없이 공통 CLI
 - 공통 빌드 또는 Release 준비는 운영 배포와 Traefik 공개를 자동 실행하지
   않는다. 배포 대상과 기존 데이터 수명주기는 별도로 명시한다.
 
-현재 상태: 공통 CLI 이미지 빌더와 Compose 적용 executor는 이미 존재한다.
-Jenkinsfile의 Resource 준비·바인딩·Release 생성에는 아직 중복 구현이 있다.
-다음 구현은 이 책임을 공통 CLI로 모으고 그 기능을 Jenkins와 직접 실행
-경로에서 재사용하면서 S3·Redis 지원을 추가한다. 이 절은 목표 계약이며
-Jenkins의 S3·Redis 지원 또는 실제 본체 연결이 완료됐다는 뜻이 아니다.
+현재 구현: 공통 CLI 이미지 빌더와 Compose 적용 executor에 더해
+`stage-resources`가 PostgreSQL Module 할당·S3·전용 Redis 바인딩을 준비한다.
+Jenkins Stage Release와 직접 staging이 이 코드를 재사용한다. 기존 Jenkins의
+PostgreSQL/Core logging 및 Account 설정에는 과도기 중복이 남아 있다.
+선택 적용은 `apply RELEASE_DIR --service NAME`으로 실행하며 기존 서비스를
+자동 종료하지 않는다. 소스/단위 검증과 실제 Jenkins·본체 배포 검증은 구분한다.

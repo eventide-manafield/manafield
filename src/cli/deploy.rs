@@ -14,6 +14,19 @@ const REQUIRED_FILES: [&str; 4] = [
 ];
 
 pub(super) fn run(release_dir: &str) -> Result<(), CliError> {
+    run_selected(release_dir, &[])
+}
+
+pub(super) fn run_selected(release_dir: &str, services: &[String]) -> Result<(), CliError> {
+    for service in services {
+        if service.is_empty()
+            || !service
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+        {
+            return Err(CliError::Usage("unsafe selected Compose service".into()));
+        }
+    }
     let release_dir = Path::new(release_dir);
     for name in REQUIRED_FILES {
         let path = release_dir.join(name);
@@ -25,6 +38,14 @@ pub(super) fn run(release_dir: &str) -> Result<(), CliError> {
         }
     }
 
+    if release_dir.join("build-plan.json").is_file() {
+        let plan: serde_json::Value = serde_json::from_slice(
+            &fs::read(release_dir.join("build-plan.json"))
+                .map_err(|_| CliError::Execution("cannot read staged Build Plan".into()))?,
+        )
+        .map_err(|_| CliError::Execution("invalid staged Build Plan JSON".into()))?;
+        super::staging::resource_release::verify(&plan, release_dir)?;
+    }
     let profiles_path = release_dir.join("compose-profiles.txt");
     let profiles = fs::read_to_string(&profiles_path).map_err(|error| {
         CliError::Execution(format!(
@@ -34,10 +55,8 @@ pub(super) fn run(release_dir: &str) -> Result<(), CliError> {
     })?;
     let profiles = profiles.trim();
 
-    for args in [
-        &["up", "-d", "--no-build", "--remove-orphans"][..],
-        &["ps"][..],
-    ] {
+    let up = up_arguments(services);
+    for args in [up.as_slice(), &["ps"][..]] {
         let status = compose_command(release_dir, profiles, args)
             .status()
             .map_err(|error| {
@@ -55,6 +74,15 @@ pub(super) fn run(release_dir: &str) -> Result<(), CliError> {
     }
 
     Ok(())
+}
+
+fn up_arguments(services: &[String]) -> Vec<&str> {
+    let mut args = vec!["up", "-d", "--no-build"];
+    if !services.is_empty() {
+        args.push("--no-deps");
+    }
+    args.extend(services.iter().map(String::as_str));
+    args
 }
 
 fn compose_command(release_dir: &Path, profiles: &str, args: &[&str]) -> ProcessCommand {
@@ -89,7 +117,7 @@ mod tests {
         let command = compose_command(
             Path::new("/tmp/release 123"),
             "postgresql",
-            &["up", "-d", "--no-build", "--remove-orphans"],
+            &["up", "-d", "--no-build", "--no-deps", "manafield-redis"],
         );
         let args = command
             .get_args()
@@ -110,7 +138,8 @@ mod tests {
                 "up",
                 "-d",
                 "--no-build",
-                "--remove-orphans",
+                "--no-deps",
+                "manafield-redis",
             ]
         );
         assert_eq!(
@@ -120,6 +149,23 @@ mod tests {
                 .and_then(|(_, value)| value),
             Some(OsStr::new("postgresql"))
         );
+    }
+
+    #[test]
+    fn selected_apply_does_not_start_dependencies_or_remove_other_services() {
+        assert_eq!(up_arguments(&[]), vec!["up", "-d", "--no-build"]);
+        assert_eq!(
+            up_arguments(&["core".into(), "manafield-redis".into()]),
+            vec![
+                "up",
+                "-d",
+                "--no-build",
+                "--no-deps",
+                "core",
+                "manafield-redis"
+            ]
+        );
+        assert!(run_selected("/nonexistent", &["--remove-orphans".into()]).is_err());
     }
 
     #[test]

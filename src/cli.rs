@@ -73,6 +73,15 @@ pub enum Command {
     Deploy {
         release_dir: String,
     },
+    ApplySelected {
+        release_dir: String,
+        services: Vec<String>,
+    },
+    StageResources {
+        definition: String,
+        instance_root: String,
+        release_dir: String,
+    },
     Help,
     Version,
 }
@@ -138,6 +147,15 @@ pub fn run(command: Command) -> Result<(), CliError> {
             revision,
             core_image,
         } => build::run(&workspace, &revision, &core_image),
+        Command::ApplySelected {
+            release_dir,
+            services,
+        } => deploy::run_selected(&release_dir, &services),
+        Command::StageResources {
+            definition,
+            instance_root,
+            release_dir,
+        } => staging::resource_release::run(&definition, &instance_root, &release_dir),
         Command::Help => {
             print_help();
             Ok(())
@@ -281,7 +299,10 @@ pub fn print_help() {
                              options: --output PATH --ci-output DIR\n\
            build all         Build the Manafield platform distribution\n\
                              options: --source DIR --output DIR --no-docker\n\
-           build WORKSPACE REVISION CORE_IMAGE  Legacy Jenkins image builder\n\
+           apply RELEASE_DIR [--service NAME ...]  Apply prepared services without removing others\n\
+           stage-resources --definition FILE --instance-root DIR --release-dir DIR\n\
+                             Prepare shared Resource artifacts without building/deploying\n\
+           build WORKSPACE REVISION CORE_IMAGE  Image builder from prepared source metadata\n\
            deploy [ID]       Snapshot a new Release YAML and deploy its matching artifacts\n\
                              options: --instance-root DIR --source DIR --modules-root DIR --staged-dir DIR --snapshot-only\n\
            deploy RELEASE_DIR Legacy Jenkins Compose deployment\n\

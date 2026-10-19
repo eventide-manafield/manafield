@@ -23,8 +23,8 @@ it; existing PostgreSQL/S3 configurations without it retain their behavior.
 The owner must be an enabled Module whose exact slot binds the Resource.
 Every other Module/slot binding is rejected, including dormant declarations,
 and Core cannot bind a Module-exclusive Resource. The policy is preserved in
-Build Plan JSON and `resource-exclusive-consumers.tsv`. Jenkins refuses
-exclusive Resources until its materializer can enforce that contract.
+Build Plan JSON and `resource-exclusive-consumers.tsv`. Jenkins Stage Release
+and direct staging use the same CLI materializer to enforce that contract.
 
 These are deployment/credential-allocation checks, not a Redis ACL or a
 sandbox for a compromised host/Module. Prefixes are only namespacing.
@@ -75,9 +75,12 @@ credentials, read access from each actual nonroot UID, Pub/Sub, a BullMQ job
 surviving Redis restart, and stable AOF volume ownership. Pin image
 versions/digests then. Full native Noctemblith and SSO E2E is a later stage.
 
-Jenkins still refuses Redis/S3; direct CLI prepares a separate project with
-Core/PostgreSQL and is not an approved way to augment the running Jenkins
-Instance. Do not publish staged Traefik routes or stop existing SNS instances.
+Jenkins is the recommended runner; shared CLI commands also work without it.
+Both Jenkins Stage Release and direct staging call the same Resource materializer.
+The generic direct Instance deploy still uses its own project. To augment the
+existing project use the inventory-aware native connection recipe described in
+[the handoff](WORK_HANDOFF.md), preserving existing PG volumes and Account images.
+The isolated runtime probe passed on 2026-10-19; full native rollout remains separate.
 
 ## Operator SSH command
 

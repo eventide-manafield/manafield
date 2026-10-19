@@ -458,3 +458,6 @@ Manafield does not aim to reimplement:
 - Kubernetes
 
 Manafield should orchestrate and compose existing technologies through explicit Module and Provider contracts rather than replace them.
+
+
+Jenkins is the recommended build/deploy runner; the shared CLI must also work without Jenkins. Docker backend dependency is separate from runner selection. Jenkins and direct execution reuse shared Resource staging. See [execution independence](adr/0006-instance-build-plan.md).

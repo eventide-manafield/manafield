@@ -458,3 +458,6 @@ Manafield는 다음을 새로 구현하려는 프로젝트가 아닙니다.
 - Kubernetes
 
 기존 기술을 대체하는 대신, **Module과 Provider의 명시적인 계약을 통해 기존 기술을 연결하고 관리하는 Control Plane**을 목표로 합니다.
+
+
+Jenkins는 권장 빌드·배포 실행기이며, 공통 CLI는 Jenkins 없이도 동작해야 합니다. Docker backend 의존성과 실행기 선택을 분리합니다. Resource 준비는 Jenkins/직접 실행이 같은 CLI 코드를 재사용합니다. [실행 환경 독립성 결정](adr/0006-instance-build-plan.md).

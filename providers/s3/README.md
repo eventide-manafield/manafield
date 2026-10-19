@@ -76,7 +76,7 @@ cargo test --locked --lib
 ```
 
 The offline tests use fake S3 clients; no R2 tokens or real bucket requests
-are used. The current Jenkins Release executor explicitly rejects S3 Resource requests
-until its credential materializer and S3 Module wiring are implemented. Use
-the direct CLI Release path or the standalone provider Compose example for
-initial testing.
+are used. Jenkins Stage Release and direct staging now reuse
+`manafield stage-resources` for S3 binding and private-file mounts.
+Jenkins is recommended, but the shared CLI does not require Jenkins.
+Actual R2 transfer/media E2E remains a separate operator validation.

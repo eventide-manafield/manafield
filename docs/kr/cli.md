@@ -195,7 +195,7 @@ manafield deploy --snapshot-only --instance-root /path/to/instance
 
 배포 시에는 `docker compose up -d --no-build`, `ps`, Core 컨테이너 내부 HTTP `/health` 확인을 수행하고, 이 단계가 성공해야 `manafield/state/active-release.json`을 갱신해. `last-attempt.json`은 마지막 적용 시도 상태를 기록해. **Module/Resource 전체 헬스 검증과 운영 실패 복구, Ingress 반영은 아직 이 새 경로의 범위 밖**이야.
 
-영속 Resource를 보호하기 위해 새 경로에서는 `--remove-orphans`를 사용하지 않아. **Jenkins의 예전 `deploy RELEASE_DIR` 경로에는 이 변경이 적용되지 않았어.** 그리고 Build Plan 일치는 이미지 digest 고정을 보장하지 않으므로, 모듈 소스 revision 및 이미지 고정은 추가 과제로 남아 있어.
+영속 Resource를 보호하기 위해 새 경로에서는 `--remove-orphans`를 사용하지 않아. 기존 디렉터리 적용 경로도 이제 orphan 서비스를 자동 제거하지 않아. 그리고 Build Plan 일치는 이미지 digest 고정을 보장하지 않으므로, 모듈 소스 revision 및 이미지 고정은 추가 과제로 남아 있어.
 
 ## Manage 바인딩 스냅샷 (Jenkins 배포 연결)
 
@@ -276,7 +276,7 @@ Core, Module, PostgreSQL Resource Provider 이미지를 Docker로 빌드합니�
 `resource-providers.tsv`를 그대로 유지합니다.
 
 이 명령은 source checkout, Build Plan 해석, binding materialization,
-release staging을 수행하지 않습니다. 현재는 Jenkins가 입력을 준비해야 하므로
+release staging을 수행하지 않습니다. 입력은 Jenkins 또는 별도 CLI 준비 절차가 제공하므로
 레거시 `build WORKSPACE ...` 자체는 Instance를 처음부터 준비하지 않습니다. **별도의 `deploy [release-id] --source DIR` 명령은 위에서 정의한 제한된 v0 범위에서 직접 준비·배포를 구현했습니다.**
 
 ## Manafield Manage SSO (OAuth 2.0 PKCE v0)
@@ -292,3 +292,31 @@ Jenkins `Stage Release` explicitly configures the registered first-party OAuth c
 - 로그인 감사 이력 조회에는 별도의 읽기 전용 Account 토큰과 Role 검사 전용 토큰을 사용하고 전체 관리 토큰은 Manage에 제공하지 않습니다. 새 토큰은 Jenkins Stage Release에서 비공개 파일로 생성·마운트합니다.
 - This is first-party OAuth2 Authorization Code + PKCE S256 with userinfo, **not yet a full OIDC provider** (Discovery, ID Token, JWKS not included).
 
+
+## 공통 Resource 준비와 선택 적용 (2026-10-19)
+
+Jenkins를 권장 실행기로 사용하되, 빌드·Release 준비·적용은 Jenkins 없이도
+공통 CLI로 실행할 수 있어야 해. Docker는 현재 backend야.
+`build WORKSPACE REVISION CORE_IMAGE`의 과도기 이미지 빌더는 Jenkins API를
+호출하지 않으며, 명시적인 `module-sources.tsv`와 `ci-plan/resources.tsv`를 받아.
+
+이미지와 기본 Compose/Module manifest를 준비한 다음 실행해:
+
+```sh
+manafield stage-resources --definition instance.yaml \
+  --instance-root /path/to/instance --release-dir /path/to/release
+manafield apply /path/to/release --service manafield-redis --service manafield-redis-provider
+```
+
+`stage-resources`는 Build Plan 일치·필수 Capability·전용 소비자를 검사하고
+PostgreSQL Module 스키마 할당, S3/Redis 바인딩 및 허용된 비밀 파일 마운트를
+생성해. Docker 실행이나 ingress 공개를 하지 않아. 지원 범위는 Provider별
+Resource 최대 1개야. 완료 receipt와 Build Plan이 다르면 S3/Redis 적용을 거부해.
+Jenkins Stage Release와 직접 staging 모두 이 materializer를 호출해.
+Core logging/Account의 일부 Jenkins 준비 로직은 아직 과도기 구현으로 남아 있어.
+
+`apply --service`는 이름을 지정한 서비스만 `--no-deps --no-build`로 적용해.
+의존성의 준비 상태는 호출자가 확인해야 하며, orphan 제거를 하지 않아.
+선택 적용만으로 활성 Instance Definition이나 Release 선택 상태가 갱신되지는 않아.
+기존 프로젝트 연결용 `deploy/noctemblith-native-connect.py`는 실제 Docker inventory로
+기존 이미지를 보존하고 본체를 내부 기동해. 공개 전환과 SSO·미디어 E2E는 후속 단계야.

@@ -119,8 +119,8 @@ Enabled Redis Resources require it. Validation rejects any other Module/slot
 or an owner slot that does not bind that Resource. The resolved Build Plan
 preserves the contract and CI emits `resource-exclusive-consumers.tsv`.
 Direct staging validates the definition before allocating secrets or building,
-then rechecks Redis ownership when injecting credentials. Jenkins rejects
-exclusive Resources until its materializer supports that enforcement.
+then rechecks Redis ownership when injecting credentials. Jenkins Stage Release
+and direct staging enforce this through the same CLI Resource materializer.
 Existing PostgreSQL/S3 Resources without this field keep their current behavior.
 This is credential allocation policy; prefixes are not Redis ACLs.
 The current Redis executor limit remains one Resource per Manafield Instance.
@@ -147,9 +147,10 @@ the shared engine; it does not own the platform's build semantics.
 - Building/preparing artifacts does not automatically deploy or publish ingress.
   Deployment targets and existing-data lifecycle must be explicit.
 
-Current status: shared CLI image builders and Compose application already exist.
-Resource materialization/bindings/Release generation still duplicate behavior
-inside Jenkinsfile. Next, consolidate those responsibilities into shared CLI
-code and reuse it from Jenkins/direct execution while adding S3/Redis support.
-This section defines the target contract, not completed Jenkins support or a
-completed native Noctemblith rollout.
+Current implementation: alongside shared image builders and Compose apply,
+`stage-resources` prepares PostgreSQL Module allocations, S3 and exclusive Redis
+bindings. Jenkins Stage Release and direct staging reuse this code. Legacy
+PostgreSQL/Core logging and Account preparation still contain transitional
+duplication in Jenkins. `apply RELEASE_DIR --service NAME` applies selected
+services without automatically retiring existing services. Source/unit checks
+remain distinct from actual Jenkins and native rollout verification.

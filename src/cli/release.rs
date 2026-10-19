@@ -211,6 +211,7 @@ pub(super) fn validate_staged(release: &Path, staged: &Path) -> Result<(), CliEr
         .map_err(|e| CliError::Execution(format!("cannot read staged Build Plan: {e}")))?;
     let actual: serde_json::Value = serde_json::from_slice(&data)
         .map_err(|e| CliError::Execution(format!("invalid staged Build Plan JSON: {e}")))?;
+    super::staging::resource_release::verify(&expected, staged)?;
     if expected != actual {
         return Err(CliError::Execution(
             "prepared Build Plan differs from the immutable Release; regenerate artifacts before deployment".into(),
