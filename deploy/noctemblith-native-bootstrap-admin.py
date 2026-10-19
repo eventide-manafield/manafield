@@ -4,7 +4,7 @@
 Does not enable the public signup API or modify the running image, SSO, Resource
 bindings, central Account or standalone instance. Password is entered without
 echo and passed only via stdin. No password or login token is printed or saved.
-Existing users/root cause refusal. Runtime verification requires SSH Docker access.
+Existing ordinary users/root cause refusal; verified internal system accounts are retained. Runtime verification requires SSH Docker access.
 """
 import argparse
 import getpass
@@ -53,7 +53,8 @@ def main():
     if not re.fullmatch(r"[a-z0-9_]{1,20}", args.username):
         raise RuntimeError("Username must match [a-z0-9_]{1,20}")
     original_id = verify_app()
-    code = Path(__file__).with_suffix(".mjs").read_text()
+    guard = Path(__file__).with_name("noctemblith-native-bootstrap-guard.mjs").read_text()
+    code = guard + "\n" + Path(__file__).with_suffix(".mjs").read_text()
     command = ["docker", "exec", "-i", "-e", "NODE_ENV=production", APP,
                "node", "--input-type=module", "-e", code]
     print(run(command).stdout.strip(), flush=True)

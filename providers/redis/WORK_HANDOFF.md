@@ -168,3 +168,26 @@ Public API guards and all central/standalone accounts remain unchanged.
 `--preflight` runs only read-only validation. Both adjacent helper files are
 required. Actual creation remains unexecuted because the remote agent has no
 Docker access. Browser administrator login and SSO/media E2E remain outstanding.
+
+## Bootstrap guard correction (2026-10-19)
+
+Operator reported the first recovery attempt stopped before password entry:
+`Bootstrap refused: instance is not empty`. This was a read-only preflight;
+no administrator was created or existing data removed by that attempt.
+
+Release source confirms MetaDetailed packing/NodeInfo can create system.proxy
+before a human administrator exists. The previous zero-user/reservation check
+incorrectly refused such a fresh installation. The helper now accepts only
+actor/relay/proxy users explicitly mapped by system_account, with exact local
+system.TYPE usernames, bot/locked flags and matching username reservations.
+Ordinary users, existing root, orphaned/forged system mappings and unrelated
+reserved usernames still cause refusal. System records remain untouched.
+The apply transaction locks metadata/users/system mappings/reservations before
+repeating validation. No runtime bypass or destructive reset was added.
+
+The Python wrapper now loads adjacent noctemblith-native-bootstrap-guard.mjs
+alongside the existing admin.mjs; all three helper files are required.
+Eight guard regression tests and combined Node/Python syntax checks passed.
+Actual Docker/database preflight after this correction remains unexecuted by
+the agent; the same operator command can be retried. Output now lists verified
+internal system account types before password entry, without secret values.

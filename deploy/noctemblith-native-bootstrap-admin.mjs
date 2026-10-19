@@ -15,7 +15,7 @@ try {
      c.url !== 'https://noctemblith-dev.manafield.studio' || c.id !== 'aid') {
   throw new Error('Unexpected managed configuration');
  }
- const targets = Object.fromEntries(['MiMeta','MiUser','MiUserProfile','MiUserKeypair','MiUsedUsername'].map(name => {
+ const targets = Object.fromEntries(['MiMeta','MiUser','MiUserProfile','MiUserKeypair','MiUsedUsername','MiSystemAccount'].map(name => {
   const entity = entities.find(t => t.name === name);
   if (!entity) throw new Error('Entity contract changed');
   return [name, entity];
@@ -40,16 +40,18 @@ try {
  await db.initialize();
  await db.transaction(async manager => {
   if (apply) {
-   await manager.query('LOCK TABLE "mf_noctemblith_state"."meta", "mf_noctemblith_state"."user" IN EXCLUSIVE MODE');
+   await manager.query('LOCK TABLE "mf_noctemblith_state"."meta", "mf_noctemblith_state"."user", "mf_noctemblith_state"."system_account", "mf_noctemblith_state"."used_username" IN EXCLUSIVE MODE');
   } else {
    await manager.query('SET TRANSACTION READ ONLY');
   }
   const metas = await manager.find(targets.MiMeta, {order:{id:'DESC'}});
-  if (metas.length !== 1 || metas[0].rootUserId !== null)
-   throw new Error('Bootstrap refused: missing metadata or administrator already exists');
-  if (await manager.count(targets.MiUser) !== 0 ||
-      await manager.count(targets.MiUsedUsername) !== 0)
-   throw new Error('Bootstrap refused: instance is not empty');
+  const users = await manager.find(targets.MiUser, {select:{
+   id:true,username:true,usernameLower:true,host:true,isBot:true,isLocked:true
+  }});
+  const systems = await manager.find(targets.MiSystemAccount);
+  const used = await manager.find(targets.MiUsedUsername);
+  const allowedSystems = assertBootstrapState(metas, users, systems, used);
+  console.log('PASS: verified internal system accounts: ' + (allowedSystems.join(', ') || 'none'));
   if (!apply) return;
   const id = (Date.now()-946684800000).toString(36).padStart(8,'0') +
              (randomBytes(2).readUInt16LE() % 1296).toString(36).padStart(2,'0');
@@ -71,11 +73,13 @@ try {
    throw new Error('Profile verification failed');
  });
  console.log(apply ? 'PASS: initial local administrator committed; public signup remains blocked' :
-                      'PASS: managed native configuration; empty instance; no existing administrator');
+                      'PASS: managed native configuration; no ordinary users; no existing administrator');
 } catch (error) {
  console.error('Stopped:', ['Unexpected managed configuration','Entity contract changed',
   'Invalid credentials','Bootstrap refused: missing metadata or administrator already exists',
-  'Bootstrap refused: instance is not empty','Root assignment failed','Root verification failed',
+  'Bootstrap refused: inconsistent system account records',
+  'Bootstrap refused: non-system users already exist',
+  'Bootstrap refused: non-system or inconsistent username reservations exist','Root assignment failed','Root verification failed',
   'Profile verification failed'].includes(error.message) ? error.message : 'Bootstrap failed; no credentials printed');
  process.exitCode = 1;
 } finally {
