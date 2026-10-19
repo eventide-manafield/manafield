@@ -26,7 +26,7 @@ try {
   for await (const part of process.stdin) raw += part;
   input = JSON.parse(raw);
   if (!/^[a-z0-9_]{1,20}$/.test(input.username) ||
-      typeof input.password !== 'string' || input.password.length < 12 ||
+      typeof input.password !== 'string' || input.password.length < 10 ||
       Buffer.byteLength(input.password, 'utf8') > 72) throw new Error('Invalid credentials');
   hash = await bcrypt.hash(input.password, 8);
   keypair = generateKeyPairSync('rsa', {

@@ -64,10 +64,10 @@ def main():
         raise RuntimeError("Use an interactive SSH terminal for password entry")
     print("Creating initial LOCAL administrator: " + args.username, flush=True)
     print("This is the administrator login password, not a setup-screen password.", flush=True)
-    password = getpass.getpass("New administrator password (at least 12 characters): ")
+    password = getpass.getpass("New administrator password (at least 10 characters): ")
     again = getpass.getpass("Confirm password: ")
-    if password != again or len(password) < 12 or len(password.encode("utf-8")) > 72:
-        raise RuntimeError("Passwords must match; minimum 12 characters, maximum 72 UTF-8 bytes")
+    if password != again or len(password) < 10 or len(password.encode("utf-8")) > 72:
+        raise RuntimeError("Passwords must match; minimum 10 characters, maximum 72 UTF-8 bytes")
     if verify_app() != original_id:
         raise RuntimeError("Container changed while entering credentials")
     result = run(command + ["--", "--apply"],

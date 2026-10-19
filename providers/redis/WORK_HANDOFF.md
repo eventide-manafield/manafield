@@ -191,3 +191,9 @@ Eight guard regression tests and combined Node/Python syntax checks passed.
 Actual Docker/database preflight after this correction remains unexecuted by
 the agent; the same operator command can be retried. Output now lists verified
 internal system account types before password entry, without secret values.
+
+## Operator password length preference (2026-10-19)
+
+User explicitly set the bootstrap administrator password minimum to 10 characters.
+Both Python prompt/validation and Node validation now use 10; maximum 72 UTF-8
+bytes is unchanged. Syntax checked; no credentials or runtime accounts changed.
