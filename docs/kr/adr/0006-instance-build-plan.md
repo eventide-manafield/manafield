@@ -124,3 +124,30 @@ Redis 자격증명 주입 시 소유자를 다시 검사한다. Jenkins는 이 �
 기존 PostgreSQL·S3는 필드가 없으면 종전대로 동작한다.
 자격증명 할당 정책이며 키 prefix를 Redis ACL로 간주하지 않는다.
 현재 Redis executor의 Instance당 Resource 최대 1개 제한은 유지한다.
+
+## 빌드 실행 환경 독립성 (2026-10-19 사용자 확정)
+
+권장 자동 빌드·배포 실행 환경은 Jenkins다. 마나필드의 빌드·배포 기능은
+Jenkins 설치, 전용 작업 공간 변수 또는 Jenkins API 없이 공통 CLI로도
+수행할 수 있어야 한다. Jenkins는 공통 CLI를 실행하는 오케스트레이터다.
+
+- Instance Definition과 executor 중립 Build Plan이 공통 입력 계약이다.
+  같은 소스 revision·이미지·Build Plan을 입력하면 동등한 빌드 대상과
+  Release 구성이 나와야 한다. 이것은 비트 단위 재현성을 주장하지 않는다.
+- 빌드, Release 준비, 적용, 검증의 책임을 분리한다. Jenkins의 승인·예약·
+  로그·자격증명 전달 기능은 공통 엔진에 대한 선택적 실행 환경이다.
+- Resource 설정 해석, 전용 소비자 검사, 바인딩 및 비밀 파일 마운트 생성은
+  공통 코드가 책임진다. Jenkinsfile과 직접 CLI에 별도 규칙을 복제하지 않는다.
+  소비자에게 비밀 값이 아니라 허용된 파일 참조만 전달한다.
+- CLI를 직접 실행할 때도 동일한 명시적 Instance Root·소스·자격증명
+  입력과 검증을 사용한다. Jenkins가 없다는 이유로 검증을 생략하지 않는다.
+- 현재 Docker 의존성은 Runtime/Build backend에 있다. Jenkins 실행 환경과
+  Docker backend는 별개의 선택이다. 다른 backend 지원은 추후 범위다.
+- 공통 빌드 또는 Release 준비는 운영 배포와 Traefik 공개를 자동 실행하지
+  않는다. 배포 대상과 기존 데이터 수명주기는 별도로 명시한다.
+
+현재 상태: 공통 CLI 이미지 빌더와 Compose 적용 executor는 이미 존재한다.
+Jenkinsfile의 Resource 준비·바인딩·Release 생성에는 아직 중복 구현이 있다.
+다음 구현은 이 책임을 공통 CLI로 모으고 그 기능을 Jenkins와 직접 실행
+경로에서 재사용하면서 S3·Redis 지원을 추가한다. 이 절은 목표 계약이며
+Jenkins의 S3·Redis 지원 또는 실제 본체 연결이 완료됐다는 뜻이 아니다.

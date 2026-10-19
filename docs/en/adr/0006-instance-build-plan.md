@@ -124,3 +124,32 @@ exclusive Resources until its materializer supports that enforcement.
 Existing PostgreSQL/S3 Resources without this field keep their current behavior.
 This is credential allocation policy; prefixes are not Redis ACLs.
 The current Redis executor limit remains one Resource per Manafield Instance.
+
+## Build execution independence (user decision, 2026-10-19)
+
+Jenkins is the recommended automated build/deploy runner. Manafield must also
+build and prepare/deploy a Release through its shared CLI without a Jenkins
+installation, Jenkins workspace variables or Jenkins API. Jenkins orchestrates
+the shared engine; it does not own the platform's build semantics.
+
+- Instance Definition and executor-neutral Build Plan are common inputs.
+  Identical source revisions, images and plans must describe equivalent build
+  targets and Release configuration; this does not promise bitwise reproducibility.
+- Separate build, Release preparation, apply and verify. CI scheduling, approvals,
+  logs and credential delivery are optional runner responsibilities.
+- Resource interpretation, exclusive-consumer checks, bindings and secret-file
+  mounts belong to shared code, without a second ruleset in Jenkinsfile.
+  Consumers receive authorized file references rather than secret values.
+- Direct execution uses the same explicit Instance Root/source/credential inputs
+  and validation. Absence of Jenkins does not bypass validation.
+- Docker is the current build/runtime backend; it is independent of the Jenkins
+  runner choice. Other backends remain future work.
+- Building/preparing artifacts does not automatically deploy or publish ingress.
+  Deployment targets and existing-data lifecycle must be explicit.
+
+Current status: shared CLI image builders and Compose application already exist.
+Resource materialization/bindings/Release generation still duplicate behavior
+inside Jenkinsfile. Next, consolidate those responsibilities into shared CLI
+code and reuse it from Jenkins/direct execution while adding S3/Redis support.
+This section defines the target contract, not completed Jenkins support or a
+completed native Noctemblith rollout.
