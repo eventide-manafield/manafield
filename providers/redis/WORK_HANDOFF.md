@@ -133,3 +133,38 @@ Public browser SSO and app media E2E remain outstanding. Active Instance/current
 metadata is not promoted: do not run the old full Jenkins definition as though
 it already described this new deployment. Promote the reviewed native source
 and Instance definition separately before the next full Jenkins deployment.
+
+## Public cutover reported / initial administrator recovery (2026-10-19)
+
+Operator reported cutover success at 10:39 KST; recovery directory:
+`native-20261019T005014Z/cutover-20261019T013901Z-fcaccd`.
+Public HTTPS native build/health/SSO passed and old dev app/DB/Redis stopped.
+User subsequently authorized deleting old dev data; the exact old project's
+`docker compose -p noctemblith-dev -f deployments/noctemblith-dev/docker-compose.yml down --volumes`
+command was provided. Actual volume deletion has not been verified by the agent.
+
+The user reached the first-setup screen. Inspection of the Release source found:
+- Managed runtime configuration does not populate `setupPassword`.
+- SSO mode unconditionally rejects `admin/accounts/create`, including first setup.
+- No `/auth/local-admin` route exists in this Release source. Do not claim that
+  the separate 2026-10-16 login/admin-route candidate is in this native image.
+  Review/reconcile that candidate separately before claiming login policy compliance.
+
+An operator-only recovery helper is prepared (syntax checked, NOT runtime tested):
+
+```sh
+sudo python3 /opt/manafield/ai-workspace/manafield-redis-native-20261016/deploy/noctemblith-native-bootstrap-admin.py
+```
+
+It checks native ownership/revision/health/SSO and the precise managed schema,
+then refuses any existing root, user or reserved username. Password is entered
+interactively without echo (no credential files or printed tokens). The helper
+uses the actual image's exported TypeORM entities to atomically create the
+User/Profile/Keypair/UsedUsername records and assign root with registration
+closed. This is a narrow empty-instance recovery procedure, not a replacement
+for the application SignupService: chart/webhook side effects are not invoked.
+It restarts only the native app to refresh cached metadata and checks health/SSO.
+Public API guards and all central/standalone accounts remain unchanged.
+`--preflight` runs only read-only validation. Both adjacent helper files are
+required. Actual creation remains unexecuted because the remote agent has no
+Docker access. Browser administrator login and SSO/media E2E remain outstanding.
