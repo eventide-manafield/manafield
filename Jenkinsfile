@@ -1031,6 +1031,26 @@ EOF
                           ;;
                       esac
 
+                      # SMTP verification mail stays scoped to Account Core.
+                      # The Instance administrator provisions the secret file.
+                      if [ "$module_id" = "manafield-account-core" ]; then
+                        smtp_secret="$INSTANCE_ROOT/secrets/account-smtp/password"
+                        if [ ! -s "$smtp_secret" ]; then
+                          echo "Account SMTP credential is missing or empty." >&2
+                          exit 1
+                        fi
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<'SMTP_ENV'
+      MANAFIELD_ACCOUNT_SMTP_HOST: "smtp.resend.com"
+      MANAFIELD_ACCOUNT_SMTP_PORT: "465"
+      MANAFIELD_ACCOUNT_SMTP_TLS_MODE: "tls"
+      MANAFIELD_ACCOUNT_SMTP_USERNAME: "resend"
+      MANAFIELD_ACCOUNT_SMTP_FROM: "system@manafield.studio"
+      MANAFIELD_ACCOUNT_SMTP_PASSWORD_FILE: "/run/manafield/signup/smtp-password"
+SMTP_ENV
+                        printf '%s\t%s\n' "$smtp_secret" \
+                          "/run/manafield/signup/smtp-password" >> "$binding_mounts"
+                      fi
+
                       if [ -s "$binding_mounts" ]; then
                         cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
     volumes:
