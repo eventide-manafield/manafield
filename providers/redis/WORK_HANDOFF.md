@@ -1,6 +1,6 @@
 # Exclusive Redis Resource — 2026-10-19 handoff
 
-Status: stage B SOURCE IMPLEMENTED; Docker runtime checks pending.
+Status: stage B source implemented; isolated Redis runtime PASSED (operator report 2026-10-19 09:04). Native SNS connection preparation is in progress.
 User approved option A (generic Resource exclusive consumer contract).
 User subsequently requested local commits and operator SSH commands.
 Local commits continue from the existing Draft PR commits; no push, merge,
@@ -85,3 +85,23 @@ BullMQ Worker recovery after Redis restart. Full SNS image UID compatibility
 and native PG18/R2/SSO E2E remain later checks.
 User now permits operational service changes; that does not require choosing
 a separate-Core direct CLI deployment or deleting unrelated resources.
+
+## Isolated runtime result and native connection inventory
+
+Operator ran check-runtime.py successfully and reported UID 991 secret read,
+authenticated PING, NOAUTH, Pub/Sub, Provider registration against the test
+registry, AOF/BullMQ restoration after restart and actual Worker completion.
+Probe containers, network and volume were removed. This does not establish
+registration against the live Core or a native SNS/SSO E2E result.
+
+The archived instance/current Compose is an old example-postgres/reference
+layout and does not match the current Instance definition with Account modules.
+Use actual Docker Compose labels and network membership before selecting
+the incremental deployment path; do not use that archived Compose blindly.
+Read-only operator command:
+python3 /opt/manafield/ai-workspace/manafield-redis-native-20261016/providers/redis/inspect-native-connection.py
+
+Sanitized result path:
+/opt/manafield/ai-workspace/work/noctemblith-native-connect-20261019/docker-inventory.json
+Only allowlisted nonsecret env metadata, paths, networks and image identities
+are saved. No live service changes are performed by this inspection.
