@@ -94,3 +94,42 @@ Source validation for this update: Rust 111/111; native recipe offline 3/3
 Provider/Compose 10/10; S3 Provider 10/10; Python syntax; 14 Jenkins shell
 blocks; native shipping SPDX/locale PASS (changed-file lint SKIPPED: docs only).
 Runtime Docker deployment remains unexecuted by the agent.
+
+## Native connection confirmed / public cutover authorized (2026-10-19)
+
+Operator reported successful internal connection at:
+`instance/releases/native-20261019T005014Z`.
+Actual Core registered PG/S3/exclusive Redis; native health and SSO-enabled
+metadata passed. This is an operator runtime result, not browser/media E2E.
+
+User then explicitly requested replacing the old public deployment with the
+new native version. The reviewed operator command is:
+
+```sh
+sudo python3 /opt/manafield/ai-workspace/manafield-redis-native-20261016/deploy/noctemblith-native-cutover.py
+```
+
+The script discovers the running native Release from Docker labels, checks its
+exact build/health/SSO receipt and unchanged public origin, joins it to
+`manafield-edge` under the unique `noctemblith-native` alias, and persists that
+attachment in its staged Module Compose file. It changes only the backend of
+`dynamic/noctemblith-dev.yml` to port 8080. HTTPS health, exact source revision
+and SSO-enabled metadata must pass before stopping the old
+`noctemblith-dev` app, then its dedicated DB/Redis. Verification repeats after
+the stops. Standalone `noctemblith-only`, shared PG/R2/Account and every existing
+data volume remain untouched; no old DB/media migration is performed.
+
+Before route publication it backs up route/modules configuration into a private
+`cutover-<timestamp>-<suffix>` directory under the native Release. Public-check
+failure restores the route/config and disconnects only an edge attachment
+created by this run; the old SNS is not stopped. Failed recovery is explicitly
+reported. A failure while retiring old containers leaves the proven new route
+in place and records incomplete retirement in `result.json`.
+
+Append `--preflight` for read-only validation. Cutover itself remains to be
+executed by the SSH operator because the agent cannot write the Traefik
+directory or access Docker. Offline cutover, rollback and read-only tests passed.
+Public browser SSO and app media E2E remain outstanding. Active Instance/current
+metadata is not promoted: do not run the old full Jenkins definition as though
+it already described this new deployment. Promote the reviewed native source
+and Instance definition separately before the next full Jenkins deployment.
