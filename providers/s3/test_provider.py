@@ -5,6 +5,7 @@ import io
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 from urllib.error import HTTPError
 
@@ -62,15 +63,20 @@ class FakeOpener:
 
 
 class FakeS3:
-    def __init__(self, failure=None):
+    def __init__(self, failure=None, failures=None):
         self.failure = failure
+        self.failures = list(failures or [])
         self.calls = []
 
-    def list_objects_v2(self, **kwargs):
+    def head_bucket(self, **kwargs):
         self.calls.append(kwargs)
+        if self.failures:
+            failure = self.failures.pop(0)
+            if failure:
+                raise failure
         if self.failure:
             raise self.failure
-        return {"KeyCount": 0}
+        return {}
 
 
 class S3ResourceProviderTests(unittest.TestCase):
@@ -112,11 +118,11 @@ class S3ResourceProviderTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     provider.read_secret(str(p))
 
-    def test_storage_probe_does_not_mutate_objects(self):
+    def test_storage_probe_uses_head_bucket_without_listing_objects(self):
         settings = provider.Settings.from_env(env())
         s3 = FakeS3()
         self.assertTrue(provider.storage_ready(s3, settings))
-        self.assertEqual(s3.calls, [{"Bucket": "app-media", "MaxKeys": 1}])
+        self.assertEqual(s3.calls, [{"Bucket": "app-media"}])
         self.assertFalse(provider.storage_ready(FakeS3(PermissionError()), settings))
 
     def test_register_after_s3_ready(self):
@@ -124,6 +130,56 @@ class S3ResourceProviderTests(unittest.TestCase):
         opener = FakeOpener()
         self.assertTrue(provider.check_once(settings, FakeS3(), opener))
         self.assertEqual([name for name, _, _ in opener.calls], ["GET", "POST"])
+
+    def test_observer_only_probes_r2_once_in_steady_state(self):
+        settings = provider.Settings.from_env(env())
+        s3 = FakeS3()
+        opener = FakeOpener()
+        waits = []
+
+        class Done(Exception):
+            pass
+
+        def sleep(seconds):
+            waits.append(seconds)
+            if len(waits) == 4:
+                raise Done
+
+        with self.assertRaises(Done):
+            provider.observe(settings, s3, opener=opener, sleep=sleep)
+        self.assertEqual(s3.calls, [{"Bucket": "app-media"}])
+        self.assertEqual(waits, [settings.check_interval] * 4)
+        # Core requests continue every cycle even though R2 is not polled.
+        self.assertEqual(
+            [name for name, _, _ in opener.calls], ["GET", "POST"] * 4
+        )
+
+    def test_failed_bootstrap_uses_exponential_r2_retry(self):
+        settings = provider.Settings.from_env(env())
+        s3 = FakeS3(failures=[ConnectionError(), PermissionError(), None])
+        opener = FakeOpener()
+        waits = []
+
+        class Done(Exception):
+            pass
+
+        def sleep(seconds):
+            waits.append(seconds)
+            if len(waits) == 3:
+                raise Done
+
+        with self.assertRaises(Done):
+            provider.observe(settings, s3, opener=opener, sleep=sleep)
+        self.assertEqual(waits, [60, 120, settings.check_interval])
+        self.assertEqual(s3.calls, [{"Bucket": "app-media"}] * 3)
+        self.assertEqual([name for name, _, _ in opener.calls], ["GET", "POST"])
+
+    def test_explicit_one_shot_probe_does_not_call_core(self):
+        s3 = FakeS3()
+        with mock.patch.dict("os.environ", env(), clear=True):
+            with mock.patch.object(provider, "make_s3_client", return_value=s3):
+                self.assertEqual(provider.main(["--probe-once"]), 0)
+        self.assertEqual(s3.calls, [{"Bucket": "app-media"}])
 
     def test_fail_closed_when_s3_unavailable(self):
         settings = provider.Settings.from_env(env())
