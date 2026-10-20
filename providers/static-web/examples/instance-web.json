@@ -1,0 +1,16 @@
+{
+  "bindings": [
+    {
+      "resource": "shared-icons",
+      "alias": "icons"
+    },
+    {
+      "resource": "home-assets",
+      "alias": "home"
+    },
+    {
+      "resource": "missing-assets",
+      "alias": "unavailable"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "listen": "127.0.0.1:18580",
+  "core_url": "",
+  "resources": [
+    {
+      "id": "shared-icons",
+      "directory": "/srv/manafield/static/shared-icons"
+    },
+    {
+      "id": "home-assets",
+      "directory": "/srv/manafield/static/home-assets"
+    },
+    {
+      "id": "missing-assets",
+      "directory": "/srv/manafield/static/no-such-directory"
+    }
+  ]
+}
