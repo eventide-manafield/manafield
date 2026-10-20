@@ -23,7 +23,7 @@ Core의 기본 로깅은 **Core에 내장**되어 있습니다. 외부 Module, D
 ## 기본 저장소
 
 - stdout: 항상 활성
-- `MANAFIELD_LOG_FILE`: 설정되면 소유자 전용(0600) JSONL 파일에 append. 읽기 가능한 심볼릭 링크나 타인에게 공개된 파일이면 시작을 거부합니다.
+- `MANAFIELD_LOG_FILE`: 설정되면 소유자 전용(0600) JSONL 파일에 append. 심볼릭 링크나 타인에게 공개된 파일이면 **파일 Sink만 거부**하고 경고를 출력하며, Core와 stdout은 계속 동작합니다. 파일에 쓸 수 없다면 `manafield log` 파일 조회는 사용할 수 없습니다.
 - 공식 Core Docker Compose는 `/var/lib/manafield/logs/core.jsonl`을 설정하고 **`manafield-core-logs` 영구 볼륨**을 사용합니다.
 - Core 컨테이너는 root 권한이 없고 볼륨 이외에는 읽기 전용 파일시스템을 유지합니다.
 - Docker 로그도 계속 확인할 수 있습니다.
@@ -65,7 +65,7 @@ core:
 
 `loggingState`를 생략하면 DB 접속 없이 stdout과 JSONL 볼륨으로만 동작합니다. 설정된 target은 활성 PostgreSQL Resource여야 하며 다른 Provider나 비활성 대상을 가리키면 Build Plan 검증이 실패합니다. 현재 DB Binding 자동 프로비저닝 경로는 **Jenkins 릴리스 파이프라인**에 구현되어 있습니다. 수동 `MANAFIELD_LOG_POSTGRES_DSN_FILE`/`SCHEMA` 환경설정도 계속 지원합니다.
 
-운영 중 DB가 연결되지 않거나 아직 Provider가 Schema를 만들지 않았다면, Core는 정상 기동하고 10초 간격으로 Sink 연결을 다시 시도하며 그동안의 이벤트는 JSONL에 남깁니다. 자동 DB 재전송/백필은 아직 없습니다.
+운영 중 DB가 연결되지 않거나 아직 Provider가 Schema/DSN 파일을 만들지 않았다면, Core는 정상 기동하고 10초 간격으로 Sink 연결을 다시 시도하며 그동안의 이벤트는 JSONL에 남깁니다. 초기 비밀 파일 미마운트도 재시도 대상으로 취급하며, 재연결할 때 파일을 다시 읽으므로 Credential 교체도 반영됩니다. 스키마 등 DB Sink 설정 자체가 잘못된 경우에는 경고 후 해당 Sink만 비활성화합니다. 자동 DB 재전송/백필은 아직 없습니다.
 
 ## Role 기반 열람 정책
 

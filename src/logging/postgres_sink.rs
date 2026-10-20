@@ -1,7 +1,7 @@
 //! Optional PostgreSQL mirror for Core logs. The caller configures a dedicated,
 //! least-privileged schema/role. Core's stdout and local file always work without it.
 use std::io;
-use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
@@ -11,7 +11,7 @@ use postgres::{Client, NoTls};
 use super::LogRecord;
 
 pub struct Config {
-    dsn: String,
+    dsn_file: PathBuf,
     schema: String,
 }
 
@@ -32,15 +32,10 @@ impl Config {
                         "invalid log PostgreSQL schema",
                     ));
                 }
-                let dsn = std::fs::read_to_string(Path::new(&file))?;
-                if dsn.trim().is_empty() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "empty PostgreSQL log DSN file",
-                    ));
-                }
+                // A not-yet-mounted secret is a retryable sink failure, not
+                // a reason to stop Core before stdout/file logging starts.
                 Ok(Some(Self {
-                    dsn: dsn.trim().to_owned(),
+                    dsn_file: PathBuf::from(file),
                     schema,
                 }))
             }
@@ -64,8 +59,16 @@ fn valid_schema(schema: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'_')
 }
 
-fn connect(config: &Config) -> Result<Client, postgres::Error> {
-    let mut connection = postgres::Config::from_str(&config.dsn)?;
+fn connect(config: &Config) -> Result<Client, Box<dyn std::error::Error + Send + Sync>> {
+    // Read the private DSN on each attempt, so a late mount or rotation
+    // is picked up without restarting Core.
+    let dsn = std::fs::read_to_string(&config.dsn_file)?;
+    if dsn.trim().is_empty() {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidInput, "empty PostgreSQL log DSN file").into(),
+        );
+    }
+    let mut connection = postgres::Config::from_str(dsn.trim())?;
     connection.connect_timeout(Duration::from_secs(3));
     let mut client = connection.connect(NoTls)?;
     // Schema creation/allocation is the PostgreSQL Provider's responsibility.

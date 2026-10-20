@@ -212,19 +212,43 @@ fn open_private_log(path: &Path) -> io::Result<File> {
 pub fn init() -> Result<(), Box<dyn std::error::Error>> {
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("manafield=info,manafield_core=info"));
+    // Optional sinks must never turn a healthy Core into a crash loop. An
+    // inaccessible or insecure private file is disabled, never opened loosely.
     let file = match std::env::var("MANAFIELD_LOG_FILE") {
-        Ok(path) if !path.trim().is_empty() => Some(open_private_log(Path::new(&path))?),
+        Ok(path) if !path.trim().is_empty() => match open_private_log(Path::new(&path)) {
+            Ok(file) => Some(file),
+            Err(error) => {
+                eprintln!(
+                    "(warn)[logging] private JSONL sink unavailable ({error}); console logging continues"
+                );
+                None
+            }
+        },
         _ => None,
     };
-    let db = match postgres_sink::Config::from_env()? {
-        Some(config) => {
+    let db = match postgres_sink::Config::from_env() {
+        Ok(Some(config)) => {
             let (tx, rx) = mpsc::sync_channel(1024);
-            std::thread::Builder::new()
+            match std::thread::Builder::new()
                 .name("manafield-log-db".into())
-                .spawn(move || postgres_sink::run(config, rx))?;
-            Some(tx)
+                .spawn(move || postgres_sink::run(config, rx))
+            {
+                Ok(_) => Some(tx),
+                Err(error) => {
+                    eprintln!(
+                        "(warn)[logging] cannot start optional PostgreSQL sink ({error}); console/file logging continues"
+                    );
+                    None
+                }
+            }
         }
-        None => None,
+        Ok(None) => None,
+        Err(error) => {
+            eprintln!(
+                "(warn)[logging] optional PostgreSQL sink configuration invalid ({error}); console/file logging continues"
+            );
+            None
+        }
     };
     tracing_subscriber::registry()
         .with(filter)
