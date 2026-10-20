@@ -1,6 +1,6 @@
 # Static Web Resource Provider — Go v0 (isolated prototype)
 
-Status: working development proof of concept, NOT installed/deployed into the live Manafield Instance. This folder is a separate work area, not a Git branch or merged release. No services have been restarted and no public routes created.
+Status: working development proof of concept, NOT installed/deployed into the live Manafield Instance. This folder is committed on a feature branch only; it has not been merged or deployed to a live Instance.
 
 ## Confirmed intent
 

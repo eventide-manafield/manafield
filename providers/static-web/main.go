@@ -177,7 +177,13 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer root.Close()
 
-	file, err := root.Open(pieces[1])
+	before, err := root.Lstat(pieces[1])
+	if err != nil || !before.Mode().IsRegular() {
+		http.NotFound(w, r) // Reject symlinks and special files before opening.
+		return
+	}
+	// Nonblocking open protects against FIFO replacement between Lstat and Open.
+	file, err := root.OpenFile(pieces[1], os.O_RDONLY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		http.NotFound(w, r) // Do not reveal filesystem details.
 		return

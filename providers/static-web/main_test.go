@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -85,6 +86,9 @@ func TestPathRestrictions(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, ".env"), []byte("no"), 0644)
 	_ = os.Mkdir(filepath.Join(dir, "sub"), 0755)
 	_ = os.Symlink(filepath.Join(parent, "secret.txt"), filepath.Join(dir, "linked.txt"))
+	if err := syscall.Mkfifo(filepath.Join(dir, "pipe"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	a := testApp(t, []resourceConfig{{ID: "a", Directory: dir}},
 		[]webBinding{{Resource: "a"}})
 	for _, path := range []string{
@@ -93,6 +97,7 @@ func TestPathRestrictions(t *testing.T) {
 		"/resource/a/.env",
 		"/resource/a/sub/",
 		"/resource/a/linked.txt",
+		"/resource/a/pipe",
 		"/resource/unknown/secret.txt",
 		"/resource/a/sub/../../secret.txt",
 	} {
