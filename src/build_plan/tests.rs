@@ -286,9 +286,12 @@ deployment:
 "#;
     assert!(validate_yaml(definition).is_ok());
     assert!(validate_yaml(&definition.replace("      bucket: media-test\n", "")).is_err());
-    assert!(validate_yaml(&definition.replace(
-        "      bucket: media-test",
-        "      bucket: media-test\n      secretAccessKey: never-store-secrets-in-YAML"
-    )).is_err());
+    assert!(
+        validate_yaml(&definition.replace(
+            "      bucket: media-test",
+            "      bucket: media-test\n      secretAccessKey: never-store-secrets-in-YAML"
+        ))
+        .is_err()
+    );
     assert!(validate_yaml(&definition.replace("provider: s3", "provider: postgresql")).is_err());
 }
