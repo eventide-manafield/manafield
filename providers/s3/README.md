@@ -3,9 +3,11 @@
 Manafield's first object-storage Resource Provider speaks S3 rather than
 Cloudflare-specific APIs. Cloudflare R2 is the initial target; other S3
 compatible stores can use the same provider when they support SigV4 and
-ListObjectsV2. The Provider performs only a read-only bucket readiness check
-and registers `storage.object@1.0.0` in Core. It never uploads, deletes, or
-proxies Module files.
+HeadBucket. The Provider performs **one authenticated `HeadBucket` at startup**
+(Cloudflare R2 Class B, one metered request) and registers
+`storage.object@1.0.0` in Core. It never uploads, deletes, or
+proxies Module files. During healthy operation it **does not poll R2**:
+only the Manafield Core registration is checked periodically.
 
 ## Nonsecret instance configuration
 
@@ -62,6 +64,34 @@ public media hosting needs a separately configured custom domain/CDN.
 If two Modules receive the same bucket-wide S3 key, either can access the
 other's prefix. This v0 is for **trusted first-party consumer Modules only**.
 Untrusted modules need per-module credentials or a prefix-enforcing gateway.
+
+## R2 API usage and health checks
+
+Cloudflare R2 **meters S3 API operations**. The old v0 Provider used
+`ListObjectsV2` (Class A) on every `MANAFIELD_RESOURCE_CHECK_INTERVAL`
+tick (15 seconds by default). This was unnecessarily expensive even for an
+empty bucket.
+
+**New lifecycle:**
+
+- Startup: one authenticated `HeadBucket` (Class B) confirms access.
+- Healthy operation: the Core Resource registration is checked every
+  `MANAFIELD_RESOURCE_CHECK_INTERVAL` seconds, **without any R2 request**.
+- Failed initial probe: retry `HeadBucket` at 60, 120, 240 ... up to 3600
+  seconds until the initial check succeeds; do not poll every 15 seconds.
+- Explicit troubleshooting: run `python provider.py --probe-once` with
+  the same configured environment to issue **one** `HeadBucket` and exit
+  0 on success or 1 on failure. It does not register anything in Core.
+- A successful startup probe is **not continuous storage health monitoring**.
+  Subsequent R2 outages are seen by consuming Modules on their actual
+  operations; Core can still display the last registered Resource metadata.
+  End-to-end lifecycle/availability propagation needs a separate contract.
+
+Process/container health must be checked **locally** rather than by R2 API.
+Ping/TCP checks against a Cloudflare endpoint do not establish bucket-level
+authorization and should not replace the explicit startup probe.
+Consumer Module `GetObject`/`PutObject` and other actual S3 requests are
+independently metered. See https://developers.cloudflare.com/r2/pricing/.
 
 ## Deployment and testing
 
