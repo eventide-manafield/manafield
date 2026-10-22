@@ -42,4 +42,4 @@ Jenkins에서도 같은 네 명령을 같은 순서로 실행한다. Trivy와 GH
 
 ## 산출물
 
-`images.lock.json`, native CLI, source archive, base main부터의 변경 patch, 사용 문서, 재사용한 통합 검증 결과, 호환성·보안 결과 및 SHA256SUMS를 제공한다. release archive에는 운영용 비밀번호·secret 파일·Instance 설정을 포함하지 않는다. source archive를 Git 저장소로 가져올 때에는 원본 커밋 identity를 복원한 checkout에서 빌드해야 하며, 변경 patch는 base `34672cc870482d917ffe6444b6d06b645c14a422`에 `git am`으로 적용할 수 있다. OS 저장소의 보안 패치 시점과 Trivy DB 버전에 따라 재빌드된 이미지 digest는 달라질 수 있으므로 전달·사용에는 lock의 Registry digest를 기준으로 한다.
+`images.lock.json`, native CLI, source archive/commit 보존 Git bundle, base main부터의 변경 patch, 사용 문서, 재사용한 통합 검증 결과, 호환성·보안 결과 및 SHA256SUMS를 제공한다. release archive에는 운영용 비밀번호·secret 파일·Instance 설정을 포함하지 않는다. source archive는 소스 열람용이다. 원본 커밋 identity를 유지해 재빌드하려면 base main을 포함한 clone에서 `git fetch /absolute/source.bundle HEAD` 후 lock의 source SHA를 checkout한다. 변경 patch는 base `34672cc870482d917ffe6444b6d06b645c14a422`에 `git am`으로 적용할 수 있다. OS 저장소의 보안 패치 시점과 Trivy DB 버전에 따라 재빌드된 이미지 digest는 달라질 수 있으므로 전달·사용에는 lock의 Registry digest를 기준으로 한다.

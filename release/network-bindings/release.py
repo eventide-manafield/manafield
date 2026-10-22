@@ -116,10 +116,11 @@ else:
  lock=check_identity(read('images.lock.json')); assert all(x['published'] for x in lock['images'].values())
  shutil.copy2(RECIPE/'README.ko.md',OUT/'README.ko.md')
  run(['git','-C',ROOT,'archive','--format=tar.gz','-o',OUT/'source.tar.gz',sha])
+ run(['git','-C',ROOT,'bundle','create',OUT/'source.bundle','34672cc870482d917ffe6444b6d06b645c14a422..HEAD'])
  with (OUT/'changes.patch').open('wb') as f:sp.run(['git','-C',ROOT,'format-patch','--stdout','34672cc870482d917ffe6444b6d06b645c14a422..'+sha],stdout=f,check=True)
  package=OUT/('manafield-'+VERSION+'-linux-amd64.tar.gz')
  with tarfile.open(package,'w:gz') as t:
-  for name in ['manafield-linux-amd64','images.lock.json','compatibility.json','integration-evidence.json','security.json','cli-trivy.json','postgresql-trivy.json','cli-all-layers.json','postgresql-all-layers.json','README.ko.md','source.tar.gz','changes.patch']:
+  for name in ['manafield-linux-amd64','images.lock.json','compatibility.json','integration-evidence.json','security.json','cli-trivy.json','postgresql-trivy.json','cli-all-layers.json','postgresql-all-layers.json','README.ko.md','source.tar.gz','source.bundle','changes.patch']:
    t.add(OUT/name,arcname=name)
- (OUT/'SHA256SUMS').write_text(''.join(hashlib.sha256((OUT/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in ['manafield-linux-amd64','source.tar.gz',package.name]))
+ (OUT/'SHA256SUMS').write_text(''.join(hashlib.sha256((OUT/name).read_bytes()).hexdigest()+'  '+name+'\n' for name in ['manafield-linux-amd64','source.tar.gz','source.bundle',package.name]))
  print(package)
