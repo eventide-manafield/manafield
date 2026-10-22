@@ -8,7 +8,7 @@
 - 명시적으로 PostgreSQL에 Binding된 Module만 DB 역할·스키마 할당과 Core 등록이 완료된 Provider를 기다린다. 자동 Binding하지 않는다.
 - 제한적인 umask와 non-root Module의 파일 접근을 지원하고, Provider UID/GID를 private 할당 파일의 소유자에 맞춘다. 숫자 UID로 실행하는 Provider의 스크립트 읽기 권한 및 DB readiness 인자를 보완한다.
 - CLI와 Provider의 런타임·배포 소스는 기존 통합 검증 커밋과 동일하다. 최초 배포, Module 추가 배포, SQL 읽기·쓰기, 미지정 Binding 유지 및 비밀번호 재사용 결과를 재사용한다. 기존 통합 시나리오를 다시 실행하지 않는다.
-- 릴리스 포장은 pinned builder/runtime 베이스와 OS 보안 패치를 적용한다. CLI 이미지는 non-root이며 shell, Docker CLI, Git, Docker socket을 포함하지 않는다. Provider 이미지는 기존 curl/psql 기반 계약을 유지하며 readiness healthcheck를 기본 제공한다.
+- 릴리스 포장은 pinned builder/runtime 베이스와 OS 보안 패치를 적용하고 CLI trust store의 DSA-6572-1 수정 버전 `20250419+deb13u1`을 반영한다. 이전 CA store는 최종 이미지의 레이어에도 포함하지 않는다. CLI 이미지는 non-root이며 shell, Docker CLI, Git, Docker socket을 포함하지 않는다. Provider 이미지는 기존 curl/psql 기반 계약을 유지하며 readiness healthcheck를 기본 제공한다.
 
 ## 사용 방법
 

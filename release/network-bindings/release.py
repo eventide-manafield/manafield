@@ -36,6 +36,7 @@ if a.action == 'build':
  contexts = OUT/'contexts'; contexts.mkdir(exist_ok=True)
  core = contexts/'cli'; core.mkdir(exist_ok=True)
  for name in ['Cargo.toml','Cargo.lock','rust-toolchain.toml']: shutil.copy2(ROOT/name,core/name)
+ shutil.copy2(RECIPE/'assemble-ca.sh',core/'assemble-ca.sh')
  shutil.copytree(ROOT/'src',core/'src',dirs_exist_ok=True)
  (core/'deploy').mkdir(exist_ok=True); shutil.copy2(ROOT/'deploy/instance.bootstrap.yaml',core/'deploy/instance.bootstrap.yaml')
  provider = contexts/'postgresql'; provider.mkdir(exist_ok=True)
