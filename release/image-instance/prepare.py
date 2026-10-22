@@ -2,18 +2,21 @@
 """Materialize an image-only staged release and call the existing Manafield CLI."""
 import argparse, hashlib, json, os, pathlib, re, secrets, shutil, subprocess as sp, time
 PACKAGE=pathlib.Path(__file__).resolve().parent
+def require(condition, message):
+ if not condition: raise SystemExit(message)
+
 p=argparse.ArgumentParser()
 p.add_argument('--instance-id',required=True)
 p.add_argument('--instance-root',required=True,type=pathlib.Path)
 p.add_argument('--reference-port',type=int,default=8080)
 p.add_argument('--deploy',action='store_true')
 a=p.parse_args(); os.umask(0o077)
-assert re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,39}',a.instance_id), 'use a lowercase Docker-safe Instance ID'
-assert 1024 <= a.reference_port <= 65535, 'invalid Reference loopback port'
+require(re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,39}',a.instance_id), 'use a lowercase Docker-safe Instance ID')
+require(1024 <= a.reference_port <= 65535, 'invalid Reference loopback port')
 ROOT=a.instance_root.expanduser().resolve(); STAGE=ROOT/'staged'
 lock=json.loads((PACKAGE/'images.lock.json').read_text())
-assert lock['platform']=='linux/amd64'
-for x in lock['images'].values():assert re.fullmatch(r'[^\s]+@sha256:[a-f0-9]{64}',x['image'])
+require(lock['platform']=='linux/amd64', 'release validation failed')
+for x in lock['images'].values():require(re.fullmatch(r'[^\s]+@sha256:[a-f0-9]{64}',x['image']), 'release validation failed')
 env={k:v for k,v in os.environ.items() if not k.startswith('MANAFIELD_') and k not in ['COMPOSE_PROJECT_NAME','COMPOSE_FILE','COMPOSE_PROFILES','COMPOSE_ENV_FILES']}
 def run(args,capture=False):
  return sp.check_output([str(x) for x in args],env=env) if capture else sp.run([str(x) for x in args],env=env,check=True)
@@ -28,18 +31,18 @@ if not cli.exists():
  try:run(['docker','cp',c+':/usr/local/bin/manafield',cli])
  finally:run(['docker','rm',c])
  cli.chmod(0o755)
-assert hashlib.sha256(cli.read_bytes()).hexdigest()==lock['cli_binary_sha256'], 'CLI binary checksum mismatch'
+require(hashlib.sha256(cli.read_bytes()).hexdigest()==lock['cli_binary_sha256'], 'CLI binary checksum mismatch')
 project='manafield-'+a.instance_id
 identity={'instance_id':a.instance_id,'release_version':lock['release_version'],'images':lock['images'],'reference_port':a.reference_port}
 if STAGE.exists():
- assert json.loads((STAGE/'release-manifest.json').read_text())==identity, 'existing staged release differs; do not overwrite'
+ require(json.loads((STAGE/'release-manifest.json').read_text())==identity, 'existing staged release differs; do not overwrite')
  for name in ['release.env','compose.yml','modules.compose.yml','compose-profiles.txt','postgresql-allocations.tsv','secrets/postgres-admin','modules/manafield-reference/manafield.module.json','build-plan.json']:
-  assert (STAGE/name).is_file(), 'incomplete staged release: '+name
+  require((STAGE/name).is_file(), 'incomplete staged release: '+name)
 else:
- if ROOT.exists():assert not any(ROOT.iterdir()), 'Instance root must be empty on first preparation'
+ if ROOT.exists():require(not any(ROOT.iterdir()), 'Instance root must be empty on first preparation')
  # Never adopt an existing Compose project with a different/unknown Instance root.
  for args in [['ps','-aq'],['network','ls','-q'],['volume','ls','-q']]:
-  assert not run(['docker',*args,'--filter','label=com.docker.compose.project='+project],True).strip(), 'Compose project already exists; select its original Instance root or another Instance ID'
+  require(not run(['docker',*args,'--filter','label=com.docker.compose.project='+project],True).strip(), 'Compose project already exists; select its original Instance root or another Instance ID')
  ROOT.mkdir(parents=True,exist_ok=True,mode=0o700);STAGE.mkdir(mode=0o700)
  for name in ['compose.yml','modules.compose.yml','images.lock.json']:shutil.copy2(PACKAGE/name,STAGE/name)
  write(STAGE/'compose-profiles.txt','')
@@ -60,10 +63,10 @@ else:
 compose=['docker','compose','--env-file',STAGE/'release.env','-f',STAGE/'compose.yml','-f',STAGE/'modules.compose.yml']
 config=json.loads(run([*compose,'config','--format','json'],True))
 expected={'core':'core','module-manafield-reference':'reference','manafield-postgres':'postgresql','manafield-postgres-provider':'provider'}
-assert config['name']==project and set(config['services'])==set(expected)
+require(config['name']==project and set(config['services'])==set(expected), 'release validation failed')
 for service,key in expected.items():
- assert config['services'][service]['image']==lock['images'][key]['image'] and 'build' not in config['services'][service], 'mutable image or build configuration rejected'
-assert config['networks']['modules']['name']=='manafield-modules-'+a.instance_id
+ require(config['services'][service]['image']==lock['images'][key]['image'] and 'build' not in config['services'][service], 'mutable image or build configuration rejected')
+require(config['networks']['modules']['name']=='manafield-modules-'+a.instance_id, 'release validation failed')
 print('Prepared image-only staged release: '+str(STAGE),flush=True)
 if a.deploy:
  run([*compose,'pull'])
