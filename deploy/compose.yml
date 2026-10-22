@@ -63,6 +63,8 @@ services:
     profiles:
       - postgresql
     image: ${MANAFIELD_POSTGRES_PROVIDER_IMAGE:-manafield-resource-postgresql:local}
+    # Match the owner of private host allocation/secret files without DAC override.
+    user: "${MANAFIELD_POSTGRES_PROVIDER_UID:-0}:${MANAFIELD_POSTGRES_PROVIDER_GID:-0}"
     restart: unless-stopped
     init: true
     environment:

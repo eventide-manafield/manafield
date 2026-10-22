@@ -441,6 +441,13 @@ fn prepare_inside(
         ),
     ];
     if postgres_id.is_some() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let owner = fs::metadata(&allocation_path).map_err(|e| fail(e.to_string()))?;
+            vars.push(format!("MANAFIELD_POSTGRES_PROVIDER_UID={}", owner.uid()));
+            vars.push(format!("MANAFIELD_POSTGRES_PROVIDER_GID={}", owner.gid()));
+        }
         let password_path = root.join("secrets/postgresql/admin.password");
         create_secret(&password_path)?;
         let password = fs::read_to_string(&password_path).map_err(|e| fail(e.to_string()))?;

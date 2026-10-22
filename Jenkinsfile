@@ -678,6 +678,8 @@ EOF
                       "MANAFIELD_MODULES_NETWORK=$modules_network" \
                       "MANAFIELD_EDGE_NETWORK=$edge_network" \
                       "MANAFIELD_POSTGRES_PROVIDER_IMAGE=$postgres_provider_image" \
+                      "MANAFIELD_POSTGRES_PROVIDER_UID=$(id -u)" \
+                      "MANAFIELD_POSTGRES_PROVIDER_GID=$(id -g)" \
                       "MANAFIELD_POSTGRES_RESOURCE_ID=$postgres_resource_id" \
                       "MANAFIELD_POSTGRES_RESOURCE_NAME=Manafield PostgreSQL" \
                       "MANAFIELD_POSTGRES_DB=manafield" \
