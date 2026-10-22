@@ -150,6 +150,9 @@ echo "Resource: $RESOURCE_ID"
 echo "PostgreSQL: $POSTGRES_HOST:$POSTGRES_PORT"
 echo "Manafield Core: $CORE_URL"
 
+# This is process-local state on tmpfs, never a credential or persistent DB state.
+READY_FILE=/tmp/manafield-postgresql-ready
+rm -f "$READY_FILE"
 allocations_provisioned=false
 
 while true; do
@@ -171,6 +174,14 @@ while true; do
     esac
   else
     echo "PostgreSQL is not ready at $POSTGRES_HOST:$POSTGRES_PORT" >&2
+  fi
+
+  if [ "$allocations_provisioned" = "true" ] &&
+     pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" >/dev/null 2>&1 &&
+     [ "$(resource_status)" = "200" ]; then
+    touch "$READY_FILE"
+  else
+    rm -f "$READY_FILE"
   fi
 
   sleep "$CHECK_INTERVAL"

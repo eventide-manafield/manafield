@@ -1,4 +1,4 @@
-name: manafield
+name: ${MANAFIELD_COMPOSE_PROJECT:-manafield}
 
 services:
   core:
@@ -91,6 +91,12 @@ services:
         condition: service_healthy
       manafield-postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/manafield-postgresql-ready"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+      start_period: 5s
     read_only: true
     tmpfs:
       - /tmp

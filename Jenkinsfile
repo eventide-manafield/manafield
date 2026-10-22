@@ -606,6 +606,7 @@ EOF
                     set +x
 
                     modules_network="$(cat ci-plan/modules-network.txt)"
+                    compose_project="$(cat ci-plan/compose-project.txt)"
                     edge_network="$(cat ci-plan/edge-network.txt)"
 
                     postgres_count="$(
@@ -671,6 +672,7 @@ EOF
                     cp resolved-images.env "$RELEASE_DIR/resolved-images.env"
 
                     printf '%s\n' \
+                      "MANAFIELD_COMPOSE_PROJECT=$compose_project" \
                       "MANAFIELD_CORE_IMAGE=$CORE_IMAGE" \
                       "MANAFIELD_MODULES_PATH=$RELEASE_DIR/modules" \
                       "MANAFIELD_MODULES_NETWORK=$modules_network" \
@@ -1051,6 +1053,14 @@ EOF
     depends_on:
       core:
         condition: service_healthy
+EOF
+                      if awk -F '\t' -v module="$module_id" '$1 == module { found=1 } END { exit !found }' postgresql-bindings.tsv; then
+                        cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
+      manafield-postgres-provider:
+        condition: service_healthy
+EOF
+                      fi
+                      cat >> "$RELEASE_DIR/modules.compose.yml" <<EOF
     read_only: true
     tmpfs:
       - /tmp

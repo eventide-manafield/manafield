@@ -5,7 +5,29 @@ pub(super) fn write_ci_plan(
     plan: &BuildPlan,
     directory: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Match direct CLI deployment: one stable project/network per Instance.
+    let id = plan.instance_id.to_ascii_lowercase();
+    if id.is_empty()
+        || id.len() > 40
+        || !id.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric())
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err("unsupported Instance ID for Docker Compose project".into());
+    }
+    let network = format!("{}-{id}", plan.deployment.modules_network);
+    if !network
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err("unsafe Docker modules network name".into());
+    }
     fs::create_dir_all(directory)?;
+    fs::write(
+        directory.join("compose-project.txt"),
+        format!("manafield-{id}\n"),
+    )?;
 
     fs::write(
         directory.join("instance-id.txt"),
@@ -13,7 +35,7 @@ pub(super) fn write_ci_plan(
     )?;
     fs::write(
         directory.join("modules-network.txt"),
-        format!("{}\n", plan.deployment.modules_network),
+        format!("{network}\n"),
     )?;
     fs::write(
         directory.join("edge-network.txt"),

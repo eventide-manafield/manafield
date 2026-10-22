@@ -263,6 +263,7 @@ fn prepare_inside(
         env.insert("MANAFIELD_MODULE_ID".into(), json!(id));
         env.insert("MANAFIELD_WEB_BASE_PATH".into(), json!("/"));
         let mut mounts = Vec::new();
+        let mut needs_postgres = false;
         if let Some(bindings) = module.get("bindings").and_then(Value::as_object) {
             for (slot, target) in bindings {
                 if !valid_env_slot(slot) {
@@ -274,6 +275,7 @@ fn prepare_inside(
                 let key = slot.to_ascii_uppercase();
                 env.insert(format!("MANAFIELD_BINDING_{key}_TARGET"), json!(instance));
                 if postgres_id == Some(instance) {
+                    needs_postgres = true;
                     let schema = format!(
                         "mf_{}_{}",
                         id.replace(['-', '.'], "_"),
@@ -338,6 +340,10 @@ fn prepare_inside(
             "security_opt":["no-new-privileges:true"],
             "networks":{"modules":{}}
         });
+        if needs_postgres {
+            service["depends_on"]["manafield-postgres-provider"] =
+                json!({"condition":"service_healthy"});
+        }
         if !mounts.is_empty() {
             service["volumes"] = json!(mounts);
         }
