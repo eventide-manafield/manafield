@@ -1,0 +1,43 @@
+{
+  "version": 0,
+  "instance": {
+    "id": "example"
+  },
+  "core": {
+    "source": {
+      "repository": "https://github.com/eventide-manafield/manafield",
+      "ref": "34672cc870482d917ffe6444b6d06b645c14a422"
+    }
+  },
+  "runtimeProviders": [
+    {
+      "id": "docker"
+    }
+  ],
+  "modules": [
+    {
+      "id": "manafield-reference",
+      "source": {
+        "type": "git",
+        "repository": "https://github.com/eventide-manafield/manafield-module-reference",
+        "ref": "ff9cc9cd8a35b0b225cfca60fe0455ea3927bbdd"
+      },
+      "build": {
+        "type": "docker",
+        "context": ".",
+        "dockerfile": "Dockerfile"
+      },
+      "bindings": {}
+    }
+  ],
+  "resources": [
+    {
+      "id": "manafield-postgres",
+      "provider": "postgresql"
+    }
+  ],
+  "deployment": {
+    "modulesNetwork": "manafield-modules",
+    "edgeNetwork": "manafield-edge"
+  }
+}

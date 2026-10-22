@@ -1,0 +1,33 @@
+{
+  "id": "manafield-reference",
+  "name": "Manafield Reference",
+  "version": "0.0.1",
+  "healthOperation": "health",
+  "operations": [
+    {
+      "id": "health",
+      "input": null,
+      "output": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "binding": {
+        "type": "http",
+        "method": "GET",
+        "path": "/manafield/health",
+        "codecs": [
+          "json"
+        ]
+      },
+      "description": "Reports whether the Reference Module is healthy."
+    }
+  ],
+  "description": "Reference Web Module for validating the Manafield Module Protocol and Registry discovery."
+}

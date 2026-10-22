@@ -1,0 +1,85 @@
+name: ${MANAFIELD_COMPOSE_PROJECT:?prepare release first}
+services:
+  core:
+    image: ${MANAFIELD_CORE_IMAGE:?digest required}
+    platform: linux/amd64
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      MANAFIELD_BIND: 0.0.0.0:8080
+      MANAFIELD_MODULES_DIR: /var/lib/manafield/modules
+      MANAFIELD_LOG_FILE: /var/lib/manafield/logs/core.jsonl
+    volumes:
+      - type: bind
+        source: ./modules
+        target: /var/lib/manafield/modules
+        read_only: true
+    tmpfs:
+      - /var/lib/manafield/logs:rw,uid=10001,gid=10001,size=16m
+    healthcheck:
+      test: [CMD, /usr/local/bin/manafield-healthcheck]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+    networks: [modules]
+  manafield-postgres:
+    image: ${MANAFIELD_POSTGRES_IMAGE:?digest required}
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: manafield
+      POSTGRES_DB: manafield
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-admin
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - type: bind
+        source: ./secrets/postgres-admin
+        target: /run/secrets/postgres-admin
+        read_only: true
+    healthcheck:
+      test: [CMD, pg_isready, -U, manafield, -d, manafield]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    networks: [modules]
+  manafield-postgres-provider:
+    image: ${MANAFIELD_POSTGRES_PROVIDER_IMAGE:?digest required}
+    platform: linux/amd64
+    user: "${MANAFIELD_POSTGRES_PROVIDER_UID:?}:${MANAFIELD_POSTGRES_PROVIDER_GID:?}"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    environment:
+      MANAFIELD_CORE_URL: http://core:8080
+      MANAFIELD_RESOURCE_ID: manafield-postgres
+      POSTGRES_HOST: manafield-postgres
+      POSTGRES_USER: manafield
+      POSTGRES_DB: manafield
+      MANAFIELD_POSTGRES_ALLOCATIONS_FILE: /run/manafield/postgresql/allocations.tsv
+    volumes:
+      - type: bind
+        source: ./postgresql-allocations.tsv
+        target: /run/manafield/postgresql/allocations.tsv
+        read_only: true
+    depends_on:
+      core: {condition: service_healthy}
+      manafield-postgres: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, test, -f, /tmp/manafield-postgresql-ready]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+    networks: [modules]
+volumes:
+  postgres-data: {}
+networks:
+  modules:
+    name: ${MANAFIELD_MODULES_NETWORK:?prepare release first}

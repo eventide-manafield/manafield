@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "release_version": "2026.10.22-image-instance.1",
+  "cli_release_version": "2026.10.22-network-bindings.1",
+  "cli_source_sha": "60214d2c15061855ab4c9dac993642f2db8244f1",
+  "platform": "linux/amd64",
+  "images": {
+    "cli": {
+      "image": "ghcr.io/eventide-manafield/manafield-cli@sha256:4e8b93b4c40bbed975ac17e013451fe1f322cf82f3251a9a14bb31015854cb9e",
+      "source_sha": "60214d2c15061855ab4c9dac993642f2db8244f1"
+    },
+    "core": {
+      "image": "ghcr.io/eventide-manafield/manafield-core@sha256:76186c9f0ac917b84a7eab955af16d1cbb5aae7227d59d3dd89b6faab49c8b87",
+      "source_sha": "34672cc870482d917ffe6444b6d06b645c14a422"
+    },
+    "reference": {
+      "image": "ghcr.io/eventide-manafield/manafield-reference@sha256:c36be83170ccadf34206e60eb7c3818b8ae3bb27e8493bcd74e653d31c7278ca",
+      "source_sha": "ff9cc9cd8a35b0b225cfca60fe0455ea3927bbdd"
+    },
+    "postgresql": {
+      "image": "docker.io/library/postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873",
+      "source_sha": null
+    },
+    "provider": {
+      "image": "ghcr.io/eventide-manafield/manafield-resource-postgresql@sha256:99a5965b0aea6683aad2e891fef1565093f3d3a38faa1b28fe0f8c9b58bd6478",
+      "source_sha": "60214d2c15061855ab4c9dac993642f2db8244f1"
+    }
+  },
+  "cli_binary_sha256": "3f9736bcbb61f1af15ce53ec908a04f15dbb24e779732fd735450295aa958346"
+}
