@@ -171,6 +171,12 @@ fn prepare_inside(
     let modules_dir = stage.join("modules");
     let module_sources_dir = stage.join("sources");
     fs::create_dir_all(&modules_dir).map_err(|e| fail(e.to_string()))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&modules_dir, fs::Permissions::from_mode(0o755))
+            .map_err(|e| fail(e.to_string()))?;
+    }
     fs::create_dir_all(&module_sources_dir).map_err(|e| fail(e.to_string()))?;
     let mut allocations = Vec::<String>::new();
     let mut used_schema = BTreeSet::new();
@@ -237,6 +243,19 @@ fn prepare_inside(
         fs::create_dir_all(&output_dir).map_err(|e| fail(e.to_string()))?;
         fs::copy(&manifest, output_dir.join("manafield.module.json"))
             .map_err(|e| fail(e.to_string()))?;
+        // Public descriptors must be readable by non-root Core, even with umask 077.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&output_dir, fs::Permissions::from_mode(0o755))
+                .and_then(|_| {
+                    fs::set_permissions(
+                        output_dir.join("manafield.module.json"),
+                        fs::Permissions::from_mode(0o644),
+                    )
+                })
+                .map_err(|e| fail(e.to_string()))?;
+        }
         let context = module_source_dir(&source_dir, field(&module["build"], "context")?)?;
         let dockerfile = field(&module["build"], "dockerfile")?;
         if dockerfile.starts_with('/') || dockerfile.split('/').any(|p| p == "..") {

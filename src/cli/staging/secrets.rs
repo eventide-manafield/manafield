@@ -18,14 +18,7 @@ pub(super) fn create_secret(path: &Path) -> Result<(), CliError> {
                 path.display()
             )));
         }
-        if path.file_name().is_some_and(|f| f == "admin.password") {
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-                    .map_err(|e| fail(format!("cannot restrict PostgreSQL admin secret: {e}")))?;
-            }
-        }
+        set_secret_permissions(path)?;
         return Ok(());
     }
     let parent = path.parent().ok_or_else(|| fail("invalid secret path"))?;
@@ -46,14 +39,22 @@ pub(super) fn create_secret(path: &Path) -> Result<(), CliError> {
     }
     value.push('\n');
     write_secret_file(path, value.as_bytes())?;
-    // Admin password never needs to be read by the Module container.
-    if path.file_name().is_some_and(|f| f == "admin.password") {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-                .map_err(|e| fail(format!("cannot restrict PostgreSQL admin secret: {e}")))?;
-        }
+    set_secret_permissions(path)?;
+    Ok(())
+}
+// Private host directories protect these files; Module bind mounts must remain
+// readable across container UIDs. Admin credentials are never mounted to Modules.
+fn set_secret_permissions(path: &Path) -> Result<(), CliError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = if path.file_name().is_some_and(|f| f == "admin.password") {
+            0o600
+        } else {
+            0o444
+        };
+        fs::set_permissions(path, fs::Permissions::from_mode(mode))
+            .map_err(|e| fail(format!("cannot set PostgreSQL secret permissions: {e}")))?;
     }
     Ok(())
 }

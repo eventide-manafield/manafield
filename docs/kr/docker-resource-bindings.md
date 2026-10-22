@@ -4,6 +4,8 @@ Module 개발자는 `manafield.module.json`에 `requires.capabilities`를 선언
 
 직접 CLI 배포는 이미 `manafield-<instance-id>` Compose 프로젝트와 `<deployment.modulesNetwork>-<instance-id 소문자>` 네트워크를 생성하고 Core, Module, 관리형 PostgreSQL DB·Provider를 연결한다. Jenkins도 동일한 이름 규칙을 사용한다. 개발자가 Module용 Compose/network 설정을 작성할 필요는 없다. edge는 별도 external 네트워크이며 Core/DB는 연결하지 않는다. ADR-0008의 내부 plane은 신뢰 경계 구분이다. Docker `internal: true`를 강제하거나 Module의 인터넷 outbound를 차단한다는 의미가 아니다.
 
+제한적인 umask에서도 non-root Core가 읽을 수 있도록 공개 Module descriptor 디렉터리는 0755, 파일은 0644로 기록한다. Binding 비밀 파일은 private 호스트 디렉터리 아래 0444로 유지하여 non-root Module의 읽기 전용 bind mount에서 읽을 수 있게 하며 관리자 비밀번호는 0600을 유지한다.
+
 명시적 PostgreSQL Binding에만 기존 materializer가 host/port/database/schema/username과 `MANAFIELD_BINDING_<SLOT>_SECRET_PASSWORD_FILE`을 주입한다. 비밀번호는 Instance의 private 디렉터리에 보존하며 해당 Module에 읽기 전용 마운트한다. Module은 이 계약을 읽는 PostgreSQL 드라이버 코드를 제공해야 한다. 배포 시스템이 임의의 앱 설정 형식을 추측하지 않는다.
 
 PostgreSQL에 Binding된 Module은 Provider healthcheck를 기다린다. Provider는 할당 manifest의 모든 역할·스키마 구성이 성공하고 Core 등록을 확인한 뒤 tmpfs에 준비 표시를 만든다. 실패 시 준비되지 않은 상태를 유지한다. 새 Release는 새 manifest 경로를 사용하므로 기존 Compose 동작에 따라 Provider가 재생성되고 새 할당을 처리한다. Binding 없는 Module에는 DB 접속정보나 비밀 파일을 전달하지 않는다. 이 시작 순서 보장은 실행 중 DB 장애 시 Module을 자동 중단하거나 전체 복구를 수행하는 정책은 아니다.
