@@ -12,8 +12,6 @@ PostgreSQL에 Binding된 Module은 Provider healthcheck를 기다린다. Provide
 
 관리형 Resource의 생성·연결은 Instance Definition과 CLI/Jenkins 배포 책임이다. Core의 `/resources` 등록 API만 호출해 임의의 외부 DB/컨테이너를 등록하는 것으로 Docker 연결을 변경하지 않는다. 현재 직접 배포는 PostgreSQL Resource 한 개 및 외부 노출 없는 Module까지 지원한다. 다중 Resource, 외부 DB 관리 어댑터는 이번 변경에 포함하지 않는다.
 
-## Nexus 반영
+## 릴리스 사용
 
-Studio에서 이 브랜치의 CLI 및 변경된 PostgreSQL Provider를 새 태그로 빌드·검증하고 게시 승인 후 Registry에 게시한다. 기존 릴리스 Provider는 준비 표시를 만들지 않으므로 새 healthcheck와 함께 사용할 수 없다. Core 런타임을 재빌드할 필요는 없다. 새로운 CLI, Compose 템플릿, Provider를 함께 반영한 staged release를 Studio에서 준비하고, Nexus에는 이미지 digest와 완성된 배포 산출물만 전달한다. Nexus에서 `--source` 직접 빌드 경로를 실행하지 않는다. staged build-plan은 immutable Release와 같아야 하고 경로·secret mount·Core healthcheck는 Nexus 및 선택한 런타임에 맞아야 한다. Provider UID/GID도 Nexus에서 실제 비밀 파일을 소유하는 UID/GID로 설정하며 Studio의 숫자를 그대로 가정하지 않는다. 현재 CLI의 새 Release apply 후 health 확인은 curl을 호출하므로 curl 없는 보안 강화 Core 이미지에는 그대로 사용할 수 없다. 해당 이미지를 쓸 때는 준비된 Core healthcheck를 `/usr/local/bin/manafield-healthcheck`로 지정하고, 배포 승인 후 `docker compose --env-file <release>/release.env -f <release>/compose.yml -f <release>/modules.compose.yml --profile postgresql up -d --no-build`를 사용한다. 기존 릴리스의 수명주기 기록과 검증 절차도 별도로 유지한다. 이 호환성 제한은 이번 네트워크·Binding 개선에서 변경하지 않았다.
-
-Jenkins의 기존 고정 프로젝트/네트워크에서 새 Instance별 프로젝트로 전환하면 새 DB 볼륨을 만들 수 있다. 기존 Studio/Nexus에 그대로 적용하지 않는다. 이전 프로젝트·DB 볼륨·네트워크 소유권과 백업/이관을 별도 검토한 뒤 승인받아 적용한다. 이번 작업은 운영 파일, 기존 개발 컨테이너·DB·볼륨을 변경하지 않는다.
+`release/network-bindings/README.ko.md`의 빌드·게시 명령을 사용한다. CLI, PostgreSQL Provider, Compose 템플릿은 같은 릴리스 묶음으로 사용한다. 이전 Provider는 준비 표시를 만들지 않으므로 새 healthcheck와 혼용하지 않는다. Module 개발자는 Requirement를 선언하고 운영자는 concrete Resource Instance에 Binding한다. `MANAFIELD_BINDING_<SLOT>_*`의 host/port/database/schema/username 및 password-file을 Module의 DB 드라이버에 전달한다. 기존 고정 Compose 프로젝트에서 scoped 프로젝트로 전환할 때에는 볼륨과 네트워크 소유권을 검토한다. 이 릴리스는 운영 배포나 데이터 이관을 실행하지 않는다.
