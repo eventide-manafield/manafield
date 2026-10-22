@@ -72,7 +72,7 @@ elif a.action == 'audit':
   write(key+'-trivy.json',clean)
   findings=[]; files=0
   def scan(data,path):
-   for kind,pattern in [('private-key',rb'-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----'),('development-address',rb'manafield\.studio|/home/nayuz|/opt/manafield/ai-workspace'),('credential-url',rb'(?i)(?:postgres(?:ql)?|https?)://[^\s/:]+:[^\s/@]+@')]:
+   for kind,pattern in [('private-key',rb'-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----'),('development-address',rb'manafield\.studio|/home/nayuz|/opt/manafield/ai-workspace'),('credential-url',rb'(?i)(?:postgres(?:ql)?|https?)://[^\s/:\x00]{1,128}:[^\s/@\x00]{1,256}@')]:
     if re.search(pattern,data):findings.append({'path':path,'type':kind,'value':'[REDACTED]'})
   with tarfile.open(archive) as t:
    manifest=json.load(t.extractfile('manifest.json'))[0];scan(t.extractfile(manifest['Config']).read(),'config-env-labels-history')
