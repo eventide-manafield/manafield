@@ -156,7 +156,7 @@ rm -f "$READY_FILE"
 allocations_provisioned=false
 
 while true; do
-  if pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" >/dev/null 2>&1; then
+  if pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
     if [ "$allocations_provisioned" = "false" ]; then
       if provision_allocations; then
         allocations_provisioned=true
@@ -177,7 +177,7 @@ while true; do
   fi
 
   if [ "$allocations_provisioned" = "true" ] &&
-     pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" >/dev/null 2>&1 &&
+     pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1 &&
      [ "$(resource_status)" = "200" ]; then
     touch "$READY_FILE"
   else
